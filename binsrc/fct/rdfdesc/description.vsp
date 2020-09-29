@@ -148,6 +148,8 @@ again:
   ua :=   http_request_header (lines, 'User-Agent');
   all_langs := b3s_get_lang_acc (lines);
   lang_parm := get_keyword ('lang', params, '');
+  -- GS PATCH FOR DISPLAYING ALL LANGUAGES
+  lang_parm := '*';	
   if (length (lang_parm))
     {
       all_langs := vector (lang_parm, 1.0);
