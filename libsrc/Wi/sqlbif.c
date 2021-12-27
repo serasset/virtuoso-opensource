@@ -33,14 +33,6 @@
 
 #include <math.h>
 
-#if defined(unix) && !defined(HAVE_GETRUSAGE)
-#define HAVE_GETRUSAGE
-#endif
-
-#ifdef HAVE_GETRUSAGE
-#include <sys/resource.h>
-#endif
-
 #include "sqlnode.h"
 #include "sqlver.h"
 #include "sqlfn.h"
@@ -87,6 +79,10 @@ extern "C" {
 #include "http_client.h" /* for MD5_Init and the like */
 #include "sparql.h"
 #include "aqueue.h"
+
+#ifdef HAVE_GETRUSAGE
+#include <sys/resource.h>
+#endif
 
 #define box_bool(n) ((caddr_t)((ptrlong)((n) ? 1 : 0)))
 
@@ -8104,6 +8100,9 @@ bif_check (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 
 #include "sql3.h"
 
+extern int scn3yylex (YYSTYPE *, yyscan_t);
+extern int scn3splityylex (YYSTYPE *, yyscan_t);
+
 caddr_t
 sql_lex_analyze (const char * str2, caddr_t * qst, int max_lexems, int use_strval, int find_lextype)
 {
@@ -10495,6 +10494,16 @@ do_datetime:
 	case DV_STRING:
 	  res = string_to_dt_box (data);
           break;
+	case DV_LONG_INT:
+	case DV_SHORT_INT:
+	  {
+	      time_t t = (time_t) unbox(data);
+	      res = dk_alloc_box (DT_LENGTH, DV_DATETIME);
+	      time_t_to_dt (t, 0L, res);
+	      DT_SET_TZ (res, 0);
+	      DT_SET_TZL (res, 0);
+	      break;
+	  }
 	case DV_DATETIME:
 	case DV_DATE:
 	case DV_TIME:
@@ -11452,9 +11461,15 @@ bif_registry_get (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 {
   caddr_t res;
   caddr_t name = bif_string_arg (qst, args, 0, "registry_get");
+  caddr_t dflt = BOX_ELEMENTS (args) > 1 ? bif_string_or_null_arg (qst, args, 1, "registry_get") : NULL;
+
   IN_TXN;
   res = registry_get (name);
   LEAVE_TXN;
+
+  if (!res && dflt)
+    res = box_copy (dflt);
+
   return res;
 }
 
@@ -14903,9 +14918,6 @@ bif_self_meter (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
   return 0;
 }
 
-#ifndef RUSAGE_SELF
-#undef HAVE_GETRUSAGE
-#endif
 
 caddr_t
 bif_getrusage (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)

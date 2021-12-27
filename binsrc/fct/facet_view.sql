@@ -313,7 +313,7 @@ fct_query_info (in tree any,
                          charset_recode (xpath_eval ('string (.)', tree), '_WIDE_', 'UTF-8')),
                 txt);
       else if (vt = 'properties')
-        fct_li (sprintf (' %s is the %s of <a class="qry_info_cmd" href="/fct/facet.vsp?sid=%d&cmd=set_view&type=text-properties&limit=%d&offset=0&cno=%d">any %s</a> where the %s is associated with <span class="value">"%s"</span> <a href="/fct/facet.vsp?sid=%d&cmd=drop_text">Drop</a>. ',
+        fct_li (sprintf (' %s is the %s of <a class="qry_info_cmd" href="/fct/facet.vsp?sid=%d&cmd=set_view&type=text-properties&limit=%d&offset=0&cno=%d">any %s</a> where the %s is associated with <span class="value">"%V"</span> <a href="/fct/facet.vsp?sid=%d&cmd=drop_text">Drop</a>. ',
                          fct_var_tag (this_s, ctx), 
 			 fct_s_term (),
                          connection_get ('sid'), 
@@ -325,7 +325,7 @@ fct_query_info (in tree any,
                          connection_get ('sid')), 
                  txt);
       else if (vt = 'properties-in') 
-        fct_li (sprintf (' %s is the %s of <a class="qry_info_cmd" href="/fct/facet.vsp?sid=%d&cmd=set_view&type=text-properties&limit=%d&offset=0&cno=%d">any %s</a> where the %s is associated with <span class="value">"%s"</span> <a href="/fct/facet.vsp?sid=%d&cmd=drop_text">Drop</a>. ',
+        fct_li (sprintf (' %s is the %s of <a class="qry_info_cmd" href="/fct/facet.vsp?sid=%d&cmd=set_view&type=text-properties&limit=%d&offset=0&cno=%d">any %s</a> where the %s is associated with <span class="value">"%V"</span> <a href="/fct/facet.vsp?sid=%d&cmd=drop_text">Drop</a>. ',
                          fct_var_tag (this_s, ctx), 
 			 fct_o_term (),
                          connection_get ('sid'), 
@@ -337,7 +337,7 @@ fct_query_info (in tree any,
                          connection_get ('sid')), 
                  txt);
       else
-        fct_li (sprintf (' %s has <a class="qry_info_cmd" href="/fct/facet.vsp?sid=%d&cmd=set_view&type=text-properties&limit=%d&offset=0&cno=%d">any %s</a> with %s <span class="value">"%s"</span> <a href="/fct/facet.vsp?sid=%d&cmd=drop_text">Drop</a>. ',
+        fct_li (sprintf (' %s has <a class="qry_info_cmd" href="/fct/facet.vsp?sid=%d&cmd=set_view&type=text-properties&limit=%d&offset=0&cno=%d">any %s</a> with %s <span class="value">"%V"</span> <a href="/fct/facet.vsp?sid=%d&cmd=drop_text">Drop</a>. ',
                          fct_var_tag (this_s, ctx),
                          connection_get ('sid'),
 			 lim,
@@ -568,20 +568,6 @@ fct_query_info (in tree any,
 }
 ;
 
-VHOST_REMOVE (lpath=>'/fct');
-VHOST_DEFINE (
-  lpath=>'/fct',
-    	ppath=>case when registry_get('_fct_path_') = 0 then '/fct/' else registry_get('_fct_path_') end,
-	is_dav=>atoi (case when registry_get('_fct_dav_') = 0 then '0' else registry_get('_fct_dav_') end),
-  vsp_user=>'SPARQL',
-  def_page=>'facet.vsp'
-  );
-VHOST_REMOVE (lpath=>'/b3s');
-VHOST_DEFINE (lpath=>'/b3s',
-    	ppath=>case when registry_get('_fct_path_') = 0 then '/fct/' else registry_get('_fct_path_') end || 'www/',
-	is_dav=>atoi (case when registry_get('_fct_dav_') = 0 then '0' else registry_get('_fct_dav_') end),
-    	vsp_user=>'SPARQL', def_page=>'listall.vsp');
-
 
 create procedure
 fct_top (in tree any, in txt any)
@@ -705,20 +691,31 @@ fct_nav (in tree any,
   if ('geo' <> tp)
     {
       --fct_view_link ('geo', 'Map', txt);
+      declare glst, gval, gopt any;
+      declare i, len int;
+
+      glst := rdf_super_sub_list ('virtrdf-url', __i2id ('http://www.openlinksw.com/schemas/virtrdf#geo_cont'), 3);
+      gopt := '';
+      if (length (glst) > 1)
+        {
+          -- sort strings
+          for (i := 0; i < length (glst); i := i + 1)
+          {
+            glst [i] := fct_uri_curie (id_to_iri (glst [i]));
+          }
+          glst := __vector_sort (glst, 2, 0, 1);
+        }
+          for (i := 1; i < length (glst); i := i + 1)
+            {
+              gval := glst [i];
+              if (gval <> 'virtrdf:geo_cont')
+                gopt := gopt || sprintf ('<option value="%s">%s</option>', gval, gval);
+            }
       http (sprintf ('<li><a id="map_link" href="/fct/facet.vsp?cmd=set_view&sid=%d&type=%s&limit=%d&offset=0" title="%V">%s</a>&nbsp;'||
 	    		'<select name="map_of" onchange="javascript:link_change(this.value)">'||
 	    		'<option value="any">Any location</option>'||
 	    		'<option value="">Shown items</option>'||
-	    		'<option value="dbp:location">dbpedia:location</option>'||
-	    		'<option value="dbp:place">dbpedia:place</option>'||
-	    		'<option value="foaf:based_near">foaf:based_near</option>'||
-	    		'<option value="geo:location">geo:location</option>'||
-	    		'<option value="geo:Point">geo:Point</option>'||
-	    		'<option value="dbp:birthPlace">dbpedia:birthPlace</option>'||
-	    		'<option value="dbp:placeOfBirth">dbpedia:placeOfBirth</option>'||
-	    		'<option value="dbp:birthplace">dbpedia:birthplace</option>'||
-	    		'<option value="dbp:placeOfDeath">dbpedia:placeOfDeath</option>'||
-	    		'<option value="dbp:deathPlace">dbpedia:deathPlace</option>'||
+                        gopt ||
 			'</select></li>',
                  connection_get ('sid'), 'geo', lim, 'Geospatial Entities projected over Map overlays', 'Places'), txt);
     }
@@ -906,14 +903,28 @@ fct_pretty_sparql (in q varchar, in lev int := 0)
 ;
 
 create procedure
-fct_c_plink (in p_xml any)
+fct_c_plink (in p_xml any, in retry_timeout varchar)
 {
   declare link any;
-  link := sprintf ('local:/fct/facet.vsp?qxml=%U', p_xml);
+  link := sprintf ('local:/fct/facet.vsp?qxml=%U&timeout=%U', p_xml, retry_timeout);
   link := uriqa_dynamic_local_replace (link);
   if (__proc_exists ('WS..CURI_MAKE_CURI') is not null)
     link := '/c/' || WS..CURI_MAKE_CURI (link);
   return link;  
+}
+;
+
+create procedure
+fct_cctr ()
+{
+  declare in_header, out_header, cctr varchar;
+  in_header := http_header_get ();
+  cctr := registry_get ('fct_cctr');
+  if (strcasestr (in_header, 'Cache-Control:') is null and cctr <> 0)
+    {
+      in_header := in_header || 'Cache-Control:' || cctr || '\r\n';
+      http_header (in_header);
+    }
 }
 ;
 
@@ -992,13 +1003,17 @@ fct_web (in tree any, in sid int)
   declare p_xml, p_link varchar;
   declare p_xml_tree any;
 
-  p_xml_tree := xslt (registry_get ('_fct_xslt_') || 'fct_strip_loc.xsl', tree, vector());
+  declare complete, retry_timeout any;
+  complete := cast (xpath_eval ('//complete', reply) as varchar);
+  retry_timeout := cast (xpath_eval ('//timeout', reply) as varchar);
 
+  p_xml_tree := xslt (registry_get ('_fct_xslt_') || 'fct_strip_loc.xsl', tree, vector());
   p_ses := string_output();
   http_value (p_xml_tree, null, p_ses);
 
-  p_xml := cast (p_ses as varchar);
-  p_link := fct_c_plink (p_xml);
+  p_xml := string_output_string (p_ses);
+  __box_flags_set (p_xml, 2);
+  p_link := fct_c_plink (p_xml, retry_timeout);
 
   r_ses := string_output ();
   http_value (reply, null, r_ses);
@@ -1590,10 +1605,42 @@ fct_create_ses ()
 {
   declare sid int;
   declare new_tree any;
+  declare reg_default_limit, reg_default_inf, reg_default_invfp, reg_default_sas, reg_default_terminology any;
+
+  -- Global, pan-user defaults set through Conductor's Faceted Browser Configuration UI
+  reg_default_limit := registry_get('fct_default_limit'); 
+  reg_default_inf := registry_get('fct_default_inf'); 
+  reg_default_invfp := registry_get('fct_default_invfp'); 
+  reg_default_sas := registry_get('fct_default_sas'); 
+  reg_default_terminology := registry_get('fct_default_terminology');
+
+  if (isstring(reg_default_limit))
+    reg_default_limit := atoi(reg_default_limit);
+
+  -- These registry entries are created by the VAD installer if they don't already exist,
+  -- but just in case...
+  if (reg_default_limit = 0) 
+    reg_default_limit := 50; 
+  if (reg_default_inf = 0 or reg_default_inf = 'None')
+    reg_default_inf := '';
+  if (reg_default_invfp = 0)
+    reg_default_invfp := 'IFP_OFF';
+  if (reg_default_sas = 0)
+    reg_default_sas := 'SAME_AS_OFF';
+  if (reg_default_terminology = 0)
+    reg_default_terminology := 'eav';
+
+  declare default_s_term, default_c_term varchar;
+  default_s_term := case when reg_default_terminology = 'eav' then 'e' else 's' end;
+  connection_set ('s_term', default_s_term);
+  default_c_term := case when reg_default_terminology = 'eav' then 'type' else 'class' end;
+  connection_set ('c_term', default_c_term);
 
   sid := sequence_next ('fct_seq');
-  new_tree := xtree_doc(sprintf ('<?xml version="1.0" encoding="UTF-8"?>\n' ||
-                        '<query inference="" same-as="" view3="" s-term="" c-term="" agg="" limit="%d"/>', 20));
+  new_tree := xtree_doc(sprintf (
+    '<?xml version="1.0" encoding="UTF-8"?>\n' ||
+    '<query inference="%s" invfp="%s" same-as="%s" view3="" s-term="%s" c-term="%s" agg="" limit="%d"/>', 
+    reg_default_inf, reg_default_invfp, reg_default_sas, default_s_term, default_c_term, reg_default_limit));
 
   insert into fct_state (fct_sid, fct_state)
          values (sid, new_tree);
@@ -2448,7 +2495,7 @@ exec:;
   if ('' = c_term) c_term := 'class';
   connection_set ('c_term', c_term);
 
-  if (registry_get ('fct_log_enable') = 1)
+  if (registry_get ('fct_log_enable') = '1')
     insert into fct_log (fl_sid, fl_cli_ip, fl_where, fl_state, fl_cmd)
          values (sid, http_client_ip(), 'DISPATCH', tree, cmd);
 

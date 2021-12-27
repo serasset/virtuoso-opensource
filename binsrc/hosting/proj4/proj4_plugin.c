@@ -25,7 +25,7 @@
 #include "geo.h"
 #include "import_gate_virtuoso.h"
 
-#define PLUGIN_VERSION "1.0"
+#define PLUGIN_VERSION "1.1"
 
 query_t *srid_to_proj4_string_qr = NULL;
 id_hash_t *virt_proj4_sr_iri_to_srid = NULL;
@@ -226,7 +226,9 @@ virt_proj4_geo_transform (projPJ orig_pj, projPJ dest_pj, geo_t *g, int orig_deg
     }
   switch (GEO_TYPE_CORE (flags))
     {
-    case GEO_NULL_SHAPE: case GEO_BOX:
+    case GEO_NULL_SHAPE: 
+      return NULL;
+    case GEO_BOX:
       XYBOX_PROJECT(g->XYbox, g->_.point.point_ZMbox);
       return NULL;
     case GEO_POINT:
