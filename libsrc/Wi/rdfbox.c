@@ -4,7 +4,7 @@
  *  This file is part of the OpenLink Software Virtuoso Open-Source (VOS)
  *  project.
  *
- *  Copyright (C) 1998-2021 OpenLink Software
+ *  Copyright (C) 1998-2022 OpenLink Software
  *
  *  This project is free software; you can redistribute it and/or modify it
  *  under the terms of the GNU General Public License as published by the
@@ -6745,7 +6745,7 @@ rdf_repl_feed_batch_of_rquads (query_instance_t *qi, caddr_t **rquads_vector, cc
             void **params;
             static const char *geo_qr_text = "insert soft DB.DBA.RDF_QUAD (G,S,P,O) \
  values (iri_to_id_repl (?), iri_to_id_repl (?), iri_to_id (\'http://www.w3.org/2003/01/geo/wgs84_pos#geometry\'), \
- rdf_geo_add (rdf_box (st_point (?, ?), 256, 257, 0, 1)))";
+ DB.DBA.RDF_GEO_ADD (rdf_box (st_point (?, ?), 256, 257, 0, 1)))";
             if (NULL == geo_qr)
               {
                 geo_qr = sql_compile (geo_qr_text, qi->qi_client, &err, SQLC_DEFAULT);

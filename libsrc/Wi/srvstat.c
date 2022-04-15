@@ -8,7 +8,7 @@
  *  This file is part of the OpenLink Software Virtuoso Open-Source (VOS)
  *  project.
  *
- *  Copyright (C) 1998-2021 OpenLink Software
+ *  Copyright (C) 1998-2022 OpenLink Software
  *
  *  This project is free software; you can redistribute it and/or modify it
  *  under the terms of the GNU General Public License as published by the
@@ -481,7 +481,7 @@ long st_cli_n_current_connections = 0;
 long fe_replication_support = 0;
 
 long sparql_result_set_max_rows = 0;
-long sparql_max_mem_in_use = 0;
+size_t sparql_max_mem_in_use = 0L;
 
 extern int rdf_create_graph_keywords;
 extern int rdf_query_graph_keywords;
@@ -1555,6 +1555,7 @@ stat_desc_t stat_descs [] =
     {"mp_large_in_use", (long *)&mp_large_in_use, NULL},
     {"mp_max_large_in_use", (long *)&mp_max_large_in_use, NULL},
     {"mp_mmap_clocks", &mp_mmap_clocks, NULL},
+    {"dict_max_mp_bytes_in_use", &dict_max_mp_bytes_in_use, SD_INT64},
     {"tc_read_aside", &tc_read_aside, NULL},
     {"tc_merge_reads", &tc_merge_reads, NULL},
     {"tc_merge_read_pages", &tc_merge_read_pages, NULL},
@@ -1731,9 +1732,9 @@ stat_desc_t stat_descs [] =
     {"sqlc_add_views_qualifiers", &sqlc_add_views_qualifiers, NULL},
 
     {"db_ver_string", NULL, &db_version_string},
-#ifdef unix
+
     {"git_head", NULL, &git_head},
-#endif
+
     {"db_max_col_bytes", &db_max_col_bytes, NULL},
     {"db_sizeof_wide_char", &db_sizeof_wide_char, NULL},
 
@@ -1777,7 +1778,7 @@ stat_desc_t stat_descs [] =
 
     /* sparql vars */
     {"sparql_result_set_max_rows", &sparql_result_set_max_rows, NULL},
-    {"sparql_max_mem_in_use", &sparql_max_mem_in_use, NULL},
+    {"sparql_max_mem_in_use", &sparql_max_mem_in_use, SD_INT64},
     {"rdf_create_graph_keywords", &rdf_create_graph_keywords, SD_INT32},
     {"rdf_query_graph_keywords", &rdf_query_graph_keywords, SD_INT32},
     {"enable_vec", (long *)&enable_vec, SD_INT32},
@@ -1905,7 +1906,7 @@ stat_desc_t dbf_descs [] =
     {"mp_large_soft_cap", &mp_large_soft_cap},
     {"mp_large_hard_cap", &mp_large_hard_cap},
     {"mp_sparql_cap", &mp_sparql_cap, NULL},
-
+    {"sparql_max_mem_in_use", &sparql_max_mem_in_use, SD_INT64},
     {"iri_range_size", (long *)&iri_range_size, SD_INT32},
     { "tn_max_memory",  (long *)&tn_max_memory, NULL},
     {"tn_at_mem_cutoff", (long *)&tn_at_mem_cutoff, NULL},
@@ -4838,6 +4839,7 @@ bif_stat_import (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 	{
       tb_sample_t smpl;
 	  caddr_t k = sc_ext_to_data (qi, smp[0]);
+#if 0				/* debug code dissabled */
 	  if (stat_trap)
 	    {
 	      caddr_t * k = (caddr_t*)smp[0];
@@ -4852,6 +4854,7 @@ bif_stat_import (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 		}
 	    }
 	  stat_adjust_key ((caddr_t *)k);
+#endif
 	  memzero (&smpl, sizeof (smpl));
 	  smpl.smp_time = approx_msec_real_time ();
 	  smpl.smp_card = unbox_float (smp[1]);

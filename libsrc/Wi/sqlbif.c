@@ -8,7 +8,7 @@
  *  This file is part of the OpenLink Software Virtuoso Open-Source (VOS)
  *  project.
  *
- *  Copyright (C) 1998-2021 OpenLink Software
+ *  Copyright (C) 1998-2022 OpenLink Software
  *
  *  This project is free software; you can redistribute it and/or modify it
  *  under the terms of the GNU General Public License as published by the
@@ -11136,6 +11136,10 @@ check_sequence_grants (query_instance_t * qi, caddr_t name)
 static int registry_name_is_protected (const caddr_t name)
 {
   if (!strncmp (name, "__key__", 7))
+    return 2;
+  if (!strncmp (name, "__EM:", 5))
+    return 2;
+  if (!strncmp (name, "__EMC:", 6))
     return 2;
   if (!strcmp (name, "__next_free_port"))
     return 1;

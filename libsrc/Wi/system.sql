@@ -4,7 +4,7 @@
 --  This file is part of the OpenLink Software Virtuoso Open-Source (VOS)
 --  project.
 --
---  Copyright (C) 1998-2021 OpenLink Software
+--  Copyright (C) 1998-2022 OpenLink Software
 --
 --  This project is free software; you can redistribute it and/or modify it
 --  under the terms of the GNU General Public License as published by the
@@ -5188,7 +5188,7 @@ create procedure cl_new_db ()
   cl_wait_start ();
   log_message ('new clustered database:Init of RDF');
   rdf_dpipes ();
-  rdf_cl_init ();
+  DB.DBA.RDF_CL_INIT ();
   DB.DBA.RDF_CREATE_SPARQL_ROLES_CL ();
   WS.WS.SYS_DAV_INIT ();
   cl_exec ('checkpoint');

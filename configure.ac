@@ -5,7 +5,7 @@ AC_PREREQ(2.59)
 #  This file is part of the OpenLink Software Virtuoso Open-Source (VOS)
 #  project.
 #
-#  Copyright (C) 1998-2021 OpenLink Software
+#  Copyright (C) 1998-2022 OpenLink Software
 #
 #  This project is free software; you can redistribute it and/or modify it
 #  under the terms of the GNU General Public License as published by the
@@ -3167,6 +3167,7 @@ AC_CONFIG_FILES([
 	binsrc/jena/Makefile
 	binsrc/jena2/Makefile
 	binsrc/jena3/Makefile
+	binsrc/jena4/Makefile
 	binsrc/maildrop/Makefile
 	binsrc/mono/Makefile
 	binsrc/oat/Makefile

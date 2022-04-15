@@ -2,7 +2,7 @@
 --  This file is part of the OpenLink Software Virtuoso Open-Source (VOS)
 --  project.
 --
---  Copyright (C) 1998-2020 OpenLink Software
+--  Copyright (C) 1998-2022 OpenLink Software
 --
 --  This project is free software; you can redistribute it and/or modify it
 --  under the terms of the GNU General Public License as published by the
@@ -443,8 +443,16 @@ create procedure WS.WS.SPARQL_ENDPOINT_FOOTER ()
         <br/>
         Virtuoso version <?V sys_stat('st_dbms_ver') ?> on <?V sys_stat('st_build_opsys_id') ?> (<?V host_id() ?>)
 <?vsp
+    declare rss any;
+    rss := getrusage();
     if (1 = sys_stat('cl_run_local_only'))
-        http(sprintf ('Single Server Edition (%s total memory)\n', mem_hum_size (mem_info_cl())));
+    {
+	if (rss <> 0)
+            http(sprintf ('Single Server Edition (%s total memory, %s memory in use)\n',
+	      mem_hum_size (mem_info_cl()), mem_hum_size(rss[2] * 1024)));
+	else
+            http(sprintf ('Single Server Edition (%s total memory)\n', mem_hum_size (mem_info_cl())));
+    }
     else
         http(sprintf('Cluster Edition (%d server processes, %s total memory)\n', sys_stat('cl_n_hosts'), mem_hum_size (mem_info_cl())));
 ?>
@@ -1199,7 +1207,7 @@ create procedure WS.WS.SPARQL_ENDPOINT_BRIEF_HELP_VIEWS()
 {
     declare storage_is_dflt integer;
     storage_is_dflt := 0;
-    if (exists (sparql define input:storage "" ask from virtrdf:
+    if ((sparql define input:storage "" ask from virtrdf:
         where {
             virtrdf:DefaultQuadStorage a virtrdf:QuadStorage    ;
                 virtrdf:qsDefaultMap virtrdf:DefaultQuadMap     ;

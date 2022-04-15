@@ -2,7 +2,7 @@
 --  This file is part of the OpenLink Software Virtuoso Open-Source (VOS)
 --  project.
 --
---  Copyright (C) 1998-2021 OpenLink Software
+--  Copyright (C) 1998-2022 OpenLink Software
 --
 --  This project is free software; you can redistribute it and/or modify it
 --  under the terms of the GNU General Public License as published by the
@@ -2428,7 +2428,7 @@ create procedure WEBDAV.DBA.settings (
   declare retValue, V any;
 
   V := vector ();
-  if (account_id <> http_nobody_uid ())
+  if (account_id <> http_nobody_uid () and table_exists ('ODRIVE.WA.SETTINGS'))
   {
     retValue := WEBDAV.DBA.exec ('select USER_SETTINGS from ODRIVE.WA.SETTINGS where USER_ID = ?', vector (account_id));
     if ((length (retValue) = 1) and not isnull (retValue[0][0]))
@@ -2444,7 +2444,7 @@ create procedure WEBDAV.DBA.settings_save (
   in account_id integer,
   in settings any)
 {
-  if (account_id = http_nobody_uid ())
+  if (account_id = http_nobody_uid () or 0 = table_exists ('ODRIVE.WA.SETTINGS'))
     return;
 
   WEBDAV.DBA.exec ('insert replacing ODRIVE.WA.SETTINGS (USER_ID, USER_SETTINGS) values (?, serialize (?))', vector (account_id, settings));
