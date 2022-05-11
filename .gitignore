@@ -143,3 +143,5 @@ libsrc/util/getdate.c
 a.out.dSYM
 binsrc/config/ccdefs
 binsrc/config/ccdefs.dSYM/
+.DS_Store
+*~
