@@ -134,7 +134,6 @@ public class VirtuosoRepositoryConnection implements RepositoryConnection {
     private volatile ParserConfig parserConfig = new ParserConfig();
     private IsolationLevel isolationLevel;
     private int concurencyMode;
-    private int trn_concurrencyMode;
 
     public VirtuosoRepositoryConnection(VirtuosoRepository repository, Connection connection) throws RepositoryException {
         this.quadStoreConnection = connection;
@@ -149,8 +148,8 @@ public class VirtuosoRepositoryConnection implements RepositoryConnection {
         this.ruleSet = repository.getRuleSet();
         this.macroLib = repository.getMacroLib();
         this.defGraph = repository.defGraph;
-	this.useDefGraphForQueries = repository.useDefGraphForQueries;
-        this.trn_concurrencyMode = this.concurencyMode = repository.concurencyMode;
+     	this.useDefGraphForQueries = repository.useDefGraphForQueries;
+        this.concurencyMode = repository.concurencyMode;
         this.nilContext = valueFactory.createIRI(repository.defGraph);
         this.repository.initialize();
 
@@ -279,7 +278,7 @@ public class VirtuosoRepositoryConnection implements RepositoryConnection {
      */
     public Query prepareQuery(QueryLanguage ql, String query, String baseURI) throws RepositoryException, MalformedQueryException {
         if (ql != QueryLanguage.SPARQL)
-            throw new UnsupportedQueryLanguageException(" : Only SPARQL queries are supported");
+            throw new UnsupportedQueryLanguageException("Only SPARQL queries are supported");
 
         StringTokenizer st = new StringTokenizer(query);
         String type = null;
@@ -346,7 +345,7 @@ public class VirtuosoRepositoryConnection implements RepositoryConnection {
      */
     public TupleQuery prepareTupleQuery(QueryLanguage ql, final String query, final String baseURI) throws RepositoryException, MalformedQueryException {
         if (ql != QueryLanguage.SPARQL)
-            throw new UnsupportedQueryLanguageException(" : Only SPARQL queries are supported");
+            throw new UnsupportedQueryLanguageException("Only SPARQL queries are supported");
 
         return new VirtuosoTupleQuery() {
             public TupleQueryResult evaluate() throws QueryEvaluationException {
@@ -400,7 +399,7 @@ public class VirtuosoRepositoryConnection implements RepositoryConnection {
      */
     public GraphQuery prepareGraphQuery(QueryLanguage ql, final String query, final String baseURI) throws RepositoryException, MalformedQueryException {
         if (ql != QueryLanguage.SPARQL)
-            throw new UnsupportedQueryLanguageException(" : Only SPARQL queries are supported");
+            throw new UnsupportedQueryLanguageException("Only SPARQL queries are supported");
 
         return new VirtuosoGraphQuery() {
             public GraphQueryResult evaluate() throws QueryEvaluationException {
@@ -454,7 +453,7 @@ public class VirtuosoRepositoryConnection implements RepositoryConnection {
      */
     public BooleanQuery prepareBooleanQuery(QueryLanguage ql, final String query, final String baseURI) throws RepositoryException, MalformedQueryException {
         if (ql != QueryLanguage.SPARQL)
-            throw new UnsupportedQueryLanguageException(" : Only SPARQL queries are supported");
+            throw new UnsupportedQueryLanguageException("Only SPARQL queries are supported");
 
         return new VirtuosoBooleanQuery() {
             public boolean evaluate() throws QueryEvaluationException {
@@ -469,7 +468,7 @@ public class VirtuosoRepositoryConnection implements RepositoryConnection {
 
     public Update prepareUpdate(QueryLanguage ql, final String query, final String baseURI) throws RepositoryException, MalformedQueryException {
         if (ql != QueryLanguage.SPARQL)
-            throw new UnsupportedQueryLanguageException(" : Only SPARQL queries are supported");
+            throw new UnsupportedQueryLanguageException("Only SPARQL queries are supported");
 
         return new VirtuosoUpdate() {
             public void execute() throws UpdateExecutionException {
@@ -512,7 +511,7 @@ public class VirtuosoRepositoryConnection implements RepositoryConnection {
             rs.close();
         }
         catch (Exception e) {
-            throw new RepositoryException(": SPARQL execute failed." + "\n" + query, e);
+            throw new RepositoryException("SPARQL execute failed." + "\n" + query, e);
         }
         finally {
           if (stmt != null)
@@ -731,7 +730,7 @@ public class VirtuosoRepositoryConnection implements RepositoryConnection {
             rs.close();
         }
         catch (Exception e) {
-            throw new RepositoryException(": SPARQL execute failed:["+query+"] \n Exception:"+e);
+            throw new RepositoryException("SPARQL execute failed:["+query+"]", e);
         }
         finally {
           if (st != null)
@@ -765,7 +764,7 @@ public class VirtuosoRepositoryConnection implements RepositoryConnection {
             return result;
         }
         catch (Exception e) {
-            throw new RepositoryException(": SPARQL execute failed:["+query+"] \n Exception:"+e);
+            throw new RepositoryException("SPARQL execute failed:["+query+"]", e);
         }
         finally {
           if (stmt != null)
@@ -864,16 +863,28 @@ public class VirtuosoRepositoryConnection implements RepositoryConnection {
                 throw new IllegalStateException(
                         "Transaction isolation level can not be modified while transaction is active");
             }
-            this.isolationLevel = level;
+            Connection conn = getQuadStoreConnection();
+
+            if (level == IsolationLevels.NONE)
+                conn.setTransactionIsolation(Connection.TRANSACTION_NONE);
+            else if (level == IsolationLevels.READ_UNCOMMITTED)
+                conn.setTransactionIsolation(Connection.TRANSACTION_READ_UNCOMMITTED);
+            else if (level == IsolationLevels.READ_COMMITTED)
+                conn.setTransactionIsolation(Connection.TRANSACTION_READ_COMMITTED);
+            else if (level == IsolationLevels.SERIALIZABLE)
+                conn.setTransactionIsolation(Connection.TRANSACTION_SERIALIZABLE);
+            else if (level == IsolationLevels.SNAPSHOT_READ)
+                throw new IllegalStateException("Unsupported IsolationLevel : SNAPSHOT_READ");
+            else if (level == IsolationLevels.SNAPSHOT)
+                throw new IllegalStateException("Unsupported IsolationLevel : SNAPSHOT");
         }
         catch (UnknownTransactionStateException e) {
             throw new IllegalStateException(
                     "Transaction isolation level can not be modified while transaction state is unknown", e);
 
         }
-        catch (RepositoryException e) {
-            throw new IllegalStateException(
-                    "Transaction isolation level can not be modified due to repository error", e);
+        catch (SQLException e) {
+            throw new IllegalStateException("Transaction isolation level can not be modified", e);
         }
     }
 
@@ -885,7 +896,88 @@ public class VirtuosoRepositoryConnection implements RepositoryConnection {
      * @since 2.8.0
      */
     public IsolationLevel getIsolationLevel() {
-        return this.isolationLevel;
+        try {
+            Connection conn = getQuadStoreConnection();
+            int v = conn.getTransactionIsolation();
+
+            if (v == Connection.TRANSACTION_NONE)
+                return IsolationLevels.NONE;
+            else if (v == Connection.TRANSACTION_READ_UNCOMMITTED)
+                return IsolationLevels.READ_UNCOMMITTED;
+            else if (v == Connection.TRANSACTION_READ_COMMITTED)
+                return IsolationLevels.READ_COMMITTED;
+            else if (v == Connection.TRANSACTION_REPEATABLE_READ)
+                 return IsolationLevels.READ_COMMITTED;
+            else if (v == Connection.TRANSACTION_SERIALIZABLE)
+                return IsolationLevels.SERIALIZABLE;
+            else
+                return IsolationLevels.NONE;
+        }
+        catch (SQLException e) {
+            throw new RepositoryException(e);
+        }
+    }
+
+
+    /**
+     * Attempts to change the transaction isolation level for this
+     * <code>Connection</code> object to the one given.
+     * The constants defined in the interface <code>java.sql.Connection</code>
+     * are the possible transaction isolation levels.
+     * <P>
+     * <B>Note:</B> If this method is called during a transaction, the result
+     * is implementation-defined.
+     *
+     * @param level one of the following <code>Connection</code> constants:
+     *        <code>java.sql.Connection.TRANSACTION_READ_UNCOMMITTED</code>,
+     *        <code>java.sql.Connection.TRANSACTION_READ_COMMITTED</code>,
+     *        <code>java.sql.Connection.TRANSACTION_REPEATABLE_READ</code>, or
+     *        <code>java.sql.Connection.TRANSACTION_SERIALIZABLE</code>.
+     *        (Note that <code>Connection.TRANSACTION_NONE</code> cannot be used
+     *        because it specifies that transactions are not supported.)
+     * @exception IllegalStateException if a database access error occurs, this
+     * method is called on a closed connection
+     *            or the given parameter is not one of the <code>java.sql.Connection</code>
+     *            constants
+     * @see #getJdbcTransactionIsolation
+     */
+    public void setJdbcTransactionIsolation(int level) throws IllegalStateException {
+        try {
+            if (isActive()) {
+                throw new IllegalStateException(
+                        "Transaction isolation level can not be modified while transaction is active");
+            }
+            Connection conn = getQuadStoreConnection();
+            conn.setTransactionIsolation(level);
+        }
+        catch (SQLException e) {
+            throw new IllegalStateException("Transaction isolation level can not be modified", e);
+        }
+    }
+
+    /**
+     * Retrieves this <code>Connection</code> object's current
+     * transaction isolation level.
+     *
+     * @return the current transaction isolation level, which will be one
+     *         of the following constants:
+     *        <code>java.sql.Connection.TRANSACTION_READ_UNCOMMITTED</code>,
+     *        <code>java.sql.Connection.TRANSACTION_READ_COMMITTED</code>,
+     *        <code>java.sql.Connection.TRANSACTION_REPEATABLE_READ</code>,
+     *        <code>java.sql.Connection.TRANSACTION_SERIALIZABLE</code>, or
+     *        <code>java.sql.Connection.TRANSACTION_NONE</code>.
+     * @exception RepositoryException if a database access error occurs
+     * or this method is called on a closed connection
+     * @see #setJdbcTransactionIsolation
+     */
+    public int getJdbcTransactionIsolation() throws RepositoryException {
+        try {
+            Connection conn = getQuadStoreConnection();
+            return conn.getTransactionIsolation();
+        }
+        catch (SQLException e) {
+            throw new RepositoryException(e);
+        }
     }
 
     /**
@@ -907,17 +999,6 @@ public class VirtuosoRepositoryConnection implements RepositoryConnection {
         try {
             Connection conn = getQuadStoreConnection();
             conn.setAutoCommit(false);
-
-            if (isolationLevel == IsolationLevels.READ_UNCOMMITTED)
-                conn.setTransactionIsolation(Connection.TRANSACTION_READ_UNCOMMITTED);
-            else if (isolationLevel == IsolationLevels.READ_COMMITTED)
-                conn.setTransactionIsolation(Connection.TRANSACTION_READ_COMMITTED);
-            else if (isolationLevel == IsolationLevels.SNAPSHOT_READ)
-                conn.setTransactionIsolation(Connection.TRANSACTION_READ_COMMITTED);
-            else if (isolationLevel == IsolationLevels.SNAPSHOT)
-                conn.setTransactionIsolation(Connection.TRANSACTION_READ_COMMITTED);
-            else if (isolationLevel == IsolationLevels.SERIALIZABLE)
-                conn.setTransactionIsolation(Connection.TRANSACTION_SERIALIZABLE);
         }
         catch (SQLException e) {
             throw new RepositoryException(e);
@@ -1968,7 +2049,7 @@ public class VirtuosoRepositoryConnection implements RepositoryConnection {
             return new IteratingTupleQueryResult(names, new CloseableIterationBindingSet(stmt, rs));
         }
         catch (Exception e) {
-            throw new QueryEvaluationException(": SPARQL execute failed:["+query+"] \n Exception:"+e);
+            throw new QueryEvaluationException("SPARQL execute failed:["+query+"]", e);
         }
     }
 
@@ -1990,7 +2071,7 @@ public class VirtuosoRepositoryConnection implements RepositoryConnection {
             return new IteratingGraphQueryResult(new HashMap<String,String>(), new CloseableIterationGraphResult(stmt, rs));
         }
         catch (Exception e) {
-            throw new QueryEvaluationException(": SPARQL execute failed:["+query+"] \n Exception:"+e);
+            throw new QueryEvaluationException("SPARQL execute failed:["+query+"]", e);
         }
 
     }
@@ -2015,7 +2096,7 @@ public class VirtuosoRepositoryConnection implements RepositoryConnection {
             return result;
         }
         catch (Exception e) {
-            throw new QueryEvaluationException(": SPARQL execute failed:["+query+"] \n Exception:"+e);
+            throw new QueryEvaluationException("SPARQL execute failed:["+query+"]", e);
         }
         finally {
           if (stmt != null)
@@ -2058,7 +2139,7 @@ public class VirtuosoRepositoryConnection implements RepositoryConnection {
             tqrh.endQueryResult();
         }
         catch (Exception e) {
-            throw new QueryEvaluationException(": SPARQL execute failed:["+query+"] \n Exception:"+e);
+            throw new QueryEvaluationException("SPARQL execute failed:["+query+"]", e);
         }
         finally {
           if (stmt != null)
@@ -2121,7 +2202,7 @@ public class VirtuosoRepositoryConnection implements RepositoryConnection {
             tqrh.endRDF();
         }
         catch (Exception e) {
-            throw new QueryEvaluationException(": SPARQL execute failed:["+query+"] \n Exception:"+e);
+            throw new QueryEvaluationException("SPARQL execute failed:["+query+"]", e);
         }
         finally {
           if (stmt != null)
@@ -2155,7 +2236,7 @@ public class VirtuosoRepositoryConnection implements RepositoryConnection {
             stmt.execute();
         }
         catch (Exception e) {
-            throw new UpdateExecutionException(": SPARQL execute failed:["+query+"] \n Exception:"+e);
+            throw new UpdateExecutionException("SPARQL execute failed:["+query+"]", e);
         }
         finally {
           if (stmt != null)
@@ -2187,7 +2268,7 @@ public class VirtuosoRepositoryConnection implements RepositoryConnection {
             return stmt.getUpdateCount();
         }
         catch (SQLException e) {
-            throw new RepositoryException(": SPARQL execute failed:["+query+"] \n Exception:"+e);
+            throw new RepositoryException("SPARQL execute failed:["+query+"]", e);
         }
         finally {
             try {
@@ -3002,27 +3083,25 @@ public class VirtuosoRepositoryConnection implements RepositoryConnection {
 
     private void clearQuadStore(Resource[] contexts) throws RepositoryException 
     {
-        PreparedStatement ps = null;
+        java.sql.Statement stmt = null;
 
         if (contexts!=null && contexts.length > 0)
             try {
-                String [] graphs = new String[contexts.length];
-                ps = prepareStatement(S_CLEAR_GRAPH, true);
-                for (int i = 0; i < contexts.length; i++)
-                    graphs[i] = contexts[i].stringValue();
+                stmt = createStatement(-1, true);
 
-                Array gArray = quadStoreConnection.createArrayOf ("VARCHAR", graphs);
-                ps.setArray (1, gArray);
-                ps.executeUpdate ();
-                gArray.free();
+                for (int i = 0; i < contexts.length; i++)
+                    stmt.addBatch("sparql clear graph <"+contexts[i].stringValue()+">");
+
+                stmt.executeBatch();
+                stmt.clearBatch();
             }
             catch (Exception e) {
                 throw new RepositoryException(e);
             }
             finally {
-              if (ps != null)
+              if (stmt != null)
                 try {
-                  ps.close();
+                  stmt.close();
                 } catch(Exception e) { }
             }
     }
@@ -3089,7 +3168,7 @@ public class VirtuosoRepositoryConnection implements RepositoryConnection {
             rs = ps.executeQuery();
         }
         catch (Exception e) {
-            throw new RepositoryException(getClass().getCanonicalName() + ": SPARQL execute failed." + "\n" + query.toString() + "[" + e + "]", e);
+            throw new RepositoryException(getClass().getCanonicalName() + ": SPARQL execute failed." + "\n" + query.toString(), e);
         }
 
         return new CloseableIterationStmt(ps, rs, subject, predicate, object);
