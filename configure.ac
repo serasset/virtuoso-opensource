@@ -5,7 +5,7 @@ AC_PREREQ(2.59)
 #  This file is part of the OpenLink Software Virtuoso Open-Source (VOS)
 #  project.
 #
-#  Copyright (C) 1998-2022 OpenLink Software
+#  Copyright (C) 1998-2023 OpenLink Software
 #
 #  This project is free software; you can redistribute it and/or modify it
 #  under the terms of the GNU General Public License as published by the
@@ -30,8 +30,8 @@ AC_PREREQ(2.59)
 
 m4_define(vos_major,	[7])
 m4_define(vos_minor,	[2])
-m4_define(vos_patch,	[8])
-m4_define(vos_devel,	[])
+m4_define(vos_patch,	[9])
+m4_define(vos_devel,	[-dev])
 
 AC_INIT([Virtuoso Open Source Edition (Column Store)],
 	vos_major.vos_minor.vos_patch[]vos_devel,
