@@ -208,7 +208,7 @@ srv_report_errno_trx_error (lock_trx_t *lt, const char *text, const char *name, 
 	"%.30s %.160s : %.100s", text, name, virt_strerror (eno)));
 }
 
-uint32 last_log_time_written = 0;
+time_msec_t last_log_time_written = 0;
 int log_in_cl_recov;
 
 
@@ -233,7 +233,7 @@ log_time (caddr_t * box)
   if (!box && log_in_cl_recov)
     return LTE_OK;
   if (!box && (!last_log_time_written
-	       || approx_msec_real_time () - last_log_time_written > 30000))
+	       || (approx_msec_real_time () - last_log_time_written) > 30000))
     {
       char dt[DT_LENGTH];
       dt_now (dt);
@@ -703,7 +703,7 @@ log_skip_blobs_1 (dk_session_t * ses)
   END_READ_FAIL (ses);
 }
 
-uint32 log_last_2pc_archive_time = 0;
+time_msec_t log_last_2pc_archive_time = 0;
 
 
 int
@@ -731,7 +731,7 @@ log_2pc_archive (int64 trx_id)
   CATCH_WRITE_FAIL (ses)
     {
       int64 bs = ses->dks_bytes_sent;
-      if (!log_last_2pc_archive_time || approx_msec_real_time () - log_last_2pc_archive_time > 30000)
+      if (!log_last_2pc_archive_time || (approx_msec_real_time () - log_last_2pc_archive_time) > 30000)
 	{
 	  caddr_t dt = dk_alloc_box (DT_LENGTH, DV_DATETIME);
 	  if (in_log_replay || log_in_cl_recov)
@@ -1840,7 +1840,8 @@ cr_done:
       sst = cli_get_stmt_access (lt->lt_client, stmt_id, GET_EXCLUSIVE, NULL);
       text2 = box_copy (text);
       err = stmt_set_query (sst, lt->lt_client, text, opts);
-      LEAVE_CLIENT (lt->lt_client);
+      if (!lt->lt_client->cli_is_log)
+        LEAVE_CLIENT (lt->lt_client); /* not entered in log replay */
       if (err != NULL)
 	{
 	  if ((caddr_t)-1 == err)
@@ -3374,8 +3375,9 @@ log_check_header (caddr_t * header)
 int
 log_report_time ()
 {
-  static unsigned int32 last_time = 0;
-  unsigned int32 now = get_msec_real_time (), r = 0;
+  static time_msec_t last_time = 0;
+  time_msec_t now = get_msec_real_time ();
+  int r = 0;
   if (now - last_time > 2000)
     {
       r = 1;
@@ -3574,6 +3576,7 @@ log_replay_file (int fd)
   if (CL_RUN_LOCAL != cl_run_local_only)
     enable_mt_ft_inx = 0;
   cli->cli_user = sec_id_to_user (U_ID_DBA);
+  cli->cli_is_log = 1;
   total_size_bytes = LSEEK (fd, 0, SEEK_END);
   if (total_size_bytes == (OFF_T) -1)
     total_size_bytes = 0;

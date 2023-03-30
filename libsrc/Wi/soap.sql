@@ -1996,10 +1996,11 @@ TD.service
        {
          declare sid any;
          sid := vspx_sid_generate ();
-         insert into VSPX_SESSION (VS_REALM, VS_SID, VS_UID, VS_STATE, VS_EXPIRY)
+         insert into VSPX_SESSION (VS_REALM, VS_SID, VS_UID, VS_STATE, VS_EXPIRY, VS_IP)
 		values ('vsmx', sid, null,
 		serialize (vector ('wsdl', wsdl, 'loc', WS.WS.EXPAND_URL (HTTP_REQUESTED_URL(),'services.wsdl'))),
-		now ());
+		now (), http_client_ip());
+         commit work;
          http_request_status ('HTTP/1.1 302 Found');
          http_header (sprintf ('Location: /vsmx/oper.vspx?sid=%s&realm=vsmx\r\n', sid));
          http_rewrite ();
@@ -2741,3 +2742,14 @@ create procedure WSDL_GET (in uri varchar, in _mode integer)
 }
 ;
 
+create procedure SOAP_USER_INIT ()
+{
+  if (exists (select 1 from "DB"."DBA"."SYS_USERS" where U_NAME = 'SOAP'))
+    return;
+  DB.DBA.USER_CREATE ('SOAP', uuid(), vector ('DISABLED', 1, 'LOGIN_QUALIFIER', 'SOAP'));
+}
+;
+
+--!AFTER
+SOAP_USER_INIT ()
+;
