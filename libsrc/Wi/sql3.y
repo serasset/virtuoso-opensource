@@ -354,6 +354,7 @@ extern int scn3yylex (void *void_yylval, yyscan_t yyscanner);
 %type <tree> opt_remote_name
 %type <tree> set_pass
 %type <box> user
+%type <box> user_password_opt
 %type <box> grantee
 %type <list> grantee_commalist
 
@@ -1073,8 +1074,8 @@ opt_table
 	;
 
 drop_table
-	: DROP TABLE q_table_name opt_if_exists	{ $$ = t_listst (3, TABLE_DROP, $3, (ptrlong) $4); }
-	| DROP VIEW q_table_name opt_if_exists	{ $$ = t_listst (3, TABLE_DROP, $3, (ptrlong) $4); }
+	: DROP TABLE q_table_name opt_if_exists	{ $$ = t_listst (4, TABLE_DROP, $3, (ptrlong) $4, (ptrlong) 0); }
+	| DROP VIEW q_table_name opt_if_exists	{ $$ = t_listst (4, TABLE_DROP, $3, (ptrlong) $4, (ptrlong) 1); }
 	;
 
 opt_col_add_column
@@ -1349,8 +1350,14 @@ set_pass
 			{ $$ = t_listst (3, SET_PASS_STMT, $3, $4); }
 	;
 
+user_password_opt
+        :  /* dummy */              { $$ = NULL; }
+        |  WITH PASSWORD identifier { $$ = $3; }
+        |  IDENTIFIED BY identifier { $$ = $3; }
+        ;
+
 create_user_statement
-	: CREATE USER user	{ $$ = t_listst (2, CREATE_USER_STMT, $3); }
+	: CREATE USER user user_password_opt	{ $$ = t_listst (3, CREATE_USER_STMT, $3, (NULL != $4 ? $4 : $3)); }
 	| CREATE ROLE_L user    { $$ = t_listst (2, CREATE_ROLE_STMT, $3); }
 	;
 
@@ -3424,7 +3431,7 @@ soap_proc_opt_list
 	;
 
 soap_proc_opt
-	: NAME EQUALS signed_literal { $$ = t_CONS ($1, t_CONS ($3, NULL)); }
+	: NAME EQUALS signed_literal { caddr_t name = $1; box_tag_modify (name, DV_STRING); $$ = t_CONS (name, t_CONS ($3, NULL)); }
 	;
 
 soap_kwd
@@ -4106,9 +4113,9 @@ user_defined_type
 	;
 
 user_defined_type_drop
-	: DROP TYPE q_old_type_name opt_drop_behavior
+	: DROP TYPE q_old_type_name opt_drop_behavior opt_if_exists
 	     {
-	       $$ = t_listst (3, UDT_DROP, $3, (ptrlong) $4);
+	       $$ = t_listst (4, UDT_DROP, $3, (ptrlong) $4, (ptrlong) $5);
 	     }
 	;
 

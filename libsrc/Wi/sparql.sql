@@ -1662,6 +1662,8 @@ create function DB.DBA.RDF_DATATYPE_OF_OBJ (in shortobj any, in dflt varchar := 
   -- dbg_obj_princ ('DB.DBA.RDF_DATATYPE_OF_OBJ (', shortobj, ') found twobyte ', twobyte);
   if (257 = twobyte)
     return case (rdf_box_lang (shortobj)) when 257 then __uname (dflt) else null end;
+  if (256 = twobyte and sys_stat('rdf_geo_use_wkt'))
+    return UNAME'http://www.opengis.net/ont/geosparql#wktLiteral';
   whenever not found goto badtype;
   select __uname (RDT_QNAME) into res from DB.DBA.RDF_DATATYPE where RDT_TWOBYTE = twobyte;
   return res;
@@ -1766,6 +1768,8 @@ create function DB.DBA.RDF_OBJ_OF_SQLVAL (in v any) returns any array
     {
       if (__tag of rdf_box = __tag(v) and 0 = rdf_box_ro_id (v))
         return DB.DBA.RDF_OBJ_ADD (257, v, 257);
+      if (__tag (v) = 195 and length (v) = 2) -- XXX: generic duration
+        return DB.DBA.RDF_OBJ_ADD (sys_stat ('rb_type__xsd:duration'), serialize (v), 257);
       return v;
     }
   if (__tag of UNAME = t)
@@ -2531,12 +2535,6 @@ create function DB.DBA.regexp_xfn_replace (in src varchar, in needle varchar, in
     signal ('22023', 'The regex-based XPATH/XQuery/SPARQL replace() function can not search for a pattern that can be found even in an empty string');
   hit_list := regexp_parse_list (needle, src, search_begin_pos, opts, coalesce (hit_max_count, 2097152));
   return regexp_replace_hits_with_template (src, tmpl, hit_list, 1);
-}
-;
-
-create function DB.DBA.rdf_uuid_impl ()
-{
-  return iri_to_id ('urn:uuid:' || uuid());
 }
 ;
 
@@ -8678,6 +8676,7 @@ create function DB.DBA.SPARQL_INSERT_QUAD_DICT_CONTENT (in dflt_graph_iri any, i
 {
   declare ins_count, ins_grp_count integer;
   declare res_ses any;
+  res_ses := null;
   ins_count := 0;
   ins_grp_count := 0;
   if (__tag of vector = __tag (dflt_graph_iri))
@@ -8723,20 +8722,20 @@ create function DB.DBA.SPARQL_INSERT_QUAD_DICT_CONTENT (in dflt_graph_iri any, i
             repl_text ('__rdf_repl', '__rdf_repl_flush_queue ()');
           if (compose_report and ins_grp_count < 1000)
             {
+              if (res_ses is null)
+                res_ses := string_output();
               if (group_ctr)
                 http ('\n', res_ses);
-              else
-                res_ses := string_output();
               http (sprintf ('Insert into <%s>, %d (or less) quads -- done', g, g_ins_count), res_ses);
             }
         }
     }
   if (compose_report)
     {
+      if (res_ses is not null)
+        return string_output_string (res_ses);
       if (ins_grp_count >= 1000)
         return sprintf ('Insert into %d (or more) graphs, total %d (or less) quads -- done', ins_grp_count, ins_count);
-      if (ins_count)
-        return string_output_string (res_ses);
       else if (dflt_graph_iri is null)
         return sprintf ('Insert of 0 quads -- nothing to do');
       else
@@ -9150,8 +9149,8 @@ create procedure DB.DBA.SPARQL_CONSTRUCT_ACC (inout _env any, in opcodes any, in
   declare blank_ids any;
   if (__tag of dictionary reference <> __tag(_env))
     {
-      _env := dict_new (31, sys_stat ('sparql_result_set_max_rows'), sys_stat ('sparql_max_mem_in_use'));
-      if (0 < length (stats))
+      _env := dict_new (31, sys_stat ('sparql_construct_max_triples'), sys_stat ('sparql_max_mem_in_use'));
+      if (isvector(stats) and (0 < length (stats))) -- The isvector(stats) check is a workaround for failed SQL compilation that turned constant vector() into uninitialized integer zero.
         DB.DBA.SPARQL_CONSTRUCT_ACC (_env, stats, vars, vector(), use_dict_limit);
     }
   blank_ids := 0;
@@ -14578,7 +14577,6 @@ create procedure DB.DBA.RDF_CREATE_SPARQL_ROLES ()
     'grant execute on DB.DBA.RDF_LONG_OF_SQLVAL to SPARQL_SELECT',
     'grant execute on DB.DBA.rdf_strdt_impl to SPARQL_SELECT',
     'grant execute on DB.DBA.rdf_strlang_impl to SPARQL_SELECT',
-    'grant execute on DB.DBA.rdf_uuid_impl to SPARQL_SELECT',
     'grant execute on DB.DBA.RDF_QUAD_URI to SPARQL_UPDATE',
     'grant execute on DB.DBA.RDF_QUAD_URI_L to SPARQL_UPDATE',
     'grant execute on DB.DBA.RDF_QUAD_URI_L_TYPED to SPARQL_UPDATE',
@@ -14756,7 +14754,9 @@ create procedure DB.DBA.RDF_CREATE_SPARQL_ROLES ()
     'grant execute on DB.DBA.TTLP_V_GS to SPARQL_UPDATE',
     'grant execute on DB.DBA.TTLP_V to SPARQL_UPDATE',
     'grant execute on DB.DBA.RDF_LOAD_RDFXML_V to SPARQL_UPDATE',
-    'grant execute on DB.DBA.ID_TO_IRI_VEC to SPARQL_UPDATE' );
+    'grant execute on DB.DBA.ID_TO_IRI_VEC to SPARQL_UPDATE',
+    'grant execute on DB.DBA.L_O_LOOK_NE to SPARQL_UPDATE' );
+
   foreach (varchar cmd in cmds) do
     {
       exec (cmd, state, msg);

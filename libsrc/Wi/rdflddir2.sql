@@ -166,7 +166,10 @@ create procedure
 ld_file (in f varchar, in graph varchar)
 {
   declare base_name, base varchar;
+  declare tmp varchar;
+
   base := '';
+  tmp := null;
   declare exit handler for sqlstate '*' {
     rollback work;
     update DB.DBA.LOAD_LIST
@@ -196,6 +199,13 @@ ld_file (in f varchar, in graph varchar)
   if (base_name like '%.grdf')
     {
       load_grdf (f);
+    }
+  else if (base_name like '%.jsonld')
+    {
+      tmp := file_to_string (f);
+      if (f like '%.gz')
+	tmp := string_output_string (gzip_uncompress (tmp));
+	DB.DBA.RDF_LOAD_JSON_LD (tmp, base, graph);
     }
   else if (f like '%.gz')
     {

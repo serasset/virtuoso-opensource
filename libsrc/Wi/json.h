@@ -79,6 +79,11 @@
 #define JSON_LD_DATA (JSON_LD == jsonp_arg->jpmode)
 #define JSON_LD_META ((JSON_LD_CTX == jsonp_arg->jpmode) || (JSON_LD_MAP == jsonp_arg->jpmode))
 
+#define JFLG_DEBUG            0x10000
+#define JFLG_NO_BNODE         0x1
+
+#define JSON_LD_UNNAMED       "Entity"
+
 typedef struct jsonld_ctx_s jsonld_ctx_t;
 
 struct jsonld_ctx_s {
@@ -107,6 +112,7 @@ typedef struct jsonld_item_s {
   caddr_t value;        /* node object value, used for import, not used in ctx mode */
   caddr_t lang;         /* intl. */
   uint32 flags;         /* bitmask of node type, container, nesting, ordered or unordered set etc. see JLD_xx flags */
+  char  use_ns;         /* @type:@vocab, i.e. use the near ns to resolve as IRI */
 } jsonld_item_t;
 
 typedef struct jsonp_s {
@@ -128,6 +134,8 @@ typedef struct jsonp_s {
   dk_set_t pending_quads; /* not used for now */
   triple_feed_t *jtf;     /* hooks for loader etc. */
   query_instance_t *qi;   /* self evident */
+  id_hash_t * bn2no;   /* for bnode node in sponge import mode keeps a counter for a node type */
+  uint32 jflags;         /* special parser mode */
 } jsonp_t;
 
 #define curr_id curr_item.id
@@ -137,6 +145,7 @@ typedef struct jsonp_s {
 #define curr_type curr_item.type
 #define curr_flags curr_item.flags
 #define curr_node_no curr_item.node_no
+#define curr_use_ns curr_item.use_ns
 
 #define JLD_ITM_INIT(itm, id, name, value, type, lang) \
         itm->id = id; \
@@ -166,7 +175,7 @@ typedef struct jsonp_s {
 
 #define JLD_CURRENT(xx) jsonp_arg->curr_##xx
 
-#define JLD_NEW_BNODE(jp) t_box_sprintf (20, "_:b" UBOXINT_FMT, jp->bnode_iid++)
+#define JLD_NEW_BNODE(jp) jsonld_new_bnode(jp)
 
 #define CTX_DOWN jsonld_frame_push(jsonp_arg)
 #define CTX_UP jsonld_frame_pop(jsonp_arg)
@@ -189,7 +198,8 @@ void jsonyyerror_impl(jsonp_t * jsonp_arg, const char *s);
 jsonld_ctx_t * jsonld_ctx_allocate (jsonp_t *jsonp_arg);
 void jsonld_ctx_set (jsonp_t *jsonp_arg);
 caddr_t jsonld_term_resolve (jsonp_t *jsonp_arg, caddr_t term, jsonld_item_t **ret_item);
-caddr_t jsonld_qname_resolve (jsonp_t *jsonp_arg, caddr_t qname, jsonld_item_t **ret_item);
+caddr_t jsonld_qname_resolve_1 (jsonp_t *jsonp_arg, caddr_t qname, jsonld_item_t **ret_item, int use_ns);
+#define jsonld_qname_resolve(jsonp_arg,qname,ret_item) jsonld_qname_resolve_1((jsonp_arg), (qname), (ret_item), 1)
 void jsonld_quad_insert (jsonp_t * jsonp_arg, jsonld_item_t *itm);
 void jsonld_context_uri_get (jsonp_t *jsonp_arg, caddr_t uri, id_hash_t *ht);
 caddr_t * jsonld_item_new (caddr_t type, caddr_t id, caddr_t value, caddr_t lang, uint32 flags);
@@ -199,6 +209,7 @@ void jsonld_frame_push (jsonp_t *jsonp_arg);
 void jsonld_frame_pop (jsonp_t *jsonp_arg);
 void jsonld_resolve_refs (jsonp_t *jsonp_arg);
 void jsonld_item_print(jsonld_item_t *itm);
+caddr_t jsonld_new_bnode (jsonp_t *jsonp_arg);
 
 #ifdef _JSONLD_DEBUG
 #define jsonld_debug(x) printf x

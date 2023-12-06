@@ -207,6 +207,7 @@ ssl_type (state_slot_t * ssl, char * str)
     case DV_DATETIME: str[0] = 't';  break;
     case DV_STRING: str[0] = 's'; break;
     case DV_ANY: str[0] = 'a'; break;
+    case DV_NUMERIC: str[0] = 'u'; break;
     case DV_WIDE: case DV_LONG_WIDE:
       str[0] = 'N'; break;
     default: str[0] = 'x';
@@ -227,8 +228,8 @@ dv_iri_short_name (caddr_t x)
     return NULL;
   if (iri_split (name, &pref, &local))
     {
-      int len = box_length (local) - 4 /* Remember that 4 bytes of \c local is placeholder for encoding namespace prefix */ ;
-      char *pure_local = local + 4;	/* that 4 bytes, yeah */
+      int len = box_length (local) - RPID_SZ;	/* Remember that 8 or 4 bytes of \c local is placeholder for encoding namespace prefix */
+      char *pure_local = local + RPID_SZ;	/* that 8 or 4 bytes, yeah */
       int inx = len - 2;
       int best_inx = 0;
       caddr_t r;
@@ -1755,10 +1756,13 @@ node_print (data_source_t * node)
   if (node->src_sets)
     {
       if (dbf_explain_level > 2)
-	stmt_printf (("s# %d %d ", node->src_sets, node->src_in_state));
+	stmt_printf (("Set# %d i#%d ", node->src_sets, node->src_in_state));
       else
-    stmt_printf (("s# %d ", node->src_sets));
+	stmt_printf (("Set# %d ", node->src_sets));
     }
+  else if (dbf_explain_level > 2)
+    stmt_printf (("i#%d ", node->src_in_state));
+
   if (in == (qn_input_fn) table_source_input ||
       in == (qn_input_fn) table_source_input_unique)
     {
@@ -2310,14 +2314,14 @@ node_print (data_source_t * node)
 	  stmt_printf (("\n shadow: "));
 	  ssl_array_print (ose->ose_out_shadow);
 	}
-      stmt_printf (("\n"));
+      stmt_printf (("\n} /* end of outer */\n"));
     }
   else if (in == (qn_input_fn) set_ctr_input)
     {
       QNCAST (set_ctr_node_t, sctr, node);
-      stmt_printf (("cluster outer seq start, set no "));
+      stmt_printf (("Outer seq start, set no "));
       ssl_print (sctr->sctr_set_no);
-      stmt_printf (("    \nsave ctx:"));
+      stmt_printf ((" {    \nsave ctx:"));
       ssl_array_print (sctr->clb.clb_save);
       if (sctr->sctr_hash_spec)
 	{

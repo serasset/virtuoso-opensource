@@ -850,20 +850,20 @@ post_done: ;
       declare feats any;
       feats := vector (
 --      qtype bits        qtxt
-        '-' , 0hex0001	, 'select ?s where { graph <no-such-g-qazxswedc> { ?s <no-such-p-qazxswedc> ?o } } limit 1'																			,
+        '-' , 0hex0001	, 'select ?s where { graph <urn:virtuoso:sparql:fed:probe:no-such-g> { ?s <urn:virtuoso:sparql:fed:probe:no-such-p> ?o } } limit 1'																			,
         '+' , 0hex0001	, 'prefix virtrdf: <http://www.openlinksw.com/schemas/virtrdf#> select ?s where { quad map virtrdf:DefaultQuadMap { ?s ?p ?o } } limit 1'													,
-        '+' , 0hex0002	, 'select ?s where { graph <no-such-g-qazxswedc> { ?s <no-such-p-qazxswedc> ?o OPTION (TABLE_OPTION "ORDER") } } limit 1'															,
-        '+' , 0hex0004	, 'select ?s where { graph <no-such-g-qazxswedc> { ?s <no-such-p-qazxswedc> ?o OPTION (BREAKUP) } } limit 1'																,
-        '+' , 0hex0008	, 'select ?s where { graph <no-such-g-qazxswedc> { ?s <no-such-p-qazxswedc> ?o OPTION (PKSELFJOIN) } } limit 1'																,
-        '+' , 0hex0010	, 'select ?s where { graph <no-such-g-qazxswedc> { ?s <no-such-p-qazxswedc> ?o OPTION (RVR) } } limit 1'																	,
-        '+' , 0hex0020	, 'select ?s where { graph <no-such-g-qazxswedc> { ?s <no-such-p-qazxswedc> ?o . filter (?o in ( 1, 2, 3)) } } limit 1'															,
-        '+' , 0hex0040	, 'select ?s where { graph <no-such-g-qazxswedc> { ?s <no-such-p-qazxswedc> ?o . filter (?o like "%qaz%") } } limit 1'															,
-        '+' , 0hex0080	, 'select ?s where { graph <no-such-g-qazxswedc> { ?s <no-such-p-qazxswedc> ?:oglobal } } limit 1'																		,
-        '+' , 0hex0100	, 'select (str(?s) as ?str) where { graph <no-such-g-qazxswedc> { ?s <no-such-p-qazxswedc> ?o } } group by ?s limit 1'															,
-        '+' , 0hex0200	, 'define input:storage "" select ?s where { graph <no-such-g-qazxswedc> { ?s <no-such-p-qazxswedc> ?o } } limit 1'																,
-        '+' , 0hex0400	, 'select ?s where { graph <no-such-g-qazxswedc> { ?s <no-such-p-qazxswedc> ?o } . service <http://dbpedia.org/sparql> { ?s <no-such-p-qazxswedc> ?t } } limit 1'										,
-        '+' , 0hex1000	, 'select ?s where { graph <no-such-g-qazxswedc> { ?s <no-such-p-qazxswedc> <no-such-o-qazxswedc> OPTION (TRANSITIVE) } } limit 1'														,
-        '+' , 0hex2000	, 'select (strdt (group_concat (?o), datatype (max(?o))) as ?gc) where { graph <no-such-g-qazxswedc> { { ?s <no-such-p-qazxswedc> ?o } MINUS { ?s <no-such-p-qazxswedc> <no-such-o-qazxswedc> } } } group by ?s having (sample(?o) > 1) limit 1'	 );
+        '+' , 0hex0002	, 'select ?s where { graph <urn:virtuoso:sparql:fed:probe:no-such-g> { ?s <urn:virtuoso:sparql:fed:probe:no-such-p> ?o OPTION (TABLE_OPTION "ORDER") } } limit 1'															,
+        '+' , 0hex0004	, 'select ?s where { graph <urn:virtuoso:sparql:fed:probe:no-such-g> { ?s <urn:virtuoso:sparql:fed:probe:no-such-p> ?o OPTION (BREAKUP) } } limit 1'																,
+        '+' , 0hex0008	, 'select ?s where { graph <urn:virtuoso:sparql:fed:probe:no-such-g> { ?s <urn:virtuoso:sparql:fed:probe:no-such-p> ?o OPTION (PKSELFJOIN) } } limit 1'																,
+        '+' , 0hex0010	, 'select ?s where { graph <urn:virtuoso:sparql:fed:probe:no-such-g> { ?s <urn:virtuoso:sparql:fed:probe:no-such-p> ?o OPTION (RVR) } } limit 1'																	,
+        '+' , 0hex0020	, 'select ?s where { graph <urn:virtuoso:sparql:fed:probe:no-such-g> { ?s <urn:virtuoso:sparql:fed:probe:no-such-p> ?o . filter (?o in ( 1, 2, 3)) } } limit 1'															,
+        '+' , 0hex0040	, 'select ?s where { graph <urn:virtuoso:sparql:fed:probe:no-such-g> { ?s <urn:virtuoso:sparql:fed:probe:no-such-p> ?o . filter (?o like "%qaz%") } } limit 1'															,
+        '+' , 0hex0080	, 'select ?s where { graph <urn:virtuoso:sparql:fed:probe:no-such-g> { ?s <urn:virtuoso:sparql:fed:probe:no-such-p> ?:oglobal } } limit 1'																		,
+        '+' , 0hex0100	, 'select (str(?s) as ?str) where { graph <urn:virtuoso:sparql:fed:probe:no-such-g> { ?s <urn:virtuoso:sparql:fed:probe:no-such-p> ?o } } group by ?s limit 1'															,
+        '+' , 0hex0200	, 'define input:storage "" select ?s where { graph <urn:virtuoso:sparql:fed:probe:no-such-g> { ?s <urn:virtuoso:sparql:fed:probe:no-such-p> ?o } } limit 1'																,
+        '+' , 0hex0400	, 'select ?s where { graph <urn:virtuoso:sparql:fed:probe:no-such-g> { ?s <urn:virtuoso:sparql:fed:probe:no-such-p> ?o } . service <http://dbpedia.org/sparql> { ?s <urn:virtuoso:sparql:fed:probe:no-such-p> ?t } } limit 1'										,
+        '+' , 0hex1000	, 'select ?s where { graph <urn:virtuoso:sparql:fed:probe:no-such-g> { ?s <urn:virtuoso:sparql:fed:probe:no-such-p> <urn:virtuoso:sparql:fed:probe:no-such-o> OPTION (TRANSITIVE) } } limit 1'														,
+        '+' , 0hex2000	, 'select (strdt (group_concat (?o), datatype (max(?o))) as ?gc) where { graph <urn:virtuoso:sparql:fed:probe:no-such-g> { { ?s <urn:virtuoso:sparql:fed:probe:no-such-p> ?o } MINUS { ?s <urn:virtuoso:sparql:fed:probe:no-such-p> <urn:virtuoso:sparql:fed:probe:no-such-o> } } } group by ?s having (sample(?o) > 1) limit 1'	 );
       len := length (feats) / 3;
       for (ctr := 0; ctr < len; ctr := ctr + 1)
         {
@@ -873,7 +873,7 @@ post_done: ;
           bits := feats[ctr * 3 + 1];
           qtxt := feats[ctr * 3 + 2];
           if (bit_and (langex_bits, 1))
-            qtxt := replace (qtxt, 'graph <no-such-g-qazxswedc>', '');
+            qtxt := replace (qtxt, 'graph <urn:virtuoso:sparql:fed:probe:no-such-g>', '');
           whenever sqlstate '*' goto no_such_feat;
           result ('00000', sprintf ('Test query %d/%d: %s %d (hex %08x)...', ctr, len, case qtype when '+' then 'define lang:dialect' else 'define lang:exception' end, bits, bits));
           DB.DBA.SPARQL_REXEC_TO_ARRAY (service_iri, qtxt, null, null, null, 1, null);
@@ -928,7 +928,10 @@ create procedure DB.DBA.SPARQL_SINV_IMP (in ws_endpoint varchar, in ws_params an
           declare qpos integer;
           qpos := qtext_posmap[qctr];
           http (subseq (qtext_template, prev_pos, qpos), qtext_ses);
-          http_sparql_object (param_row[qtext_posmap[qctr+1]-1], qtext_ses);
+          if (isvector (param_row))
+            http_sparql_object (param_row[qtext_posmap[qctr+1]-1], qtext_ses);
+          else -- conflict, join pred out of scope, mapped internally to null thus no match
+            http_sparql_object ( UNAME'http://www.w3.org/1999/02/22-rdf-syntax-ns#nil', qtext_ses);
           prev_pos := qpos+8;
         }
       http (subseq (qtext_template, prev_pos), qtext_ses);
@@ -2352,11 +2355,22 @@ create procedure WS.WS.SPARQL_VHOST_RESET ()
 {
   declare oopts any;
   oopts := null;
-  if (not exists (select 1 from "DB"."DBA"."SYS_USERS" where U_NAME = 'SPARQL'))
+
+  if (user_to_uid ('SPARQL') < 0)
     {
       DB.DBA.USER_CREATE ('SPARQL', uuid(), vector ('DISABLED', 1, 'LOGIN_QUALIFIER', 'SPARQL'));
       DB.DBA.EXEC_STMT ('grant SPARQL_SELECT to "SPARQL"', 0);
     }
+
+  if (user_to_uid ('SPARQL_ADMIN') < 0)
+    {
+      -- Our "sparql admin" user which has access to all graphs and will be used for DAV/LDP
+      DB.DBA.USER_CREATE ('SPARQL_ADMIN', uuid(), vector ('DISABLED', 1));
+      DB.DBA.EXEC_STMT ('grant SPARQL_UPDATE to SPARQL_ADMIN', 0);
+      DB.DBA.RDF_DEFAULT_USER_PERMS_SET ('SPARQL_ADMIN', 15, 0);
+      DB.DBA.RDF_DEFAULT_USER_PERMS_SET ('SPARQL_ADMIN', 15, 1);
+    }
+
   if (registry_get ('__SPARQL_VHOST_RESET') >= '20120519')
     return;
 
@@ -3681,6 +3695,8 @@ create procedure WS.WS."/!sparql-graph-crud/" (inout path varchar, inout params 
   declare graph_uri varchar;
   declare colonspace_pos integer;
   declare graph_uri_is_relative integer;
+  declare res_file, res_content_type, res_format varchar;
+  declare n_quads_upload int;
   {
   whenever sqlstate '*' goto err; /* see below */
   -- dbg_obj_princ ('===============');
@@ -3719,7 +3735,26 @@ bad_host_found:
 good_host_found:
       ;
     }
-  if (graph_uri <> '')
+  n_quads_upload := 0;
+  if ((reqbegin like 'PUT%') or (reqbegin like 'POST%'))
+    {
+      res_file := get_keyword ('res-file', params, '');
+      if (0 = length (res_file))
+        res_file := get_keyword ('Content', params, '');
+      if (0 = length (res_file))
+        res_file := http_body_read();
+      if (0 = length (res_file))
+        res_file := http_body_read(1);
+      res_format := res_content_type := null;
+      if (get_keyword ('res-file', params) is null)
+        res_content_type := http_request_header (lines, 'Content-Type', null, null);
+      if (res_content_type is null or res_content_type = 'application/x-www-form-urlencoded' or res_content_type = 'multipart/form-data')
+        res_content_type := DB.DBA.RDF_SPONGE_GUESS_CONTENT_TYPE (null, null, res_file);
+      if (res_content_type = 'application/n-quads')
+        n_quads_upload := 1;
+      http_sys_find_best_sparql_accept (res_content_type, 0, res_format);
+    }
+  if (graph_uri <> '' or n_quads_upload)
     goto graph_processing;
   http_methods_set ('GET', 'HEAD', 'POST', 'PUT', 'DELETE', 'PATCH');
 
@@ -3762,34 +3797,20 @@ good_host_found:
 graph_processing:
   commit work;
   graph_uri_is_relative := neq (graph_uri, DB.DBA.XML_URI_RESOLVE_LIKE_GET ('zZz://example.com/', graph_uri));
-  if (graph_uri_is_relative)
+  if (graph_uri_is_relative and not(n_quads_upload))
     {
       if (not (reqbegin like 'PUT%') and not (reqbegin like 'POST%'))
         signal ('22023', 'The graph URI <' || graph_uri || '> is relative and can be passed to SPARQL 1.1 Graph Store endpoint only in some PUT or POST requests');
     }
   if ((reqbegin like 'PUT%') or (reqbegin like 'POST%'))
     {
-      declare res_file, res_content_type varchar;
       declare full_graph_uri varchar;
       declare graph_exists integer;
       set_user_id (user_id, 1);
-      res_file := get_keyword ('res-file', params, '');
-      -- dbg_obj_princ ('res_file/1=', cast (res_file as varchar));
-      if (0 = length (res_file))
-        res_file := get_keyword ('Content', params, '');
-      -- dbg_obj_princ ('res_file/2=', string_output_string (res_file));
-      if (0 = length (res_file))
-        res_file := http_body_read();
-      -- dbg_obj_princ ('res_file/3=', string_output_string (res_file));
-      if (0 = length (res_file))
-        res_file := http_body_read(1);
-      -- dbg_obj_princ ('res_file/4=', string_output_string (res_file));
-      res_content_type := DB.DBA.RDF_SPONGE_GUESS_CONTENT_TYPE (null, null, res_file);
-      -- dbg_obj_princ ('res_content_type=', res_content_type);
-      if (graph_uri_is_relative)
+      full_graph_uri := null;
+      if (graph_uri_is_relative and not(n_quads_upload))
         {
-          full_graph_uri := null;
-          if (res_content_type in ('text/rdf+n3', 'text/turtle'))
+          if (res_format in ('TTL', 'NT'))
             full_graph_uri := DB.DBA.SPARQL_CRUD_BASE_TTL (res_file, graph_uri, 255);
           else if (res_content_type = 'application/rdf+xml')
             full_graph_uri := DB.DBA.SPARQL_CRUD_BASE_RDFXML (res_file, graph_uri);
@@ -3801,8 +3822,10 @@ graph_processing:
       else
         full_graph_uri := graph_uri;
       commit work;
-      graph_exists := (sparql define input:storage "" ask where { graph `iri(?:full_graph_uri)` { ?s ?p ?o }});
-      if (res_content_type in ('text/rdf+n3', 'text/turtle'))
+      graph_exists := 0;
+      if (not n_quads_upload)
+        graph_exists := (sparql define input:storage "" ask where { graph `iri(?:full_graph_uri)` { ?s ?p ?o }});
+      if (res_format in ('TTL', 'NT'))
         {
           if (reqbegin like 'PUT%')
             {
@@ -3819,6 +3842,27 @@ graph_processing:
               commit work;
             }
           DB.DBA.RDF_LOAD_RDFXML (res_file, full_graph_uri, full_graph_uri);
+        }
+      else if (res_content_type = 'application/ld+json')
+        {
+          if (reqbegin like 'PUT%')
+            {
+              sparql clear graph ?:full_graph_uri;
+              commit work;
+            }
+          if (__tag (res_file) = __tag of stream)
+            res_file := string_output_string (res_file);
+          DB.DBA.RDF_LOAD_JSON_LD (res_file, full_graph_uri, full_graph_uri);
+        }
+      else if (res_content_type = 'application/n-quads')
+        {
+          declare flags int;
+          flags := 512;
+          if (reqbegin like 'PUT%')
+            {
+              flags := flags + 2048;
+            }
+          DB.DBA.TTLP (res_file, '', 'urn:dummy', flags);
         }
       else if (res_content_type = 'text/microdata+html')
         {
@@ -4008,7 +4052,7 @@ create procedure DB.DBA.SPARQL_ROUTE_DICT_CONTENT_DAV (
             order by (str(?s)) (str(?p)) ) as sub );
       if ('application/rdf+xml' = mime)
         DB.DBA.RDF_TRIPLES_TO_RDF_XML_TEXT (triples, 1, out_ses);
-      else if (('text/rdf+n3' = mime) or ('text/rdf+ttl' = mime) or ('text/rdf+turtle' = mime) or ('text/turtle' = mime) or ('text/n3' = mime) or ('text/x-nquads' = mime))
+      else if (('text/rdf+n3' = mime) or ('text/rdf+ttl' = mime) or ('text/rdf+turtle' = mime) or ('text/turtle' = mime) or ('text/n3' = mime) or ('application/n-quads' = mime))
         DB.DBA.RDF_TRIPLES_TO_TTL (triples, out_ses);
       else if ('application/x-trig' = mime)
         DB.DBA.RDF_TRIPLES_TO_TRIG (triples, out_ses);
@@ -4092,7 +4136,7 @@ DB.DBA.http_rq_file_handler (in content any, in params any, in lines any, inout 
       strcasestr (accept, 'text/rdf+ttl') is not null or
       strcasestr (accept, 'text/rdf+turtle') is not null or
       strcasestr (accept, 'text/turtle') is not null or
-      strcasestr (accept, 'application/x-nquads') is not null or
+      strcasestr (accept, 'application/n-quads') is not null or
       strcasestr (accept, 'application/x-trig') is not null or
       strcasestr (accept, 'application/rdf+xml') is not null or
       strcasestr (accept, 'application/javascript') is not null or

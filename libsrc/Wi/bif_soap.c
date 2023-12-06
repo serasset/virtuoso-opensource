@@ -942,6 +942,7 @@ dtp_to_soap_type (dtp_t dtp)
     {
       case DV_SHORT_INT:
       case DV_LONG_INT:
+      case DV_INT64:
 	  return "int";
 
 
@@ -6214,20 +6215,7 @@ ws_soap_get_url (ws_connection_t *ws, int full_path)
   int inx, len;
   dk_session_t *out = strses_allocate ();
   caddr_t res;
-  caddr_t xproto = NULL;
-  int is_https = 0;
-
-#ifdef _SSL
-  SSL *ssl = (SSL *) tcpses_get_ssl (ws->ws_session->dks_session);
-  is_https = (NULL != ssl);
-#endif
-
-  /* Additional https check when running behind proxy */
-  if (NULL != (xproto = ws_mime_header_field (ws->ws_lines, "X-Forwarded-Proto", NULL, 1)))
-    if (!strcmp (xproto, "https"))
-      is_https = 1;
-  if (xproto)
-    dk_free_box (xproto);
+  int is_https = ws_is_https (ws);
 
   if (!(szHost = ws_mime_header_field (ws->ws_lines, "Host", NULL, 0)))
     {
@@ -11380,6 +11368,7 @@ ws_soap_http (ws_connection_t * ws)
   query_t *qr = NULL;
   caddr_t err = NULL, *pars, text;
   dk_session_t *ses = ws->ws_strses;
+  ws_http_map_t *vd = ws->ws_map;
   wcharset_t *volatile charset = ws->ws_charset;
   int is_http = 0;
 
@@ -11490,6 +11479,11 @@ ws_soap_http (ws_connection_t * ws)
 	dk_free_tree ((box_t) pars);
 	goto end;
       }
+      if (NULL != vd && vd->hm_exec_opts && WM_OPTIONS == ws->ws_method)
+        {
+	  dk_free_tree ((box_t) pars);
+	  goto end;
+        }
       err = qr_exec (cli, call_qry, CALLER_LOCAL, NULL, NULL,
 	  &lc, pars, NULL, 1);
     dk_free_box ((box_t) pars);
@@ -11808,7 +11802,7 @@ bif_soap_init (void)
   bif_define ("soap_call_new", bif_soap_call_new);
   bif_define ("soap_receive", bif_soap_receive);
   bif_define ("soap_server", bif_soap_server);
-  bif_define ("soap_box_structure", bif_soap_box_structure);
+  bif_define_ex ("soap_box_structure", bif_soap_box_structure, BMD_ALIAS, "json_box_object", /* UNKNOWN, NOT BMD_RET_TYPE, &bt_any, */ BMD_DONE);
   bif_define ("soap_boolean", bif_soap_boolean);
   bif_define_ex ("soap_make_error", bif_soap_make_error, BMD_RET_TYPE, &bt_varchar, BMD_DONE);
   bif_define_ex ("soap_sdl", bif_soap_sdl, BMD_RET_TYPE, &bt_varchar, BMD_DONE);

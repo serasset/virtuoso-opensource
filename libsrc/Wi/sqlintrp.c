@@ -1331,7 +1331,7 @@ ins_open (instruction_t * ins, caddr_t * qst)
   qst_set (qst, ins->_.open.cursor, (caddr_t) CR_INITIAL);
 }
 
-#ifdef DEBUG
+#if defined(DEBUG) | defined(MTX_DEBUG)
 void
 bing ()
 {
@@ -3234,6 +3234,7 @@ ins_vec_agg (instruction_t * ins, caddr_t * inst)
 	  itc_ha_feed_ret_t ihfr;
 	  if (DVC_MATCH == itc_ha_feed (&ihfr, ins->_.agg.distinct, inst, 0, NULL))
 	    continue;
+          arg = qst_get (inst, ins->_.agg.arg); /* take argument here as itc_ha_feed mangle the place if serialized any */
 	}
       op = ins->_.agg.op;
       qi->qi_set = set_no;

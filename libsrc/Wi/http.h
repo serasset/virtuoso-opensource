@@ -75,6 +75,7 @@ typedef struct ws_http_map_s
     int		hm_xml_template;
     int		hm_executable;
     int		hm_exec_as_get;
+    int         hm_exec_opts;
     caddr_t 	hm_htkey;
     caddr_t     hm_url_rewrite_rule;
     int		hm_url_rewrite_keep_lpath;
@@ -127,6 +128,7 @@ typedef struct ws_connection_s
 #ifdef BIF_XML
     caddr_t		ws_xslt_url;
     caddr_t		ws_xslt_params;
+    caddr_t             ws_xslt_doc_url;
     unsigned long 	ws_flushed;
 #endif
     caddr_t		ws_client_ip;
@@ -425,6 +427,7 @@ typedef enum {
 extern char * http_cli_proxy_server;
 int http_cli_target_is_proxy_exception (char *);
 void ws_http_body_read (ws_connection_t * ws, dk_session_t **out);
+int ws_check_connect_timeout (session_t *ses, timeout_t * to, int want);
 
 #define WS_CE_NONE 1
 #define WS_CE_CHUNKED 2
@@ -434,5 +437,6 @@ void ws_http_body_read (ws_connection_t * ws, dk_session_t **out);
 size_t http_threads_mem_report (void);
 extern dk_hash_t * ws_cli_sessions;
 extern dk_mutex_t * ws_cli_mtx;
+int ws_is_https (ws_connection_t * ws);
 
 #endif /* _HTTP_H */

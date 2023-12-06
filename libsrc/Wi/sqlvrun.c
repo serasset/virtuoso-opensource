@@ -1034,7 +1034,8 @@ ks_vec_params (key_source_t * ks, it_cursor_t * itc, caddr_t * inst)
 	  dc_reset (target_dc);
 	  DC_CHECK_LEN (target_dc, n_rows - 1);
 	  cf[n_cols] = ks->ks_dc_val_cast[inx];
-	  if (target_dc->dc_dtp == source_dc->dc_dtp)
+	  if (target_dc->dc_dtp == source_dc->dc_dtp &&
+              (!target_dc->dc_sqt.sqt_col_dtp || dtp_canonical[target_dc->dc_sqt.sqt_col_dtp] == dtp_canonical[source_dc->dc_dtp]))
 	    cf[n_cols] = NULL;
 	  if (cf[n_cols] || source_dc->dc_any_null)
 	    cast_or_null = 1;
@@ -1060,12 +1061,16 @@ ks_vec_params (key_source_t * ks, it_cursor_t * itc, caddr_t * inst)
 	  data_col_t *target_dc = target[inx];
 	  if (!sslr[inx] && !cf[inx] && !(source_dc->dc_type & DCT_BOXES))
 	    {
+#if 0 /* do not do shadow of values, can ref and fck in distict via ssl ref to any gb */
 	      target_dc->dc_org_values = target_dc->dc_values;
 	      target_dc->dc_org_places = target_dc->dc_n_places;
 	      target_dc->dc_org_dtp = target_dc->dc_dtp;
 	      target_dc->dc_values = source_dc->dc_values;
 	      target_dc->dc_n_values = source_dc->dc_n_values;
 	      target_dc->dc_n_places = source_dc->dc_n_places;
+#else
+              dc_copy (target_dc, source_dc);
+#endif
 	      target_dc->dc_any_null = 0;
 	    }
 	  else if (!sslr[inx] && !cf[inx] && (source_dc->dc_type & DCT_BOXES))
@@ -3835,6 +3840,19 @@ vec_fref_group_result (fun_ref_node_t * fref, table_source_t * ts, caddr_t * ins
 	  int set_in_sctr = agg_set_no ? qst_vec_get_int64 (inst, agg_set_no, set) : set;
 	((query_instance_t *) branch)->qi_set = set_in_sctr;
 	  fref_setp_trace (fref, branch);
+	  DO_SET (setp_node_t *, setp, &fref->fnr_setps)
+	    {
+	      hash_area_t * ha = setp->setp_ha;
+	      if (HA_GROUP != ha->ha_op)
+		continue;
+	      if (1 == n_sets && (tree = (index_tree_t*) (SSL_REF == ha->ha_tree->ssl_type || SSL_VEC == ha->ha_tree->ssl_type  ? sslr_qst_get (branch, (state_slot_ref_t*)ha->ha_tree, 0) : qst_get (branch, ha->ha_tree))))
+		{
+		  if (tree->it_hi && tree->it_hi->hi_chash)
+		    chash_to_memcache (inst, tree, ha);
+		}
+	    }
+	  END_DO_SET();
+
 	fref_setp_flush (fref, branch);
 	qi->qi_set = set_in_sctr;
 	DO_SET (setp_node_t *, setp, &fref->fnr_setps)

@@ -2742,8 +2742,7 @@ op_node_input (op_node_t * op, caddr_t * inst, caddr_t * state)
     case OP_CHECKPOINT:
 	{
 	  ddl_commit (qi);
-	  sf_makecp (arg_1 ? box_dv_short_string (arg_1) : sf_make_new_log_name (wi_inst.wi_master),
-	      qi->qi_trx, 0, 0);
+	  sf_makecp (sf_make_new_log_name (wi_inst.wi_master), qi->qi_trx, 0, 0);
 	}
       break;
 
@@ -4386,6 +4385,15 @@ DBG_NAME(qr_exec) (DBG_PARAMS  client_connection_t * cli, query_t * qr,
 	      dk_free_box ((caddr_t)prev);
 	    }
 	  }
+        if (ret && DV_ARRAY_OF_POINTER == DV_TYPE_OF (ret) && caller == CALLER_CLIENT)
+          {
+            DO_BOX (caddr_t, v, inx, ret)
+              {
+                if (DV_REFERENCE == DV_TYPE_OF(v)) /* non-copieable, will be released in qi_kill, furthermore no value for cli */
+                  ((caddr_t*)ret)[inx] = NULL;
+              }
+            END_DO_BOX;
+          }
       }
       qi->qi_proc_ret = NULL;
     }

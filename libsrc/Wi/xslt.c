@@ -3654,6 +3654,8 @@ skip_insertion:
       && ht->ht_mp != NULL && ((mem_pool_t *)ht->ht_mp)->mp_bytes > ht->ht_dict_max_mem_in_use)
     sqlr_new_error ("42000", "D1CT0", "Hash dictionary memory pool is full, %ld exceeded %ld bytes",
         ((mem_pool_t *)ht->ht_mp)->mp_bytes, ht->ht_dict_max_mem_in_use);
+  if (signal_unsafe_args && (0 < ht->ht_dict_max_entries) && ((ht->ht_inserts - ht->ht_deletes) > ht->ht_dict_max_entries))
+    sqlr_new_error ("42000", "D1CTX", "Hash dictionary is full, exceeded %ld entries", ht->ht_dict_max_entries);
   return box_num (res);
 }
 

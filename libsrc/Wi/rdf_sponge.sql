@@ -1253,9 +1253,9 @@ no_cr:
     return 'text/turtle';
   msg := DB.DBA.RDF_SPONGE_TRY_TTL (512, ret_begin);
   if ('' = msg)
-    return 'text/x-nquads';
+    return 'application/n-quads';
   if (last_cr_pos is not null and DB.DBA.RDF_SPONGE_TRY_TTL (512, shorter_ret_begin) <> msg)
-    return 'text/x-nquads';
+    return 'application/n-quads';
   msg := DB.DBA.RDF_SPONGE_TRY_TTL (256, ret_begin);
   if ('' = msg)
     return 'application/x-trig';
@@ -1316,8 +1316,8 @@ create function DB.DBA.RDF_SPONGE_GUESS_CONTENT_TYPE (in origin_uri varchar, in 
 			return 'text/rdf+n3';
 		if (strstr (ret_content_type, 'application/x-trig') is not null)
 			return 'application/x-trig';
-		if (strstr (ret_content_type, 'text/x-nquads') is not null)
-			return 'text/x-nquads';
+		if (strstr (ret_content_type, 'application/n-quads') is not null)
+			return 'application/n-quads';
 	}
 	declare ret_begin, ret_html any;
 	ret_begin := subseq (ret_body, 0, 65535);
@@ -1351,8 +1351,15 @@ create function DB.DBA.RDF_SPONGE_GUESS_CONTENT_TYPE (in origin_uri varchar, in 
 	{
 		goto next;
 	};
-	if (length(json_parse(cast (ret_body as varchar))) > 0)
-		return 'application/json';
+        declare jt any;
+        jt := json_parse(cast (ret_body as varchar));
+        if (length(jt) > 0 and
+            (get_keyword ('@context', jt) is not null or
+            get_keyword ('@id', jt) is not null or
+            get_keyword ('@type', jt) is not null))
+          return 'application/ld+json';
+	if (length(jt) > 0)
+	  return 'application/json';
 	next:;
 	guessed_ret_type := DB.DBA.RDF_SPONGE_GUESS_TTL_CONTENT_TYPE (origin_uri, ret_content_type, ret_body, ret_begin);
 	if (guessed_ret_type is not null)
@@ -1389,7 +1396,7 @@ create procedure DB.DBA.RDF_HTTP_URL_GET (inout url any, in base any, inout hdr 
   hdr := null;
   url := WS.WS.EXPAND_URL (base, url);
 
-  content := http_client_ext (url=>url, headers=>hdr, http_method=>meth, http_headers=>req_hdr, body=>cnt, proxy=>proxy, n_redirects=>15);
+  content := http_client_ext (url=>url, headers=>hdr, http_method=>meth, http_headers=>req_hdr, body=>cnt, proxy=>proxy, n_redirects=>15, accept_cookies=>1);
 
   if (hdr[0] not like 'HTTP/1._ 200 %' and hdr[0] not like 'HTTP/1._ 203 %')
     {
@@ -1526,11 +1533,13 @@ create procedure DB.DBA.RDF_PROC_COLS (in pname varchar)
 create function DB.DBA.RDF_PROXY_GET_HTTP_HOST ()
 {
     declare default_host, cname, xhost varchar;
+    declare lines any;
     xhost := connection_get ('http_host');
     if (isstring (xhost))
       return xhost;
-    if (is_http_ctx ())
-        default_host := http_request_header(http_request_header (), 'Host', null, null);
+    lines := http_request_header ();
+    if (isvector(lines))
+        default_host := http_request_header(lines, 'Host', null, null);
     else if (connection_get ('__http_host') is not null)
         default_host := connection_get ('__http_host');
     else
@@ -1758,7 +1767,7 @@ retry_after_deadlock:
     strstr (ret_content_type, 'application/x-trig') is not null)
     ttl_mode := 256+255;
   else if (
-    strstr (ret_content_type, 'text/x-nquads') is not null)
+    strstr (ret_content_type, 'application/n-quads') is not null)
     ttl_mode := 512+255;
   if (ttl_mode is not null)
     {

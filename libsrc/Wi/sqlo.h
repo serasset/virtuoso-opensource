@@ -59,6 +59,7 @@ typedef struct op_table_s
   ST *	ot_join_cond;
   ST *	ot_enclosing_where_cond; /* optional or other ot can add a condition to the top level where of the enclosing dt */
   int	ot_is_outer;
+  char  ot_is_left;
   oid_t	ot_u_id;
   oid_t	ot_g_id;
   dk_set_t		ot_table_refd_cols; /* if the ot is a table, which cols are refd. Use for knowing if index only is possible in costing */
@@ -78,6 +79,7 @@ typedef struct op_table_s
   df_elt_t *	ot_work_dfe;
   char 	ot_is_contradiction;
   char	ot_is_group_dummy;	/*!< Fictive table corresponding to a group by's results. fun refs depend alone on this and this depends on all other tables */
+  struct op_table_s *  ot_fref_ot; /*!< table to which belongs dummy fref */
   dk_set_t	ot_oby_ots;	/*!< For a dt, the component ots in the oby order */
   dk_set_t 	ot_order_cols;	/*!< for a table in an ordered from, the subset of the oby pertaining to this table */
   char 	ot_order_dir;
@@ -177,7 +179,13 @@ typedef struct df_inx_op_s
 
 #define DFE_TEXT_PRED 101
 
-
+#define DFE_SHORTCUT(dfe) (DFE_TRUE == (dfe) || DFE_FALSE == (dfe))
+#define DFE_IS_SUB(d) (d && \
+    (DFE_HEAD == (d)->dfe_type || \
+     DFE_DT == (d)->dfe_type || \
+     DFE_PRED_BODY == (d)->dfe_type || \
+     DFE_VALUE_SUBQ == (d)->dfe_type || \
+     DFE_EXISTS == (d)->dfe_type))
 
 
 #define DFE_PLACED 1	/* placed in a scenario */

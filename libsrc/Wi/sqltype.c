@@ -876,6 +876,8 @@ udt_drop_class_def (query_instance_t * qi, ST * _tree)
   sql_class_t *sub_udt;
 
   dbg_udt_print_class_hash (isp_schema (NULL), "before drop udt", tree->_.drop_udt.name);
+  if (!udt && tree->_.drop_udt.drop_silent)
+    return;
   if (!udt)
     sqlr_new_error ("42000", "UD021", "No user defined class %.200s", tree->_.drop_udt.name);
   if (NULL != (sub_udt = udt_is_supertype_of_any (udt)))
@@ -4033,8 +4035,36 @@ bif_udt_get_info (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
       if (udt->scl_super)
 	result = box_dv_short_string (udt->scl_super->scl_name);
     }
+  else if (!stricmp (info_name, "attributes"))
+    {
+      int inx;
+      dk_set_t set = NULL;
+      DO_BOX (sql_field_t *, fld, inx, udt->scl_member_map)
+        {
+          dk_set_push (&set, box_dv_short_string (fld->sfl_name));
+        }
+      END_DO_BOX;
+      result = list_to_array (dk_set_nreverse (set));
+    }
+  else if (!stricmp (info_name, "attributes_info"))
+    {
+      int inx;
+      dk_set_t set = NULL;
+      DO_BOX (sql_field_t *, fld, inx, udt->scl_member_map)
+        {
+          dk_set_push (&set, list (6,
+                box_dv_short_string (fld->sfl_name),
+                fld->sfl_sqt.sqt_dtp,
+                fld->sfl_sqt.sqt_class ? box_copy_tree(fld->sfl_sqt.sqt_class->scl_name) : NULL,
+                box_copy_tree (fld->sfl_sqt.sqt_tree),
+                box_copy_tree (fld->sfl_soap_type),
+                box_copy_tree (fld->sfl_soap_name)));
+        }
+      END_DO_BOX;
+      result = list_to_array (dk_set_nreverse (set));
+    }
   else
-    sqlr_new_error ("22023", "UD105", "Invalid info name. Valid infos are : children, parent");
+    sqlr_new_error ("22023", "UD105", "Invalid info name. Valid infos are : children, parent, attributes and attributes_info");
 
   return result ? result : NEW_DB_NULL;
 }

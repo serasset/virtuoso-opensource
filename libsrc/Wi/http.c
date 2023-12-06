@@ -1113,7 +1113,7 @@ next_fragment:
 	    }
 	  break;
       case 'r':
-	  snprintf (tmp, sizeof (tmp), "%.*s", tmp_len, ws->ws_req_line && ws->ws_method != WM_ERROR ? ws->ws_req_line : "GET unspecified");
+         snprintf (tmp, sizeof (tmp), "%.*s", tmp_len, ws->ws_req_line ? ws->ws_req_line : "GET unspecified");
 	  strcat_ck (tmp, ws->ws_proto);
 	  tmp [sizeof (tmp) - 1] = 0;
 	  break;
@@ -1425,11 +1425,10 @@ ws_read_multipart_mime_post (ws_connection_t *ws, int *is_stream)
 	{
 	  body_start_offset = (long) unbox (part_body[0]);
 	  body_end_offset = (long) unbox (part_body[1]);
-
+	  if (body_end_offset < body_start_offset)
+	    body_end_offset = body_start_offset;
 	  dk_set_push (&ret_attrs,
-	      box_varchar_string ((db_buf_t) (msg + body_start_offset),
-		body_end_offset - body_start_offset,
-		DV_SHORT_STRING));
+	    box_varchar_string ((db_buf_t) (msg + body_start_offset), body_end_offset - body_start_offset, DV_SHORT_STRING));
 	}
 
       dk_set_push (&ret_attrs, box_conc (attr_prefix, part_name));
@@ -1989,8 +1988,18 @@ char http_server_id_string_buf [1024];
 char *http_server_id_string = NULL;
 const char *http_client_id_string = "Mozilla/4.0 (compatible; OpenLink Virtuoso)";
 uint32 http_default_client_req_timeout = 100;
+extern char * https_csp;
 
 static char hsts_header_buf[128];
+static char csp_header_buf[128];
+caddr_t http_host_domain_url = NULL;
+int32 upgrade_insecure_http = 0;
+
+#ifdef _SSL
+#define CSP_HEADER(ws) ((https_csp != NULL) ? csp_header_buf : "")
+#else
+#define CSP_HEADER(ws)  ""
+#endif
 
 static char *
 hsts_header_line (ws_connection_t * ws)
@@ -2106,6 +2115,8 @@ ws_get_mime_variant (char * mime, const char ** found)
 {
   static const char * compat[] = {"text/plain", "text/*", NULL, NULL}; /* for now text/plain only, can be added more */
   int inx;
+  if (!strchr(mime, '/'))
+    return "*";
   *found = NULL;
   for (inx = 0; NULL != compat[inx]; inx += 2)
     {
@@ -2164,6 +2175,8 @@ ws_check_accept (ws_connection_t * ws, const char * mime, const char * code, int
   if (!mime)
     mime = "text/html";
   asked = ws_split_ac_header (accept);
+  if (!BOX_ELEMENTS(asked))
+    goto done;
   DO_BOX_FAST_STEP2 (caddr_t, p, caddr_t, q, inx, asked)
     {
       float qf = unbox_float (q);
@@ -2224,6 +2237,7 @@ ws_check_accept (ws_connection_t * ws, const char * mime, const char * code, int
       dk_free_tree ((caddr_t)headers);
       dk_free_box ((caddr_t)ses);
     }
+done:
   dk_free_tree (ctype);
   dk_free_tree (cenc);
   dk_free_tree ((caddr_t)asked);
@@ -2475,13 +2489,18 @@ ws_strses_reply (ws_connection_t * ws, const char * volatile code)
     {
       dk_session_t * strses = ws->ws_strses;
       client_connection_t * cli = ws->ws_cli;
-      caddr_t url,
-	  xslt_url = ws->ws_xslt_url, xslt_parms = ws->ws_xslt_params;
+      caddr_t url = ws->ws_xslt_doc_url, xslt_url = ws->ws_xslt_url, xslt_parms = ws->ws_xslt_params;
       caddr_t err = NULL, * exec_params = NULL;
-      size_t current_url_len = strlen (http_port) + strlen (ws->ws_path_string) + 18;
-      caddr_t current_url = dk_alloc_box (current_url_len, DV_SHORT_STRING);
-      snprintf (current_url, current_url_len, "http://localhost:%s%s", http_port, ws->ws_path_string);
-      url = current_url;
+
+      if (NULL == url)
+        {
+          /* The next is a guess, virtual path may not be on localhost:server_port,
+             unfortunately this lagacy is used by applications, so we keep it for now.
+           */
+          size_t url_len = strlen (http_port) + strlen (ws->ws_path_string) + 18;
+          ws->ws_xslt_doc_url = url = dk_alloc_box (url_len, DV_SHORT_STRING);
+          snprintf (url, url_len, "http://localhost:%s%s", http_port, ws->ws_path_string);
+        }
 
       if (!http_xslt_qr || http_xslt_qr->qr_to_recompile)
 	err = srv_make_new_error ("42001", "HT004", "No DB.DBA.__HTTP_XSLT defined");
@@ -2537,8 +2556,9 @@ ws_strses_reply (ws_connection_t * ws, const char * volatile code)
       ws->ws_xslt_url = NULL;
       dk_free_tree (ws->ws_xslt_params);
       ws->ws_xslt_params = NULL;
+      dk_free_box (ws->ws_xslt_doc_url);
+      ws->ws_xslt_doc_url = NULL;
       len = strses_length (ws->ws_strses);
-      dk_free_box (current_url);
     }
 #endif
   if (http_print_warnings_in_output)
@@ -2653,12 +2673,21 @@ ws_strses_reply (ws_connection_t * ws, const char * volatile code)
       if (ws->ws_method == WM_OPTIONS && ws->ws_status_code < 400 &&
 	  (NULL == ws->ws_header || NULL == nc_strstr ((unsigned char *) ws->ws_header, (unsigned char *) "Allow:")))
 	{
-	  len = 0;
 	  strses_flush (ws->ws_strses);
 	  SES_PRINT (ws->ws_session, "Allow: ");
 	  http_options_print (ws, ws->ws_session);
 	  SES_PRINT (ws->ws_session, "\r\n");
 	}
+
+      if (ws->ws_method == WM_OPTIONS && ws->ws_status_code < 400 &&
+	  (NULL == ws->ws_header || NULL == nc_strstr ((unsigned char *) ws->ws_header, (unsigned char *) "Access-Control-Allow-Methods:")))
+	{
+	  strses_flush (ws->ws_strses);
+	  SES_PRINT (ws->ws_session, "Access-Control-Allow-Methods: ");
+	  http_options_print (ws, ws->ws_session);
+	  SES_PRINT (ws->ws_session, "\r\n");
+	}
+
 
       /* timestamp */
       if (WS_NOT_HDR (ws, "Date:"))
@@ -2692,6 +2721,7 @@ ws_strses_reply (ws_connection_t * ws, const char * volatile code)
 	}
 
       SES_PRINT (ws->ws_session, hsts_header_line(ws));
+      SES_PRINT (ws->ws_session, CSP_HEADER(ws));
 
       if (ws->ws_header) /* user-defined headers */
 	{
@@ -3044,6 +3074,7 @@ send_multipart_byteranges (ws_connection_t *ws, int fd,
       "Server: %.1000s\r\n"
       "Connection: %s\r\n"
       "%s"
+      "%s"
       "\r\n"
       "--THIS_STRING_SEPARATES\r\n"
       ,
@@ -3053,7 +3084,8 @@ send_multipart_byteranges (ws_connection_t *ws, int fd,
       date_now,
       http_server_id_string,
       ws->ws_try_pipeline ? "Keep-Alive" : "close",
-      hsts_header_line (ws));
+      hsts_header_line (ws),
+      CSP_HEADER(ws));
   SES_PRINT (ws->ws_session, head);
   fprintf (stdout, "Head_mp = %s\n", head);
 
@@ -3344,6 +3376,7 @@ ws_file (ws_connection_t * ws)
 	      "%s"
 	      "%s"
 	      "%s"
+	      "%s"
 	      "%s",
 	      head_beg,
 	      (OFF_T_PRINTF_DTP) off,
@@ -3355,6 +3388,7 @@ ws_file (ws_connection_t * ws)
 	      ws->ws_try_pipeline ? "Keep-Alive" : "close",
 	      hsts_header_line(ws),
 	      (MAINTENANCE) ? "Retry-After: 1800\r\n" : "",
+              CSP_HEADER(ws),
 	      ws->ws_header ? ws->ws_header : "",
 	      ranges_buffer
 	      );
@@ -4773,6 +4807,23 @@ ws_set_timeouts (ws_connection_t * ws)
   session_set_control (client->dks_session, SC_BLOCKING, (char *)((void*)&block), sizeof (int));
 }
 
+int
+ws_check_connect_timeout (session_t *ses, timeout_t * to, int want)
+{
+  session_t *wses[] = {0}, *rses[] = {0};
+  int rc;
+
+  if (SSL_ERROR_WANT_WRITE == want)
+    wses[0] = ses;
+  else if (SSL_ERROR_WANT_READ == want)
+    rses[0] = ses;
+  else
+    return SSL_ERROR_SSL;
+  rc = session_select (1, rses, wses, to);
+  return (rc <= 0 ? SSL_ERROR_SSL : SSL_ERROR_NONE);
+}
+
+
 void
 ws_serve_connection (ws_connection_t * ws)
 {
@@ -4785,35 +4836,65 @@ ws_serve_connection (ws_connection_t * ws)
     {
       SSL_CTX * ssl_ctx = ws->ws_ssl_ctx;
       int dst = 0;
-      int ssl_err = 0;
-      timeout_t to = {100, 0};
+      int block = 0, status = 0;
+      timeout_t to = { 20, 0 };
       SSL * new_ssl = NULL;
 
       if (NULL != tcpses_get_ssl (ses->dks_session))
 	sslses_to_tcpses (ses->dks_session);
-      to = ses->dks_read_block_timeout;
-      session_set_control (ses->dks_session, SC_TIMEOUT, (char *)(&to), sizeof (timeout_t));
+      if (ws_read_timeout)
+	to.to_sec = ws_read_timeout;
+#if 0
+      else
+        to = ses->dks_read_block_timeout;
+       session_set_control (ses->dks_session, SC_TIMEOUT, (char *)(&to), sizeof (timeout_t));
+#endif
+      session_set_control (ses->dks_session, SC_BLOCKING, (char *) ((void *) &block), sizeof (int));
       dst = tcpses_get_fd (ses->dks_session);
       new_ssl = SSL_new (ssl_ctx);
       SSL_set_fd (new_ssl, dst);
-      ssl_err = SSL_accept (new_ssl);
-      if (ssl_err == -1)
+      do
 	{
+	  int connect_state;
+	  status = SSL_accept (new_ssl);
+	  connect_state = SSL_get_error (new_ssl, status);
+	  switch (connect_state)
+	    {
+	    case SSL_ERROR_NONE:
+	      status = 0;
+	      break;
+	    case SSL_ERROR_WANT_READ:
+	    case SSL_ERROR_WANT_WRITE:
+	      if (SSL_ERROR_NONE == ws_check_connect_timeout (ses->dks_session, &to, connect_state))
+		{
+		  status = 1;
+		  break;
+		}
+	    default:
+	      {
+		status = 0;
 #ifndef NDEBUG
-          unsigned long err = ERR_get_error();
-          char err_buf[1024];
-          ERR_error_string_n(err, err_buf, sizeof(err_buf));
-	  log_debug ("SSL_accept [%s]", err_buf);
+		unsigned long err = ERR_get_error ();
+		char err_buf[1024];
+		ERR_error_string_n (err, err_buf, sizeof (err_buf));
+		log_debug ("SSL_accept [%s]", err_buf);
 #endif
-	  SSL_free (new_ssl);
-	  ses->dks_ws_status = DKS_WS_DISCONNECTED;
-	  goto check_state;
+		SSL_free (new_ssl);
+		ses->dks_ws_status = DKS_WS_DISCONNECTED;
+		goto check_state;
+	      }
+	    }
 	}
-      else
+      while (1 == status && !SSL_is_init_finished (new_ssl));
+      SSL_set_verify_result(new_ssl, X509_V_OK);
+      if (!ws_write_timeout && !ws_read_timeout)	/* restore blocking socket if no timeout, old behaviour */
 	{
-	  SSL_set_verify_result(new_ssl, X509_V_OK);
-	  tcpses_to_sslses (ses->dks_session, (void *)(new_ssl));
+	  int rc;
+	  block = 1;
+	  rc = session_set_control (ses->dks_session, SC_BLOCKING, (char *) ((void *) &block), sizeof (int));
+	  rc = session_set_control (ses->dks_session, SC_TIMEOUT, (char *) (&to), sizeof (timeout_t));
 	}
+      tcpses_to_sslses (ses->dks_session, (void *) (new_ssl));
     }
 #endif
 
@@ -4828,8 +4909,7 @@ check_state:
   if (ses->dks_to_close)
     {
       try_pipeline = 0;
-      if (DKS_WS_INPUT_PENDING == ses->dks_ws_status
-	  || DKS_WS_ACCEPTED == ses->dks_ws_status)
+      if (DKS_WS_INPUT_PENDING == ses->dks_ws_status || DKS_WS_ACCEPTED == ses->dks_ws_status)
 	ses->dks_ws_status = DKS_WS_DISCONNECTED; /* this thread owns the connection and will drop it */
     }
 
@@ -6016,6 +6096,17 @@ bif_http_request_status_get (caddr_t * qst, caddr_t * err_ret, state_slot_t ** a
   return NEW_DB_NULL;
 }
 
+static caddr_t
+bif_http_request_status_code_get (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
+{
+  query_instance_t * qi = (query_instance_t *) qst;
+  if (!qi->qi_client->cli_ws)
+    sqlr_new_error ("42000", "HT012", "The http_request_status_code_get function allowed only inside HTTP request");
+  if (qi->qi_client->cli_ws->ws_status_line)
+    return box_num (qi->qi_client->cli_ws->ws_status_code);
+  return NEW_DB_NULL;
+}
+
 caddr_t
 bif_http_root (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 {
@@ -6773,36 +6864,52 @@ base64_store24(char ** d, char * c)
 size_t
 decode_base64_impl (char * src, char * end, char * table)
 {
-    char * start = src;
-    char c0, c[4], *p;
-    size_t i=0;
-    char *d=src;
-    if (!src || !*src || src == end)
-      return 0;
-    while ((c0 = *src++) && src < end) {
-	if (c0=='=')
-	  break; /* a = symbol is end padding */
-	if ((p=strchr(table, c0))) {
-	  c[i++]=(char) (p-table);
-	  if (i==4) {
-	    base64_store24(&d, c);
-	    i=0;
-	  }
-       } /* unknown symbols are ignored */
+  char * start = src;
+  char c0, c[4], s[4], *p;
+  size_t i = 0;
+  char *d = src;
+  if (!src || !*src || src == end)
+    return 0;
+  memset (s, 0, sizeof (s));
+  while ((c0 = *src++) && src < end)
+    {
+      if ((p = strchr(table, c0)))
+        {
+          s[i] = c0;
+          c[i]= (char) (p - table);
+          if (i == 3)
+            {
+              base64_store24(&d, c);
+              if (s[2] == '=')
+                {
+                  d -= 2;
+                  i = 0;
+                  break;
+                }
+              else if (s[3] == '=')
+                {
+                  d -= 1;
+                  i = 0;
+                  break;
+                }
+              memset (s, 0, sizeof (s));
+              i = 0;
+            }
+          else
+            {
+              i ++;
+            }
+        } /* unknown symbols are ignored */
     }
-    if (i>0) {
-	for(;i<4;c[i++]=0)
-	  ; /* will leave padding nulls - does not matter here */
-       base64_store24(&d, c);
+  if (i > 0)
+    {
+      for(; i < 4; c[i++] = 0);
+      base64_store24(&d, c);
+      for (i = 0; i < 4; i ++)
+        if ('\0' == s[i]) d--;
     }
-    *d=0;
-    if (*(d - 1) == 0) {
-      if (*(d - 2) == 0)
-	d -= 2;
-      else
-	d -= 1;
-    }
-    return (d - start);
+  *d = 0;
+  return (d - start);
 }
 
 caddr_t
@@ -7945,7 +8052,7 @@ bif_http_request_header_full (caddr_t * qst, caddr_t * err_ret, state_slot_t ** 
     }
   else
     {
-      if (lines)
+      if (lines && name)
 	{
 	  int inx;
 	  size_t len;
@@ -8256,10 +8363,13 @@ bif_http_xslt (caddr_t *qst, caddr_t * err_ret, state_slot_t **args)
   query_instance_t * qi = (query_instance_t *) qst;
   ws_connection_t *ws = qi->qi_client->cli_ws;
   caddr_t xslt_url = bif_string_or_null_arg (qst, args, 0, "http_xslt");
-  caddr_t params = NULL;
+  caddr_t params = NULL, base = NULL;
 
   if (BOX_ELEMENTS (args) > 1)
     params = bif_array_or_null_arg (qst, args, 1, "http_xslt");
+
+  if (BOX_ELEMENTS (args) > 2)
+    base = bif_string_or_null_arg (qst, args, 2, "http_xslt");
 
   if (!ws)
     sqlr_new_error ("42000", "HT039", "Not allowed to call the http_xslt in an non VSP context");
@@ -8268,6 +8378,8 @@ bif_http_xslt (caddr_t *qst, caddr_t * err_ret, state_slot_t **args)
   ws->ws_xslt_url = xslt_url ? box_dv_short_string (xslt_url) : NULL;
   dk_free_tree (ws->ws_xslt_params);
   ws->ws_xslt_params = box_copy_tree (params);
+  dk_free_box (ws->ws_xslt_doc_url);
+  ws->ws_xslt_doc_url = box_copy(base);
 #endif
   return NULL;
 }
@@ -8973,6 +9085,8 @@ bif_http_map_table (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 		map->hm_executable = 1;
 	      else if (!stricmp (option_name,"exec_as_get"))
 		map->hm_exec_as_get = 1;
+	      else if (!stricmp (option_name,"http_options_no_exec"))
+		map->hm_exec_opts = 1;
 	      else if (!stricmp (option_name,"url_rewrite"))
 		map->hm_url_rewrite_rule = box_copy_tree (option_value);
 	      else if (!stricmp (option_name,"url_rewrite_keep_lpath"))
@@ -10033,6 +10147,8 @@ bif_http_map_get (caddr_t *qst, caddr_t * err_ret, state_slot_t **args)
     res = box_num (map->hm_xml_template);
   else if (!strcmp (member, "security_level"))
     res = box_copy (map->hm_sec);
+  else if (!strcmp (member, "security_realm"))
+    res = box_copy (map->hm_realm);
   else if (!strcmp (member, "auth_opts"))
     res = box_copy_tree ((box_t) map->hm_auth_opts);
   else if (!strcmp (member, "soap_opts"))
@@ -10338,30 +10454,40 @@ bif_is_http_ctx (caddr_t *qst, caddr_t * err_ret, state_slot_t **args)
   return box_num(1);
 }
 
-static caddr_t
-bif_is_https_ctx (caddr_t *qst, caddr_t * err_ret, state_slot_t **args)
+int
+ws_is_https (ws_connection_t * ws)
 {
-  query_instance_t *qi = (query_instance_t *)qst;
-  caddr_t xproto = NULL;
   int is_https = 0;
-  ws_connection_t *ws = qi->qi_client->cli_ws;
+
 #ifdef _SSL
-  SSL *ssl = NULL;
+  if (ws && ws->ws_session)
+    {
+      SSL *ssl = (SSL *) tcpses_get_ssl (ws->ws_session->dks_session);
+      is_https = (NULL != ssl);
+
+      if (ws->ws_lines)
+	{
+	  const char *xproto = ws_header_field (ws->ws_lines, "X-Forwarded-Proto:", "");
+	  while (*xproto && *xproto <= '\x20')
+	    xproto++;
+	  if (!strncmp (xproto, "https", 5))
+	    is_https = 1;
+	}
+    }
 #endif
 
-  if (!ws)
-    return box_num(0);
-#ifdef _SSL
-  ssl = (SSL *) tcpses_get_ssl (ws->ws_session->dks_session);
-  is_https = (NULL != ssl);
-#endif
+  return is_https;
+}
 
-  if (ws && ws->ws_lines  && NULL != (xproto = ws_mime_header_field (ws->ws_lines, "X-Forwarded-Proto", NULL, 1)))
-    if (!strcmp(xproto, "https"))
-       is_https = 1;
-  if (xproto) dk_free_box (xproto);
+static caddr_t
+bif_is_https_ctx (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
+{
+  query_instance_t *qi = (query_instance_t *) qst;
+  int is_https = 0;
 
-  return box_num(is_https ? 1 : 0);
+  is_https = ws_is_https (qi->qi_client->cli_ws);
+
+  return box_num (is_https ? 1 : 0);
 }
 
 static caddr_t
@@ -11461,8 +11587,9 @@ ws_serve_client_connection (ws_connection_t * ws)
   if (err)
     goto err_end;
 
-  conn = (caddr_t *) dk_alloc_box (sizeof (caddr_t), DV_CONNECTION);
+  conn = (caddr_t *) dk_alloc_box (2 * sizeof (caddr_t), DV_CONNECTION);
   conn[0] = (caddr_t) ses;
+  conn[1] = (caddr_t) 1L;
 
   IN_TXN;
   if (!cli->cli_trx->lt_threads)
@@ -11704,10 +11831,10 @@ bif_http_recall_session (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
     {
       ret = (caddr_t *) dk_alloc_box (2 * sizeof (caddr_t), DV_CONNECTION);
       ret[0] = (caddr_t) ses;
-      ret[1] = (caddr_t) 1;
+      ret[1] = (caddr_t) 0L;
     }
 
-  if (ws && ses == ws->ws_session)
+  if (NULL != ses && NULL != ws && ses == ws->ws_session)
     {
       mutex_enter (thread_mtx);
       ses->dks_n_threads--;
@@ -11898,6 +12025,7 @@ http_init_part_one ()
   bif_define ("http_proxy", bif_http_proxy);
   bif_define ("http_request_status", bif_http_request_status);
   bif_define_ex ("http_request_status_get", bif_http_request_status_get, BMD_RET_TYPE, &bt_varchar, BMD_DONE);
+  bif_define_ex ("http_request_status_code_get", bif_http_request_status_code_get, BMD_RET_TYPE, &bt_integer, BMD_DONE);
   bif_define_typed (ENC_B64_NAME, bif_encode_base64, &bt_varchar);
   bif_define_typed (DEC_B64_NAME, bif_decode_base64, &bt_varchar);
   bif_define_ex ("encode_base64url", bif_encode_base64url, BMD_RET_TYPE, &bt_varchar, BMD_DONE);
@@ -12043,6 +12171,12 @@ http_init_part_one ()
     }
 
   snprintf (hsts_header_buf, sizeof (hsts_header_buf), "Strict-Transport-Security: max-age=%d\r\n", https_hsts_max_age);
+  if (https_csp != NULL)
+    {
+      snprintf (csp_header_buf, sizeof (csp_header_buf), "Content-Security-Policy: %s\r\n", https_csp);
+      if (NULL != strstr (https_csp, "upgrade-insecure-requests"))
+        upgrade_insecure_http = 1;
+    }
 
   dns_host_name = get_qualified_host_name ();
   split_string (WS_CORS_DEFAULT_ALLOW_HEADERS, NULL, &http_default_allow_headers_list);

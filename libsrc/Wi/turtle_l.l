@@ -245,7 +245,7 @@ ttlyyfree (void * ptr , yyscan_t yyscanner)
 %x UNREACHEABLE
 
 INTEGER_LITERAL ([0-9]+)
-DECIMAL_LITERAL (([0-9]+"."[0-9]*)|("."[0-9]+))
+DECIMAL_LITERAL (([0-9]+"."[0-9]+))
 DOUBLE_LITERAL	(({INTEGER_LITERAL}|{DECIMAL_LITERAL})[eE][+-]?[0-9]+)
 
 TTL_CR_IRIREF	([^\x00-\x20<>\\""{}|^`]|{TTL_CR_UCHAR})
@@ -347,6 +347,16 @@ SPAR_NCNAME_X		(([A-Za-z0-9_./#%+?&=@*:\x7f-\xfe-]*[A-Za-z0-9_/#%+?&=@*:\x7f-\xf
 <GARBAGE_BOL>"["		{ TTLYYBEGIN(INITIAL);	ttlp_arg[0].ttlp_lexdepth++;	return _LSQBRA; }
 <INITIAL,GARBAGE_BOL,GARBAGE,TWO_CRS>"[]"	{ TTLYYBEGIN(INITIAL);					return _LSQBRA_RSQBRA; }
 <INITIAL>"]"			{			ttlp_arg[0].ttlp_lexdepth--;	return _RSQBRA; }
+<INITIAL>[Gg][Rr][Aa][Pp][Hh]   {
+    int depth = ttlp_arg[0].ttlp_lexdepth;
+    if (!((0 == depth) && (ttlp_arg[0].ttlp_flags & TTLP_ALLOW_TRIG))) /* skip GRAPH decoration for TriG */
+      {
+        if ((TTLP_SNIFFER & ttlp_arg[0].ttlp_flags) && ((NULL == ttlp_arg[0].ttlp_base_uri) || ('\0' == ttlp_arg[0].ttlp_base_uri[0])))
+          TTLYYBEGIN (GARBAGE);
+        else
+          TTL_TOKBOX_Q(0,QNAME,"name without prefix");
+      }
+  }
 <INITIAL>"{"			{
     int depth = ttlp_arg[0].ttlp_lexdepth++;
     return (((0 == depth) && (ttlp_arg[0].ttlp_flags & TTLP_ALLOW_TRIG)) ? _LBRA_TOP_TRIG : _LBRA);
@@ -565,6 +575,7 @@ SPAR_NCNAME_X		(([A-Za-z0-9_./#%+?&=@*:\x7f-\xfe-]*[A-Za-z0-9_/#%+?&=@*:\x7f-\xf
 <TURTLE_DQ,TURTLE_BAD_DQ><<EOF>>		{ ttlp_arg[0].ttlp_flags |= TTLP_SNIFFER_COMPLETE; ttlyyerror ("Unterminated short double-quoted string"); }
 
 <INITIAL>[+-]?{INTEGER_LITERAL}		{ return ttlp_NUMBER_int (yylval, ttlp_arg, yyg); }
+<INITIAL>[+-]?{INTEGER_LITERAL}"."([ \t]*)[,;.]		{ int num_len = strchr (yytext, '.') + 1 - yytext; int res = ttlp_NUMBER_int (yylval, ttlp_arg, yyg); yyless (num_len); return res; }
 <INITIAL>[+-]?{DECIMAL_LITERAL}		{ return ttlp_NUMBER_decimal (yylval, ttlp_arg, yyg); }
 <INITIAL>[+-]?{DOUBLE_LITERAL}		{ return ttlp_NUMBER_double (yylval, ttlp_arg, yyg); }
 

@@ -1129,12 +1129,12 @@ sqlc_exp_print (sql_comp_t * sc, comp_table_t * ct, ST * exp, char *text, size_t
       }
 
     case DV_DOUBLE_FLOAT:
-      sprintf_more (text, tlen, fill, "%lg", unbox_double ((caddr_t) exp));
+      sprintf_more (text, tlen, fill, DOUBLE_G_STAR_FMT, DOUBLE_G_LEN, unbox_double ((caddr_t) exp));
       sc->sc_exp_sqt.sqt_dtp = dtp;
       break;
 
     case DV_SINGLE_FLOAT:
-      sprintf_more (text, tlen, fill, "%lg", unbox_float ((caddr_t) exp));
+      sprintf_more (text, tlen, fill, SINGLE_G_STAR_FMT, SINGLE_G_LEN, unbox_double ((caddr_t) exp));
       sc->sc_exp_sqt.sqt_dtp = dtp;
       break;
 
@@ -1815,7 +1815,7 @@ sqlc_resignal (sql_comp_t * sc, caddr_t err)
   snprintf (temp, sizeof (temp), "remote prepare: %.900s", ((char **) err)[2]);
   strncpy (state, ((char **) err)[1], sizeof (state));
   dk_free_tree (err);
-  sqlc_new_error (sc->sc_cc, state, "VD032", temp);
+  sqlc_new_error (sc->sc_cc, state, "VD032", "%s", temp);
 }
 
 

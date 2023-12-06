@@ -223,10 +223,13 @@ create procedure WS.WS.SPARQL_ENDPOINT_JAVASCRIPT (in can_cxml integer, in can_q
     function do_format_select (query_obg) {
         var query = query_obg.value;
         var format = query_obg.form.format;
-        var prev_value = format.options[format.selectedIndex].value;
+        var prev_value = 0;
         var prev_format = curr_format;
         var ctr = 0;
         var query_is_construct = (query.match(/\bconstruct\b\s/i) || query.match(/\bdescribe\b\s/i));
+
+        if (format.selectedIndex >= 0)
+          prev_value = format.options[format.selectedIndex].value;
 
         if (query_is_construct && curr_format != 2) {
             for (ctr = format.options.length - 1; ctr >= 0; ctr = ctr - 1)
@@ -386,7 +389,7 @@ create procedure WS.WS.SPARQL_ENDPOINT_JAVASCRIPT (in can_cxml integer, in can_q
     function sparqlSubmitForm () {
         var link = sparqlGenerateLink(1);
 
-        if (max_url > 0 && max_url < link.length) {
+        if (link.length > 14000 || (max_url > 0 && max_url < link.length)) {
             $('#sparql_form').attr('method', 'post');
         }
         document.forms['sparql_form'].submit();
@@ -428,8 +431,11 @@ create procedure WS.WS.SPARQL_ENDPOINT_JAVASCRIPT (in can_cxml integer, in can_q
         }
         var b = document.getElementById ("explain");
         if (b) change_run_button (b);
+        var q = document.getElementById ("query");
+        if (q) do_format_select (q);
 
         sparqlSubmitFormWithCtrlEnter ();
+
     }
     /*]]>*/
     </script>
@@ -736,7 +742,7 @@ create procedure WS.WS.SPARQL_ENDPOINT_HTML_OPTION (in lbl varchar, in help varc
     if (enabled)
         color := 'bg-light text-primary';
 
-    http (sprintf ('<a href="/sparql/?help=%U" class="badge rounded-pill %s text-decoration-none" role="button">%V</a>&nbsp;\n', help, color, lbl));
+    http (sprintf ('<a href="/sparql/?help=%U" class="badge rounded-pill %s text-decoration-none" role="button">%V</a>&#160;\n', help, color, lbl));
 }
 ;
 
@@ -807,7 +813,7 @@ create procedure WS.WS.SPARQL_ENDPOINT_GENERATE_FORM (
     endpoint_xsl := registry_get ('sparql_endpoint_xsl', '');
 
     if (length(endpoint_xsl))
-        http_xslt(endpoint_xsl);
+        http_xslt(endpoint_xsl, null, '');
 
 
     --
@@ -874,7 +880,7 @@ create procedure WS.WS.SPARQL_ENDPOINT_GENERATE_FORM (
     --  Show which options are enabled/disabled
     --
     http ('<div class="d-flex justify-content-end">\n');
-    http ('<span class="badge text-dark">Extensions:</span>&nbsp;\n');
+    http ('<span class="badge text-dark">Extensions:</span>&#160;\n');
     WS.WS.SPARQL_ENDPOINT_HTML_OPTION('cxml', 'enable_cxml', can_cxml);
     WS.WS.SPARQL_ENDPOINT_HTML_OPTION('save to dav', 'enable_det', isnotnull(save_dir));
     WS.WS.SPARQL_ENDPOINT_HTML_OPTION('sponge', 'enable_sponge', can_sponge);
@@ -886,7 +892,7 @@ create procedure WS.WS.SPARQL_ENDPOINT_GENERATE_FORM (
     --  Main
     --
     http ('<main id="main">\n');
-    http ('<form id="sparql_form" method="get">\n');
+    http ('<form id="sparql_form" method="get" onreset="javascript:format_select(this.elements.query)">\n');
 ?>
 
     <fieldset class="">
@@ -898,8 +904,11 @@ create procedure WS.WS.SPARQL_ENDPOINT_GENERATE_FORM (
 
         <div class="mb-3">
             <label for="query">Query Text</label>
-            <textarea class="form-control" rows="10" name="query" id="query" onchange="javascript:format_select(this)"
-                onkeyup="javascript:format_select(this)"><?V def_qry ?></textarea>
+            <textarea class="form-control" rows="10" name="query" id="query"
+                onchange="javascript:do_format_select(this)"
+                onkeyup="javascript:format_select(this)">
+                <?V def_qry ?>
+                </textarea>
         </div>
 
         <div class="mb-3 row">
@@ -912,7 +921,7 @@ create procedure WS.WS.SPARQL_ENDPOINT_GENERATE_FORM (
         </div>
 
         <div>
-            <input class="btn btn-primary" type="submit" id="run" value="Execute Query"/>
+            <input class="btn btn-primary" type="submit" onclick="javascript:sparqlSubmitForm()" id="run" value="Execute Query"/>
             <input class="btn btn-light" type="reset" value="Reset" id="reset"/>
         </div>
     </fieldset>
