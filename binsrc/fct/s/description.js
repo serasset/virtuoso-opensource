@@ -23,15 +23,19 @@
 
 //var $j = jQuery.noConflict();
 
-function init() {
-        LoadExternalImages();
-	init_long_list ();
-	init_long_literals();
-}
-
 var long_literal_counter = 0;
 var long_literal_spans = {};
 var long_literal_texts = {};
+
+var long_ul_counter = 0;
+var long_uls = {};
+var long_uls_nodes = {};
+
+function init() {
+    LoadExternalImages();
+	init_long_list ();
+	init_long_literals();
+}
 
 function init_long_literals() {
     var spans = document.getElementsByTagName('span');
@@ -55,10 +59,6 @@ function init_long_literals() {
         long_literal_counter = long_literal_counter + 1;
     }
 }
-
-var long_ul_counter = 0;
-var long_uls = {};
-var long_uls_nodes = {};
 
 function init_long_list()
 {
@@ -86,8 +86,8 @@ function init_long_list()
 	link.appendChild(document.createTextNode('\u00BBmore\u00BB'));
 	link.className = 'expander';
 	clone.insertBefore(link, clone.lastChild.nextSibling);
-        ul.parentNode.replaceChild (clone, ul);
-        long_uls[long_ul_counter] = clone;
+    ul.parentNode.replaceChild (clone, ul);
+    long_uls[long_ul_counter] = clone;
 	long_ul_counter++;
       }
 }

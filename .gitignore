@@ -145,3 +145,4 @@ binsrc/config/ccdefs
 binsrc/config/ccdefs.dSYM/
 .DS_Store
 *~
+.vscode
