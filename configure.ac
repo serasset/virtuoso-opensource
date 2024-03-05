@@ -5,7 +5,7 @@ AC_PREREQ(2.59)
 #  This file is part of the OpenLink Software Virtuoso Open-Source (VOS)
 #  project.
 #
-#  Copyright (C) 1998-2023 OpenLink Software
+#  Copyright (C) 1998-2024 OpenLink Software
 #
 #  This project is free software; you can redistribute it and/or modify it
 #  under the terms of the GNU General Public License as published by the
@@ -30,7 +30,7 @@ AC_PREREQ(2.59)
 
 m4_define(vos_major,	[7])
 m4_define(vos_minor,	[2])
-m4_define(vos_patch,	[12])
+m4_define(vos_patch,	[13])
 m4_define(vos_devel,	[-dev])
 
 AC_INIT([Virtuoso Open Source Edition (Column Store)],
@@ -431,7 +431,7 @@ AC_PATH_PROG(FLEX, flex, flex)
 AC_PATH_PROG(GAWK, gawk, gawk)
 AC_PATH_PROG(GPERF, gperf, gperf)
 AC_PATH_PROG(PERL, perl, perl)
-AC_PATH_PROG(PYTHON, python, python)
+AM_PATH_PYTHON([2.7])
 AC_PATH_PROG(RUBY, ruby, ruby)
 #AC_DECL_YYTEXT
 
@@ -914,8 +914,8 @@ then
 	/* LibreSSL defines OPENSSL_VERSION_NUMBER 0x20000000L but uses a compatible API to OpenSSL v1.0.x */
 	#elif OPENSSL_VERSION_NUMBER < 0x1020000fL
 	/* OpenSSL versions 0.9.8e - 1.1.1 are supported */
-       #elif OPENSSL_VERSION_NUMBER < 0x30200000L
-       /* OpenSSL version 3.1.x is supported */
+       #elif OPENSSL_VERSION_NUMBER < 0x30300000L
+       /* OpenSSL version 3.2.x is supported */
 	#else
 	#error OpenSSL version too new
 	#endif
@@ -3270,6 +3270,7 @@ AC_CONFIG_FILES([
 	binsrc/tutorial/web/Makefile
 	binsrc/tutorial/xml/Makefile
 	binsrc/vad/Makefile
+	binsrc/vadpacker/Makefile
 	binsrc/virtodbc/Makefile
 	binsrc/virtoledb/Makefile
 	binsrc/VirtuosoClient.Net/Makefile

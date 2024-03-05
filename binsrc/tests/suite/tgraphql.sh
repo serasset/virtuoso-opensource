@@ -7,7 +7,7 @@
 #  This file is part of the OpenLink Software Virtuoso Open-Source (VOS)
 #  project.
 #  
-#  Copyright (C) 1998-2023 OpenLink Software
+#  Copyright (C) 1998-2024 OpenLink Software
 #  
 #  This project is free software; you can redistribute it and/or modify it
 #  under the terms of the GNU General Public License as published by the
@@ -25,7 +25,7 @@
 #  
 
 TEST_NAME="GraphQL/SPARQL"
-LOGFILE=`basename -s .sh $0`.output
+LOGFILE=`basename $0 .sh`.output
 export LOGFILE
 export CASE_MODE=2
 . $VIRTUOSO_TEST/testlib.sh

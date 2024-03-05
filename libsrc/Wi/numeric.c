@@ -8,7 +8,7 @@
  *  This file is part of the OpenLink Software Virtuoso Open-Source (VOS)
  *  project.
  *
- *  Copyright (C) 1998-2023 OpenLink Software
+ *  Copyright (C) 1998-2024 OpenLink Software
  *
  *  This project is free software; you can redistribute it and/or modify it
  *  under the terms of the GNU General Public License as published by the
@@ -1506,6 +1506,7 @@ numeric_from_string (numeric_t n, const char *s)
   int scale;
   int first;
   int rc;
+  int has_digit;
 
   /* strip leading whitespace */
   while (isspace (*cp)) cp++;
@@ -1554,12 +1555,13 @@ numeric_from_string (numeric_t n, const char *s)
   exp = 0;
   scale = 0;
   first = 1;
+  has_digit = 0;
   error = NUMERIC_STS_SUCCESS;
   dp = n->n_value;
 
   for (; *cp; cp++)
     {
-      if (toupper (*cp) == 'E')
+      if (has_digit && toupper (*cp) == 'E') /* can't have a float eNN should begin with number */
 	{
 	  exp = atoi (cp + 1);
 	  break;
@@ -1577,6 +1579,7 @@ numeric_from_string (numeric_t n, const char *s)
 	{
 	  if (first)
 	    {
+              has_digit = 1;
 	      if (*cp != '0')
 		first = 0;
 	      else if (!dot)

@@ -15,7 +15,7 @@
 --  This file is part of the OpenLink Software Virtuoso Open-Source (VOS)
 --  project.
 --
---  Copyright (C) 1998-2023 OpenLink Software
+--  Copyright (C) 1998-2024 OpenLink Software
 --
 --  This project is free software; you can redistribute it and/or modify it
 --  under the terms of the GNU General Public License as published by the
@@ -484,16 +484,16 @@ again:
     <?vsp
 	declare main_ss varchar;
         main_ss := registry_get ('fct_main_ss');
-        if (not isstring (main_ss)) main_ss := 'styles/default.css';
+	if (not isstring (main_ss)) main_ss := '/fct/css/default.css';
     ?>
     <link rel="stylesheet" type="text/css" href="<?=main_ss?>"  charset="utf-8" />
 
-    <link rel="stylesheet" type="text/css" href="styles/highlighter.css" charset="utf-8" />
+    <link rel="stylesheet" type="text/css" href="/fct/css/highlighter.css" charset="utf-8" />
     <script type="text/javascript" >
       var featureList=["tab","ajax"];
     </script>
     <script type="text/javascript" src="/fct/oat/toolkit/loader.js"></script>
-    <script type="text/javascript" src="s/description.js"></script>
+    <script type="text/javascript" src="/fct/js/description.js"></script>
 
     <link rel="icon" href="/favicon.ico?v=1" sizes="any" />
     <link rel="icon" href="/favicon/favicon.svg?v=1" type="image/svg+xml" />

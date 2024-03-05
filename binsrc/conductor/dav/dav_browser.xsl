@@ -6,7 +6,7 @@
  -  This file is part of the OpenLink Software Virtuoso Open-Source (VOS)
  -  project.
  -
- -  Copyright (C) 1998-2023 OpenLink Software
+ -  Copyright (C) 1998-2024 OpenLink Software
  -
  -  This project is free software; you can redistribute it and/or modify it
  -  under the terms of the GNU General Public License as published by the
@@ -7609,7 +7609,7 @@
             <v:text name="dav_AZURE_key" xhtml_id="dav_AZURE_key" format="%s" xhtml_disabled="disabled" xhtml_class="field-text" xhtml_onblur="javascript: WEBDAV.loadDriveBuckets(\'AZURE\', \'Container\', [\'account\', \'container\', \'key\']);">
               <v:before-data-bind>
                 <![CDATA[
-                  control.ufl_value := self.get_fieldProperty ('dav_AZURE_key', self.dav_path, 'AZURE', 'key', '');
+                  control.ufl_value := self.get_fieldProperty ('dav_AZURE_key', self.dav_path, 'virt:AZURE-key', '');
                 ]]>
               </v:before-data-bind>
             </v:text>

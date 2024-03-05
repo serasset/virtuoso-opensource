@@ -6,7 +6,7 @@
 --
 --  RDF Schema objects, generator of RDF Views
 --
---  Copyright (C) 1998-2023 OpenLink Software
+--  Copyright (C) 1998-2024 OpenLink Software
 --
 --  This project is free software; you can redistribute it and/or modify it
 --  under the terms of the GNU General Public License as published by the
@@ -899,8 +899,9 @@ DB.DBA.RDF_OWL_FROM_TBL (in qual varchar, in _tbls any, in cols any := null, in 
               if (gql_annotate)
                 http ('  gql:type gql:Object ;\n', ses);
 	    }
-	  else if (cols_arr[1][inx][0] = 4)
+	  else if (cols_arr[1][inx][0] = 4 and dtp in (__tag of varchar, __tag of nvarchar))
 	    {
+	      http (sprintf ('%s:%s a owl:DatatypeProperty ;\n', qual, col), ses);
 	      http (sprintf ('  rdfs:subPropertyOf virtrdf:label ;\n'), ses);
 	      http (sprintf ('  rdfs:range xsd:%s ;\n', xsd), ses);
               if (gql_annotate)

@@ -8,7 +8,7 @@
  *  This file is part of the OpenLink Software Virtuoso Open-Source (VOS)
  *  project.
  *
- *  Copyright (C) 1998-2023 OpenLink Software
+ *  Copyright (C) 1998-2024 OpenLink Software
  *
  *  This project is free software; you can redistribute it and/or modify it
  *  under the terms of the GNU General Public License as published by the
@@ -1003,7 +1003,7 @@ cv_artm_set_type (instruction_t * ins)
 	  switch (ins->ins_type)
             {
             case IN_ARTM_PLUS:
-              if ((DV_DATETIME == ins->_.artm.left->ssl_dtp) || (DV_DATETIME == ins->_.artm.right->ssl_dtp))
+              if (IS_DATE_DTP(ins->_.artm.left->ssl_dtp) || IS_DATE_DTP (ins->_.artm.right->ssl_dtp))
                 {
                   ins->_.artm.result->ssl_dtp = DV_DATETIME;
                   ins->_.artm.result->ssl_sqt.sqt_non_null = 0;
@@ -1011,10 +1011,10 @@ cv_artm_set_type (instruction_t * ins)
                 }
               break;
             case IN_ARTM_MINUS:
-              if (DV_DATETIME == ins->_.artm.left->ssl_dtp)
+              if (IS_DATE_DTP (ins->_.artm.left->ssl_dtp))
                 {
                   ins->_.artm.result->ssl_sqt.sqt_non_null = 0;
-                  if (DV_DATETIME == ins->_.artm.right->ssl_dtp)
+                  if (IS_DATE_DTP (ins->_.artm.right->ssl_dtp))
                     {
                       ins->_.artm.result->ssl_dtp = DV_NUMERIC;
                       goto result_dtp_is_set;
@@ -2887,7 +2887,7 @@ select_ref_generate (sql_comp_t * sc, ST * tree, dk_set_t * code,
 	    jmp_label_t setenv_end = sqlc_new_label (sc);
 
 	    state_slot_t *flag = ssl_new_inst_variable (sc->sc_cc, "user_aggr_notfirst", DV_SHORT_INT);
-	    state_slot_t *env = ssl_new_inst_variable (sc->sc_cc, "user_aggr_env", DV_UNKNOWN);
+	    state_slot_t *env = ssl_new_inst_variable (sc->sc_cc, "user_aggr_env", DV_ARRAY_OF_POINTER);
 	    state_slot_t *ret = ssl_new_inst_variable (sc->sc_cc, "user_aggr_ret", DV_UNKNOWN);
 	    caddr_t deflt_env;
 	    state_slot_t ** acc_args = (state_slot_t **) dk_alloc_box (sizeof (state_slot_t *) * (1 + BOX_ELEMENTS(tree->_.fn_ref.fn_arglist)), DV_ARRAY_OF_POINTER);
