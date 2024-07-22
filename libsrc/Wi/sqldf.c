@@ -1007,6 +1007,8 @@ sqlo_df (sqlo_t * so, ST * tree)
 	    got->ot_is_group_dummy = 1;
             got->ot_fref_ot = ot;
 	    ot->ot_group_dfe = sqlo_new_dfe (so, DFE_GROUP, NULL);
+            if (!dt->_.select_stmt.table_exp)
+              sqlc_new_error (so->so_sc->sc_cc, "37000", "SQ488", "Group by expression cannot be handled");
 	    ot->ot_group_dfe->_.setp.specs = dt->_.select_stmt.table_exp->_.table_exp.group_by;
 	    ot->ot_group_dfe->_.setp.top_cnt = sqlo_select_top_cnt (so, SEL_TOP (dt));
 	    ot->ot_group_dfe->_.setp.ot = got;
@@ -1698,7 +1700,7 @@ dfe_is_super (df_elt_t *super, df_elt_t * sub)
 
 
 df_elt_t *
-dfe_skip_to_min_card (df_elt_t * place, df_elt_t * super, df_elt_t * dfe)
+dfe_skip_to_min_card (df_elt_t * place, df_elt_t * super, df_elt_t * dfe, int skip_gby_oby)
 {
   /* when placing a func, see if some place later in the query has lower card */
   df_elt_t * best = place, *org_place = place;
@@ -1746,6 +1748,9 @@ dfe_skip_to_min_card (df_elt_t * place, df_elt_t * super, df_elt_t * dfe)
 	  ptrlong top_cnt;
 	  if (place->_.setp.is_being_placed)
 	    goto over;
+          /* coalesce & case exp may ref a col in gby the following oby has dc cleared ref */
+          if (skip_gby_oby && place->dfe_prev && DFE_GROUP == place->dfe_prev->dfe_type)
+            goto over;
 	  top_cnt = place->_.setp.top_cnt;
 	  if (top_cnt)
 	    {
@@ -2223,6 +2228,8 @@ sqlo_place_exp (sqlo_t * so, df_elt_t * super, df_elt_t * dfe)
 
 	dfe->dfe_locus = pref_loc;
 	placed = dfe_latest_by_ot (so, n_deps, deps, 1);
+        if (!placed)
+          sqlc_new_error (so->so_sc->sc_cc, "37000", "SQ207", "Control expression cannot be handled.");
 	placed = dfe_skip_exp_dfes (placed, &dfe, 1);
         DO_BOX (op_table_t *, ot, inx, deps)
           {
@@ -2263,11 +2270,15 @@ sqlo_place_exp (sqlo_t * so, df_elt_t * super, df_elt_t * dfe)
 		  {
 		    sqlo_place_exp (so, elt_dfe, pred);
 		  }
-		else
+		else if ((DFE_BOP == pred->dfe_type) || (DFE_BOP_PRED == pred->dfe_type))
 		  {
 		    sqlo_place_exp (so, pred, pred->_.bin.left);
 		    sqlo_place_exp (so, pred, pred->_.bin.right);
 		  }
+                else if (DFE_TEXT_PRED == pred->dfe_type)
+                  sqlc_new_error (so->so_sc->sc_cc, "37000", "SQ081", "Free-text or index-friendly spatial predicate can not appear in CASE WHEN conditional control operator, please rephrase the query");
+		else
+		  sqlo_place_exp (so, elt_dfe, pred);
 	      }
 	    else
 		sqlo_place_exp (so, elt_dfe, pred);
@@ -2279,7 +2290,7 @@ sqlo_place_exp (sqlo_t * so, df_elt_t * super, df_elt_t * dfe)
 	  }
 	END_DO_BOX;
 	placed = dfe_skip_exp_dfes (placed, &dfe, 1);
-	placed = dfe_skip_to_min_card (placed, super, dfe);
+	placed = dfe_skip_to_min_card (placed, super, dfe, 1);
 	so->so_mark_gb_dep = 1;
 	sqlo_place_dfe_after (so, pref_loc, placed, dfe);
 	return dfe;
@@ -2339,7 +2350,7 @@ sqlo_place_exp (sqlo_t * so, df_elt_t * super, df_elt_t * dfe)
 	  {
 	    placed = dfe_latest (so, n_args, args, 1);
 	    placed = dfe_skip_exp_dfes (placed, &dfe, 1);
-	    placed = dfe_skip_to_min_card (placed, super, dfe);
+	    placed = dfe_skip_to_min_card (placed, super, dfe, 0);
 	  }
 	so->so_mark_gb_dep = 1;
 	sqlo_place_dfe_after (so, pref_loc, placed, dfe);
