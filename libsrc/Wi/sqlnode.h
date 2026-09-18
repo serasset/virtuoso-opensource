@@ -8,7 +8,7 @@
  *  This file is part of the OpenLink Software Virtuoso Open-Source (VOS)
  *  project.
  *
- *  Copyright (C) 1998-2024 OpenLink Software
+ *  Copyright (C) 1998-2026 OpenLink Software
  *
  *  This project is free software; you can redistribute it and/or modify it
  *  under the terms of the GNU General Public License as published by the
@@ -1733,6 +1733,7 @@ typedef struct db_activity_s
   int	da_batch_size_request;
   char		da_anytime_result; /* if set, this means the recipient has run out of time and should return an answer */
   char	da_trans_partial; /* if transitive ops incomplete due to time or mem limit */
+  int64 da_temp_pages;
 } db_activity_t;
 
 
@@ -1879,7 +1880,7 @@ typedef struct client_connection_s
 #ifdef INPROCESS_CLIENT
     int			cli_inprocess;
 #endif
-    time_msec_t		cli_start_time;
+    time_usec_t		cli_start_time_usec;
     time_msec_t		cli_ws_check_time;
     caddr_t *		cli_info;
     cl_thread_t *	cli_clt; /* if cli of a cluster server thread, this is the clt */

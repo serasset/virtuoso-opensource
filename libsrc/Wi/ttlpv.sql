@@ -4,7 +4,7 @@
 --  This file is part of the OpenLink Software Virtuoso Open-Source (VOS)
 --  project.
 --
---  Copyright (C) 1998-2024 OpenLink Software
+--  Copyright (C) 1998-2026 OpenLink Software
 --
 --  This project is free software; you can redistribute it and/or modify it
 --  under the terms of the GNU General Public License as published by the
@@ -173,7 +173,7 @@ create procedure DB.DBA.RDF_RL_TYPE_ID (in iri varchar)
   if (2 = old_mode)
     log_enable (0, 1);
 
-  id := (select RDT_TWOBYTE from DB.DBA.RDF_DATATYPE where RDT_QNAME = iri);
+  id := (select RDT_TWOBYTE from DB.DBA.RDF_DATATYPE where RDT_QNAME = iri for update);
   if (id is null)
     {
       declare t_iri_id any;
@@ -212,7 +212,7 @@ create procedure DB.DBA.RDF_RL_LANG_ID (in ln varchar)
  again:
   if (2 = old_mode)
     log_enable (0, 1);
-  id := (select RL_TWOBYTE from DB.DBA.RDF_LANGUAGE where RL_ID = ln);
+  id := (select RL_TWOBYTE from DB.DBA.RDF_LANGUAGE where RL_ID = ln for update);
   if (id is null)
     {
       id:= sequence_next ('RDF_LANGUAGE_TWOBYTE', 1, 1);
@@ -1136,14 +1136,14 @@ create procedure DB.DBA.RDF_LOAD_JSON_LD (in strg varchar, in base varchar, in g
   declare ro_id_dict, app_env, g_iid, old_log_mode any;
   if (1 <> sys_stat ('cl_run_local_only'))
     {
-      -- error
+      signal ('37000', 'DB.DBA.RDF_LOAD_JSON_LD() can not be used on clustered Database');
       return;
     }
   if (is_atomic ())
     signal ('22023', 'DB.DBA.TTLP_V(), the vectorized Turtle loader, can not be used while server is in the atomic mode; consider using plain non-vectorised loader DB.DBA.TTLP()');
   if (0 = sys_stat ('rdf_rpid64_mode'))
     {
-      -- error
+      signal ('37000', 'DB.DBA.RDF_LOAD_JSON_LD() can not be used on Database with incompatible 32bit RDF_IRI prefix IDs');
       return;
     }
   old_log_mode := null;

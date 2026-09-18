@@ -8,7 +8,7 @@
  *  This file is part of the OpenLink Software Virtuoso Open-Source (VOS)
  *  project.
  *
- *  Copyright (C) 1998-2024 OpenLink Software
+ *  Copyright (C) 1998-2026 OpenLink Software
  *
  *  This project is free software; you can redistribute it and/or modify it
  *  under the terms of the GNU General Public License as published by the
@@ -1479,7 +1479,7 @@ box_to_double_col (caddr_t data, dtp_t dtp, oid_t col_id, caddr_t * err_ret, dbe
 }
 
 
-void box2anyerr ()
+void box2anyerr (void)
 {}
 
 
@@ -1601,7 +1601,9 @@ row_set_col_cast (caddr_t data, sql_type_t *tsqt, caddr_t *err_ret,
 		  *err_ret = numeric_from_x ((numeric_t)n, data, tsqt->sqt_precision,
 		      tsqt->sqt_scale,0, col_id, key);
 		  res = (caddr_t) numeric_allocate ();
-		  memcpy (res, &n, MIN (box_length (res), sizeof (n)));
+                  if (NUMERIC_STS_SUCCESS != *err_ret)
+                    numeric_from_string ((numeric_t)n,"NaN");
+                  memcpy (res, &n, MIN (box_length (res), sizeof (n)));
 		  break;
 		}
 

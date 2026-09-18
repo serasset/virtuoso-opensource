@@ -8,7 +8,7 @@
  *  This file is part of the OpenLink Software Virtuoso Open-Source (VOS)
  *  project.
  *
- *  Copyright (C) 1998-2024 OpenLink Software
+ *  Copyright (C) 1998-2026 OpenLink Software
  *
  *  This project is free software; you can redistribute it and/or modify it
  *  under the terms of the GNU General Public License as published by the
@@ -264,7 +264,7 @@ sqlo_is_tautology (ST * tree)
       dtp_t l_dtp = DV_TYPE_OF (l);
       dtp_t r_dtp = DV_TYPE_OF (r);
       if (DV_LONG_INT == l_dtp && DV_LONG_INT == r_dtp)
-	return unbox (l) == unbox (r);
+	return unbox ((ccaddr_t) l) == unbox ((ccaddr_t) r);
       return 2;
     }
   return 2;
@@ -528,7 +528,12 @@ sqlo_const_cond (sqlo_t * so, df_elt_t * dfe)
 	  else return dfe;
 	case BOP_EQ:
 	  if (dfe->_.bin.left == dfe->_.bin.right)
-	    return DFE_TRUE;
+            {
+              df_elt_t *col = dfe->_.bin.left;
+              /* except case when col is nullable */
+              if (DFE_COLUMN != col->dfe_type || !col->_.col.col || col->_.col.col->col_sqt.sqt_non_null)
+                return DFE_TRUE;
+            }
 	  return dfe;
 
 	case BOP_NULL:
@@ -1160,12 +1165,28 @@ ot_placed_check (op_table_t * ot)
 #endif
 }
 
+int
+dfe_is_setp_key (df_elt_t * setp, df_elt_t * dfe)
+{
+  int inx;
+  DO_BOX (ST *, spec, inx, setp->_.setp.specs)
+    {
+      if (ST_P (spec, ORDER_BY))
+	spec = spec->_.o_spec.col;
+      if (box_equal ((caddr_t) spec, (caddr_t) dfe->dfe_tree))
+	return 1;
+    }
+  END_DO_BOX;
+  return 0;
+}
+
+
 int enable_gb_dep = 1;
 
 void
-sqlo_mark_gb_dep (sqlo_t * so, df_elt_t * dfe)
+sqlo_mark_gb_dep (sqlo_t * so, df_elt_t * dfe, df_elt_t * exp_dfe)
 {
-  /* if an exp is placed before a group by but is used after the group by then add it to the dependent of the gby */
+  /* if an exp is placed before a group by but is used after the group by then add it to the dependent of the gby.  The exp can be defd in a pred body of a ts or such.  If so, the dfe is the defining top level dfe and the exp_dfe is the exp.  If the exp is top level these are the same.  */
   df_elt_t * next, *next2;
   int next_ctr = 0;
   so->so_mark_gb_dep = 0;
@@ -1174,7 +1195,8 @@ sqlo_mark_gb_dep (sqlo_t * so, df_elt_t * dfe)
   switch (dfe->dfe_type)
     {
     case DFE_GROUP: case DFE_ORDER: case DFE_TABLE: case DFE_DT:
-      return;
+	if (dfe == exp_dfe)
+	  return;
     }
   
   for (next = dfe->dfe_next, next2 = dfe; next; next = next->dfe_next)
@@ -1183,14 +1205,14 @@ sqlo_mark_gb_dep (sqlo_t * so, df_elt_t * dfe)
         next2 = next2->dfe_next;
       if (next2 == next)
         sqlc_new_error (so->so_sc->sc_cc, "42000", "SQI01", "Internal error in SQL compiler: loop in dfe_next");
-      if (DFE_GROUP == next->dfe_type && !next->_.setp.is_being_placed)
-	t_set_pushnew (&next->_.setp.gb_dependent, (void*)dfe);
+      if (DFE_GROUP == next->dfe_type && !next->_.setp.is_being_placed && !dfe_is_setp_key (next, exp_dfe))
+	t_set_pushnew (&next->_.setp.gb_dependent, (void*)exp_dfe);
     }
   /* it can be that a dt being placed has a having that has an invariant.  If so, the invariant goes a level above and the grup by is not directly after it.  So then start from the ghen pt and goup to the placed and get all the setps on the way and add the dfe as dep to them */
   dfe_latest (so, 1, &dfe, 1);
   DO_SET (df_elt_t *, setp, &so->so_crossed_setps)
     {
-      if (!setp->_.setp.is_being_placed)
+      if (!setp->_.setp.is_being_placed && !dfe_is_setp_key (setp, dfe))
 	t_set_pushnew (&setp->_.setp.gb_dependent, (void*)dfe);
     }
   END_DO_SET();
@@ -1237,7 +1259,7 @@ sqlo_place_dfe_after (sqlo_t * so, locus_t * loc, df_elt_t * after_this, df_elt_
     so->so_gen_pt = dfe;
   sqlo_dfe_type (so, dfe);
   if (so->so_mark_gb_dep)
-    sqlo_mark_gb_dep (so, dfe);
+    sqlo_mark_gb_dep (so, dfe, dfe);
   sqlo_check_outside_dt (so, dfe);
 }
 
@@ -1478,6 +1500,8 @@ df_elt_t *
 dfe_hash_fill_defines_ot (df_elt_t * dt_dfe, op_table_t * ot)
 {
   /* is the ot in the join in the hash filler */
+  if (!ot->ot_new_prefix)
+    return NULL;
   DO_SET (df_elt_t *, from, &dt_dfe->_.sub.ot->ot_from_dfes)
     {
       if (0 == strcmp (from->_.table.ot->ot_prefix, ot->ot_new_prefix))
@@ -2134,7 +2158,7 @@ sqlo_place_exp (sqlo_t * so, df_elt_t * super, df_elt_t * dfe)
 		{
 		  dfe_loc_result (placed->dfe_locus, super, dfe);
 		}
-	      sqlo_mark_gb_dep (so, placed);
+	      sqlo_mark_gb_dep (so, placed, dfe);
 	      return placed;
 	    }
 	}
@@ -2201,6 +2225,15 @@ sqlo_place_exp (sqlo_t * so, df_elt_t * super, df_elt_t * dfe)
 	op_table_t ** deps = (op_table_t **) t_list_to_array (dfe->dfe_tables);
 	placed = dfe_latest_by_ot (so, n_deps, deps, 1);
 	placed = dfe_skip_exp_dfes (placed, &dfe, 1);
+	/* An IN-list argument can pre-place an uncorrelated value subquery at
+	 * this exact point.  Reuse it instead of inserting the same DFE again. */
+	if (DFE_PLACED == dfe->dfe_is_placed && dfe->_.sub.generated_dfe &&
+	    placed->dfe_next == dfe && dfe->dfe_prev == placed)
+	  {
+	    sqlo_check_outside_dt (so, dfe);
+	    sqlo_mark_gb_dep (so, dfe, dfe);
+	    return dfe;
+	  }
 	so->so_mark_gb_dep = 1;
 	sqlo_place_dfe_after (so, pref_loc, placed, dfe);
         if (!dfe->_.sub.ot)
@@ -2233,8 +2266,8 @@ sqlo_place_exp (sqlo_t * so, df_elt_t * super, df_elt_t * dfe)
 	placed = dfe_skip_exp_dfes (placed, &dfe, 1);
         DO_BOX (op_table_t *, ot, inx, deps)
           {
-            if (ot->ot_is_group_dummy && ot->ot_fref_ot && ot->ot_fref_ot->ot_dfe && ot->ot_fref_ot->ot_dfe->dfe_is_placed)
-              placed = ot->ot_fref_ot->ot_dfe;
+            if (ot->ot_is_group_dummy && ot->ot_fref_ot && ot->ot_dfe && ot->ot_dfe->dfe_is_placed)
+              placed = ot->ot_dfe;
           }
         END_DO_BOX;
 	dfe->_.control.terms = (df_elt_t ***) t_box_copy ((caddr_t) dfe->dfe_tree->_.comma_exp.exps);
@@ -2503,6 +2536,23 @@ dfe_nth_selection (df_elt_t * tb_dfe, int inx)
 }
 
 
+ST * sqlo_import (ST * tree, df_elt_t * tb_dfe, df_elt_t * target_dfe);
+
+static ST **
+sqlo_import_exp_array (ST ** exps, df_elt_t * tb_dfe, df_elt_t * target_dfe)
+{
+  ST ** copy;
+  int inx;
+
+  copy = (ST **) t_box_copy ((caddr_t) exps);
+  DO_BOX (ST *, elt, inx, copy)
+    {
+      copy[inx] = sqlo_import (elt, tb_dfe, target_dfe);
+    }
+  END_DO_BOX;
+  return copy;
+}
+
 ST *
 sqlo_import (ST * tree, df_elt_t * tb_dfe, df_elt_t * target_dfe)
 {
@@ -2530,6 +2580,21 @@ sqlo_import (ST * tree, df_elt_t * tb_dfe, df_elt_t * target_dfe)
 	}
       else
 	return ((ST*) t_box_copy_tree ((caddr_t) tree));
+    }
+
+  /* A CASE/COALESCE expression owns an array of expressions.  Do not pass
+   * that array itself to sqlo_import(): its first member can be an integer
+   * literal which happens to be a BOP code.  The generic BOP handling below
+   * would then overwrite the array's fifth member as bin_exp.serial.  For
+   * NULLIF(14, 0), that fifth member is the ELSE value 14. */
+  if ((SIMPLE_CASE == tree->type || SEARCHED_CASE == tree->type ||
+       COALESCE_EXP == tree->type || COMMA_EXP == tree->type) &&
+      2 == BOX_ELEMENTS (tree) && ARRAYP (tree->_.comma_exp.exps))
+    {
+      copy = (ST **) t_box_copy ((caddr_t) tree);
+      ((ST *)copy)->_.comma_exp.exps =
+	sqlo_import_exp_array (tree->_.comma_exp.exps, tb_dfe, target_dfe);
+      return (ST *) copy;
     }
   copy = (ST **) t_box_copy ((caddr_t) tree);
   /* touch the serial for the imported preds as well */
@@ -2590,6 +2655,7 @@ sqlo_import_preds (sqlo_t * so, df_elt_t * tb_dfe, df_elt_t * dt_dfe, dk_set_t p
   op_table_t * prev_dt = so->so_this_dt;
   dk_set_t res = NULL;
   sql_scope_t sco, *old_sco;
+  char old_rescope = so->so_is_rescope;
 
   memset (&sco, 0, sizeof (sql_scope_t));
   sco.sco_so = so;
@@ -2615,6 +2681,7 @@ sqlo_import_preds (sqlo_t * so, df_elt_t * tb_dfe, df_elt_t * dt_dfe, dk_set_t p
       sqlo_scope (so, &all_new_tree);
       so->so_is_top_and = 0;
       so->so_scope = old_sco;
+      so->so_is_rescope = old_rescope;
 
       sqlc_make_and_list (all_new_tree, &and_set);
       DO_SET (predicate_t *, new_tree_pred, &and_set)
@@ -2772,18 +2839,22 @@ sqlc_is_all_union_alls (ST * tree)
 void
 sqlo_add_union_reqd_outs (sqlo_t * so, df_elt_t * dt_dfe)
 {
-  int inx;
-  if (! sqlc_is_all_union_alls (dt_dfe->_.sub.ot->ot_dt))
+  op_table_t * ot = dt_dfe->_.sub.ot;
+  int inx, is_all_union_alls = sqlc_is_all_union_alls (ot->ot_dt);
+  ST * sel = ot->ot_left_sel;
+  DO_BOX (ST *, as_exp, inx, sel->_.select_stmt.selection)
     {
-      op_table_t * ot = dt_dfe->_.sub.ot;
-      ST * sel = dt_dfe->_.sub.ot->ot_left_sel;
-      DO_BOX (ST *, as_exp, inx, sel->_.select_stmt.selection)
-	{
-	  sqlo_place_exp (so, dt_dfe->_.sub.generated_dfe,
-			  sqlo_df (so, (ST*) t_list (3, COL_DOTTED, ot->ot_new_prefix, as_exp->_.as_exp.name)));
-	}
-      END_DO_BOX;
+      ST* as = (ST*) t_list (3, COL_DOTTED, ot->ot_new_prefix, as_exp->_.as_exp.name);
+      /* For a pure UNION ALL, a select-list column already placed elsewhere
+       * (found via the CSE cache) must not be placed here again -- doing so
+       * re-links its dfe into this chain too and can leave dfe_prev pointing
+       * back into an earlier segment, forming a cycle (case #1454). */
+      if (!is_all_union_alls || !sqlo_df_elt (so, as))
+        {
+          sqlo_place_exp (so, dt_dfe->_.sub.generated_dfe, sqlo_df (so, as));
+        }
     }
+  END_DO_BOX;
 }
 
 
@@ -5758,6 +5829,8 @@ sqlo_strip_in_join (ST* tree, caddr_t joined_table_prefix, caddr_t * joined_col_
   int inx;
   if (DV_ARRAY_OF_POINTER != DV_TYPE_OF (tree))
     return;
+  if (ST_P (tree, BOP_NOT) || ST_P (tree, BOP_OR))
+    return;
   if (ST_P (tree, BOP_EQ)
       && ST_COLUMN (tree->_.bin_exp.left, COL_DOTTED) && ST_COLUMN (tree->_.bin_exp.right, COL_DOTTED)
       && tree->_.bin_exp.left->_.col_ref.prefix && tree->_.bin_exp.right->_.col_ref.prefix)
@@ -6090,6 +6163,7 @@ sqlo_dfe_unplace (sqlo_t * so, df_elt_t * dfe)
       {
 	ptrlong top_cnt = dfe->_.setp.top_cnt;
 	ST ** specs = dfe->_.setp.specs;
+	dk_set_t dep = dfe->_.setp.gb_dependent;
 	/*sqlo_dfe_unplace (so, (df_elt_t *) dfe->_.setp.after_test);*/
 	DO_SET (df_elt_t *, pred, &dfe->_.setp.having_preds)
 	  {
@@ -6099,6 +6173,7 @@ sqlo_dfe_unplace (sqlo_t * so, df_elt_t * dfe)
 	memset (&dfe->_, 0, sizeof (dfe->_.setp));
 	dfe->_.setp.specs = specs;
 	dfe->_.setp.top_cnt = top_cnt;
+	dfe->_.setp.gb_dependent = dep;
 	break;
       }
     case DFE_TEXT_PRED:
@@ -6923,7 +6998,7 @@ sqlo_subscore (sqlo_t * so, op_table_t * ot, float score)
     return 1;
   if (!so->so_subscore)
     {
-      so->so_subscore = t_id_hash_allocate (201, sizeof (caddr_t), sizeof (double), strhash, strhashcmp);
+      so->so_subscore = t_id_hash_allocate (201, sizeof (caddr_t), sizeof (float), strhash, strhashcmp);
       so->so_subscore->ht_rehash_threshold = 300;
     }
   DO_SET (df_elt_t *, part, &ot->ot_from_dfes)
@@ -6986,15 +7061,20 @@ sqlo_best_exceeded (sqlo_t * so, op_table_t * ot, float this_score)
 
 
 void sqlo_layout_1 (sqlo_t * so, op_table_t * ot, int is_top);
-int sqlo_layout_min_quota = 1500000;
+size_t sqlo_layout_min_quota = 1500000;
 
 void
 sqlo_layout_lim (sqlo_t * so, op_table_t * ot, int is_top)
 {
-  int max = so->so_max_memory;
-  int changed = 0, bytes = THR_TMP_POOL->mp_bytes;
-  int next_quota =  (max - bytes) / 3;
-  if (next_quota > sqlo_layout_min_quota)
+  int changed = 0;
+  size_t max = so->so_max_memory;
+  size_t bytes = THR_TMP_POOL->mp_bytes;
+  ssize_t next_quota = ((ssize_t)max - (ssize_t)bytes) / 3;
+  /*
+   * here is a weird way it works, if max mp set, start with some part of it, put a lower limit to see if fits,
+   * next time increase up to max +25% this helps to do not try to fit in max at once,
+   */
+  if (next_quota > 0 && next_quota > sqlo_layout_min_quota && (bytes + next_quota) < ((sqlo_max_mp_size * 4) / 3))
     {
       so->so_max_memory = bytes + next_quota;
       changed = 1;
@@ -8436,5 +8516,3 @@ sqlo_co_place (sql_comp_t * sc)
     }
   return ret;
 }
-
-

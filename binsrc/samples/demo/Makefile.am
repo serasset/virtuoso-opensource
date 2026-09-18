@@ -2,7 +2,7 @@
 #  This file is part of the OpenLink Software Virtuoso Open-Source (VOS)
 #  project.
 #  
-#  Copyright (C) 1998-2024 OpenLink Software
+#  Copyright (C) 1998-2026 OpenLink Software
 #  
 #  This project is free software; you can redistribute it and/or modify it
 #  under the terms of the GNU General Public License as published by the
@@ -249,9 +249,19 @@ clean-local:
 # ----------------------------------------------------------------------
 EXTRA_DIST = \
 	$(DEMO_DEPS) \
-	install_ini.sh.in \
-	default-virtuoso.ini \
-	mkdemo.bat \
-	mkdemo.ini \
-	mkdemo.sh \
-	mkdoc.sh
+	$(srcdir)/install_ini.sh.in \
+	$(srcdir)/default-virtuoso.ini \
+	$(srcdir)/mkdemo.bat \
+	$(srcdir)/mkdemo.ini \
+	$(srcdir)/mkdemo.sh \
+	$(srcdir)/mkdoc.sh \
+	$(srcdir)/soapdemo/*.css \
+	$(srcdir)/soapdemo/*.html \
+	$(srcdir)/soapdemo/*.jar \
+	$(srcdir)/soapdemo/*.java \
+	$(srcdir)/soapdemo/*.sql \
+	$(srcdir)/soapdemo/*.vsp \
+	$(srcdir)/soapdemo/GNUmakefile \
+	$(srcdir)/soapdemo/r4/*.sql \
+	$(srcdir)/soapdemo/r4/*.xsd \
+	$(srcdir)/soapdemo/round2-base.vb 

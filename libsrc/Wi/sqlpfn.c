@@ -8,7 +8,7 @@
  *  This file is part of the OpenLink Software Virtuoso Open-Source (VOS)
  *  project.
  *
- *  Copyright (C) 1998-2024 OpenLink Software
+ *  Copyright (C) 1998-2026 OpenLink Software
  *
  *  This project is free software; you can redistribute it and/or modify it
  *  under the terms of the GNU General Public License as published by the
@@ -2391,7 +2391,7 @@ generic_check:
 	  lit = (ST *)(t_full_box_copy_tree (ret_val));
 	  if (DV_TYPE_OF (ret_val) == DV_RDF)
 	    lit = t_listst (3, CALL_STMT, t_sqlp_box_id_upcase ("__rdflit"), t_list (1, lit));
-            dk_free_box (ret_val);
+          dk_free_box (ret_val);
           return lit;
 not_a_constant_pure: ;
         }
@@ -2411,6 +2411,21 @@ ST *
 sqlp_in_exp (ST * left, dk_set_t  right, int is_not)
 {
   int inx;
+  /* IN ((SELECT ...)) reaches this function as a one-element expression
+   * list containing SCALAR_SUBQ.  Normalize it to the quantified-subquery
+   * representation used by IN (SELECT ...). */
+  if (right && !right->next && ST_P ((ST *) right->data, SCALAR_SUBQ))
+    {
+      ST *in = SUBQ_PRED (SOME_PRED, left,
+	  ((ST *) right->data)->_.bin_exp.left, BOP_EQ, NULL);
+      if (is_not)
+	{
+	  ST *not_in = NULL;
+	  NEGATE (not_in, in);
+	  return not_in;
+	}
+      return in;
+    }
   if (ST_P (left, COMMA_EXP))
     {
       ST * ors = NULL;
@@ -2771,14 +2786,14 @@ sqlp_is_num_lit (caddr_t x)
 
 
 char *
-sqlp_default_cluster ()
+sqlp_default_cluster (void)
 {
   return "__ALL";
 }
 
 
 dk_set_t
-cl_all_host_group_list ()
+cl_all_host_group_list (void)
 {
   dk_hash_t *visited = NULL;
   dk_set_t res = NULL;
@@ -2840,7 +2855,7 @@ sqlp_index_default_opts(dk_set_t opts)
 }
 
 char *
-sqlp_inx_col_opt ()
+sqlp_inx_col_opt (void)
 {
     return "column";
 }

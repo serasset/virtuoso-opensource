@@ -8,7 +8,7 @@
  *  This file is part of the OpenLink Software Virtuoso Open-Source (VOS)
  *  project.
  *
- *  Copyright (C) 1998-2024 OpenLink Software
+ *  Copyright (C) 1998-2026 OpenLink Software
  *
  *  This project is free software; you can redistribute it and/or modify it
  *  under the terms of the GNU General Public License as published by the
@@ -38,6 +38,9 @@
 #include "arith.h"
 #include "datesupp.h"
 #include "datesupp.h"
+
+
+#define SET_NOS_N(s) (PREDICT_TRUE(s >= 0 && s < set_nos_len) ? set_nos[s] : 0)
 
 
 int64
@@ -1334,7 +1337,8 @@ sslr_qst_get (caddr_t * inst, state_slot_ref_t * sslr, int row_no)
       val_dc = (data_col_t *) inst[sslr->sslr_index];
       for (step = 0; step < sslr->sslr_distance; step++)
 	{
-	  int *set_nos = (int *) inst[sslr->sslr_set_nos[step]];
+          int32 *set_nos = (int32 *) inst[sslr->sslr_set_nos[step]];
+          int set_nos_len = box_length (set_nos) / sizeof (int32);
 	  if (enable_sslr_check)
 	    {
 	      uint32 fill = QST_INT (inst, sslr->sslr_set_nos[step] + 1);
@@ -1352,7 +1356,7 @@ sslr_qst_get (caddr_t * inst, state_slot_ref_t * sslr, int row_no)
 		  enable_sslr_check = 0;
 		}
 	    }
-	  row_no = set_nos[row_no];
+         row_no = SET_NOS_N (row_no);
 	}
     }
   else
@@ -1399,8 +1403,8 @@ sslr_qst_get (caddr_t * inst, state_slot_ref_t * sslr, int row_no)
     default:
       if (!(DCT_BOXES & val_dc->dc_type))
 	GPF_T1 ("dc of unsupported dtp for single value qst_get");
-	if (val_dc->dc_n_values <= (uint32) row_no)
-	  return NULL;
+      if (val_dc->dc_n_values <= (uint32) row_no)
+	return NULL;
       return ((caddr_t *) val_dc->dc_values)[row_no];
     }
   return 0;
@@ -1418,13 +1422,13 @@ qst_vec_get_int64 (caddr_t * inst, state_slot_t * ssl, int row_no)
       val_dc = (data_col_t *) inst[sslr->sslr_index];
       for (step = 0; step < sslr->sslr_distance; step++)
 	{
-	  int *set_nos = (int *) inst[sslr->sslr_set_nos[step]];
-	  row_no = set_nos[row_no];
+	  int32 *set_nos = (int32 *) inst[sslr->sslr_set_nos[step]];
+	  int set_nos_len = box_length (set_nos) / sizeof (int32);
+	  row_no = SET_NOS_N (row_no);
 	}
     }
   else
     {
-      QNCAST (state_slot_t, ssl, sslr);
       val_dc = (data_col_t *) inst[ssl->ssl_index];
     }
   switch (val_dc->dc_dtp)
@@ -1451,8 +1455,9 @@ sslr_set_no (caddr_t * inst, state_slot_t * ssl, int row_no)
     {
       for (step = 0; step < sslr->sslr_distance; step++)
 	{
-	  int *set_nos = (int *) inst[sslr->sslr_set_nos[step]];
-	  row_no = set_nos[row_no];
+	  int32 *set_nos = (int32 *) inst[sslr->sslr_set_nos[step]];
+	  int set_nos_len = box_length (set_nos) / sizeof (int32);
+	  row_no = SET_NOS_N (row_no);
 	}
       return row_no;
     }
@@ -1471,15 +1476,16 @@ sslr_n_ref (caddr_t * inst, state_slot_ref_t * sslr, int *sets, int n_sets)
 	  sets[n + 6], s8 = sets[n + 7];
       for (step = 0; step < sslr->sslr_distance; step++)
 	{
-	  int *set_nos = (int *) inst[sslr->sslr_set_nos[step]];
-	  s1 = set_nos[s1];
-	  s2 = set_nos[s2];
-	  s3 = set_nos[s3];
-	  s4 = set_nos[s4];
-	  s5 = set_nos[s5];
-	  s6 = set_nos[s6];
-	  s7 = set_nos[s7];
-	  s8 = set_nos[s8];
+	  int32 *set_nos = (int32 *) inst[sslr->sslr_set_nos[step]];
+	  int set_nos_len = box_length (set_nos) / sizeof (int32);
+	  s1 = SET_NOS_N (s1);
+	  s2 = SET_NOS_N (s2);
+	  s3 = SET_NOS_N (s3);
+	  s4 = SET_NOS_N (s4);
+	  s5 = SET_NOS_N (s5);
+	  s6 = SET_NOS_N (s6);
+	  s7 = SET_NOS_N (s7);
+	  s8 = SET_NOS_N (s8);
 	}
       sets[n] = s1;
       sets[n + 1] = s2;
@@ -1495,13 +1501,13 @@ sslr_n_ref (caddr_t * inst, state_slot_ref_t * sslr, int *sets, int n_sets)
       int s1 = sets[n];
       for (step = 0; step < sslr->sslr_distance; step++)
 	{
-	  int *set_nos = (int *) inst[sslr->sslr_set_nos[step]];
-	  s1 = set_nos[s1];
+	  int32 *set_nos = (int32 *) inst[sslr->sslr_set_nos[step]];
+	  int set_nos_len = box_length (set_nos) / sizeof (int32);
+	  s1 = SET_NOS_N (s1);
 	}
       sets[n] = s1;
     }
 }
-
 
 
 void
@@ -1514,15 +1520,16 @@ sslr_n_consec_ref (caddr_t * inst, state_slot_ref_t * sslr, int *sets, int set, 
 	  set + n + 6, s8 = set + n + 7;
       for (step = 0; step < sslr->sslr_distance; step++)
 	{
-	  int *set_nos = (int *) inst[sslr->sslr_set_nos[step]];
-	  s1 = set_nos[s1];
-	  s2 = set_nos[s2];
-	  s3 = set_nos[s3];
-	  s4 = set_nos[s4];
-	  s5 = set_nos[s5];
-	  s6 = set_nos[s6];
-	  s7 = set_nos[s7];
-	  s8 = set_nos[s8];
+	  int32 *set_nos = (int32 *) inst[sslr->sslr_set_nos[step]];	/* inst[pos_at_step] keeps an array of paths between different set  */
+	  int set_nos_len = box_length (set_nos) / sizeof (int32);
+	  s1 = SET_NOS_N (s1);
+	  s2 = SET_NOS_N (s2);
+	  s3 = SET_NOS_N (s3);
+	  s4 = SET_NOS_N (s4);
+	  s5 = SET_NOS_N (s5);
+	  s6 = SET_NOS_N (s6);
+	  s7 = SET_NOS_N (s7);
+	  s8 = SET_NOS_N (s8);
 	}
       sets[n] = s1;
       sets[n + 1] = s2;
@@ -1535,66 +1542,58 @@ sslr_n_consec_ref (caddr_t * inst, state_slot_ref_t * sslr, int *sets, int set, 
     }
   for (n = n; n < n_sets; n++)
     {
-      int s1 = set + n;
+      int32 s1 = set + n;
       for (step = 0; step < sslr->sslr_distance; step++)
 	{
-	  int *set_nos = (int *) inst[sslr->sslr_set_nos[step]];
-	  s1 = set_nos[s1];
+	  int32 *set_nos = (int32 *) inst[sslr->sslr_set_nos[step]];
+	  int set_nos_len = box_length (set_nos) / sizeof (int32);
+	  s1 = SET_NOS_N (s1);
 	}
       sets[n] = s1;
     }
 }
 
-#define RES_IF_NN(set)		\
-{ \
-  if (!dc->dc_any_null) { \
-    sets[fill++] = set; \
-  } else  \
-    { \
-      if (dc->dc_nulls) \
-	{ \
-	  if (!DC_IS_NULL (dc, set)) \
-	    sets[fill++] = set; \
-	} \
-      else  \
-      { \
-	if (DV_DB_NULL != ((db_buf_t*)dc->dc_values)[set][0]) \
-	  sets[fill++] = set; \
-      } \
-    } \
-}
+#define RES_IF_NN(set)                                                  \
+  do {                                                                  \
+    if (!dc->dc_any_null) {                                             \
+        sets[fill++] = set;                                             \
+    } else {                                                            \
+        if (dc->dc_nulls) {                                             \
+          if (!DC_IS_NULL (dc, set))                                    \
+            sets[fill++] = set;                                         \
+        } else {                                                        \
+          if (DV_DB_NULL != ((db_buf_t *) dc->dc_values)[set][0])       \
+            sets[fill++] = set;                                         \
+        }                                                               \
+      }                                                                 \
+  } while (0)
 
-#define RES_IF_NN_G(nth_v)		\
-{ \
-  if (!dc->dc_any_null) { \
-    group_sets[fill] = n + nth_v - 1; \
-    sets[fill++] = s##nth_v; \
-  } else  \
-    { \
-      if (dc->dc_nulls) \
-	{ \
-	  if (!DC_IS_NULL (dc, s##nth_v)) { \
-	    group_sets[fill] = n + nth_v - 1; \
-	    sets[fill++] = s##nth_v; \
-	  } \
-	}					\
-      else if ((DCT_BOXES & dc->dc_type))	\
-	{ \
-      caddr_t val = ((caddr_t*)dc->dc_values)[s##nth_v]; \
-      if (!(IS_BOX_POINTER (val) && DV_DB_NULL == box_tag (val))) { \
-      group_sets[fill] = n + nth_v - 1; \
-      sets[fill++] = s##nth_v;		\
-	}				\
-	}				\
-      else \
-      { \
-	if (DV_DB_NULL != ((db_buf_t*)dc->dc_values)[s##nth_v][0]) \
-	  group_sets[fill] = n + nth_v - 1; \
-	  sets[fill++] = s##nth_v; \
-      } \
-    } \
-}
 
+#define RES_IF_NN_G(nth_v)                                              \
+  do {                                                                  \
+    if (!dc->dc_any_null) {                                             \
+      group_sets[fill] = n + nth_v - 1;                                 \
+      sets[fill++] = s##nth_v;                                          \
+    } else {                                                            \
+      if (dc->dc_nulls) {                                               \
+        if (!DC_IS_NULL (dc, s##nth_v)) {                               \
+          group_sets[fill] = n + nth_v - 1;                             \
+          sets[fill++] = s##nth_v;                                      \
+        }                                                               \
+      } else if ((DCT_BOXES & dc->dc_type)) {                           \
+        caddr_t val = ((caddr_t*)dc->dc_values)[s##nth_v];              \
+        if (!(IS_BOX_POINTER (val) && DV_DB_NULL == box_tag (val))) {   \
+          group_sets[fill] = n + nth_v - 1;                             \
+          sets[fill++] = s##nth_v;                                      \
+        }                                                               \
+      } else {                                                          \
+        if (DV_DB_NULL != ((db_buf_t*)dc->dc_values)[s##nth_v][0]) {    \
+          group_sets[fill] = n + nth_v - 1;                             \
+          sets[fill++] = s##nth_v;                                      \
+        }                                                               \
+      }                                                                 \
+    }                                                                   \
+  } while (0)
 
 int
 sslr_nn_ref (caddr_t * inst, state_slot_ref_t * sslr, int *sets, int *group_sets, int set, int n_sets)
@@ -1607,15 +1606,16 @@ sslr_nn_ref (caddr_t * inst, state_slot_ref_t * sslr, int *sets, int *group_sets
       int s5 = set + n + 4, s6 = set + n + 5, s7 = set + n + 6, s8 = set + n + 7;
       for (step = 0; step < sslr->sslr_distance; step++)
 	{
-	  int *set_nos = (int *) inst[sslr->sslr_set_nos[step]];
-	  s1 = set_nos[s1];
-	  s2 = set_nos[s2];
-	  s3 = set_nos[s3];
-	  s4 = set_nos[s4];
-	  s5 = set_nos[s5];
-	  s6 = set_nos[s6];
-	  s7 = set_nos[s7];
-	  s8 = set_nos[s8];
+	  int32 *set_nos = (int32 *) inst[sslr->sslr_set_nos[step]];
+	  int set_nos_len = box_length (set_nos) / sizeof (int32);
+	  s1 = SET_NOS_N (s1);
+	  s2 = SET_NOS_N (s2);
+	  s3 = SET_NOS_N (s3);
+	  s4 = SET_NOS_N (s4);
+	  s5 = SET_NOS_N (s5);
+	  s6 = SET_NOS_N (s6);
+	  s7 = SET_NOS_N (s7);
+	  s8 = SET_NOS_N (s8);
 	}
       RES_IF_NN_G (1);
       RES_IF_NN_G (2);
@@ -1625,15 +1625,15 @@ sslr_nn_ref (caddr_t * inst, state_slot_ref_t * sslr, int *sets, int *group_sets
       RES_IF_NN_G (6);
       RES_IF_NN_G (7);
       RES_IF_NN_G (8);
-
     }
   for (n = n; n < n_sets; n++)
     {
       int s1 = set + n;
       for (step = 0; step < sslr->sslr_distance; step++)
 	{
-	  int *set_nos = (int *) inst[sslr->sslr_set_nos[step]];
-	  s1 = set_nos[s1];
+	  int32 *set_nos = (int32 *) inst[sslr->sslr_set_nos[step]];
+	  int set_nos_len = box_length (set_nos) / sizeof (int32);
+	  s1 = SET_NOS_N (s1);
 	}
       RES_IF_NN_G (1);
     }
@@ -1705,15 +1705,16 @@ sslr_dc_copy (caddr_t * inst, state_slot_ref_t * sslr, data_col_t * target_dc, d
       int s1 = n, s2 = n + 1, s3 = n + 2, s4 = n + 3, s5 = n + 4, s6 = n + 5, s7 = n + 6, s8 = n + 7;
       for (step = 0; step < sslr->sslr_distance; step++)
 	{
-	  int *set_nos = (int *) inst[sslr->sslr_set_nos[step]];
-	  s1 = set_nos[s1];
-	  s2 = set_nos[s2];
-	  s3 = set_nos[s3];
-	  s4 = set_nos[s4];
-	  s5 = set_nos[s5];
-	  s6 = set_nos[s6];
-	  s7 = set_nos[s7];
-	  s8 = set_nos[s8];
+	  int32 *set_nos = (int32 *) inst[sslr->sslr_set_nos[step]];
+	  int set_nos_len = box_length (set_nos) / sizeof (int32);
+	  s1 = SET_NOS_N (s1);
+	  s2 = SET_NOS_N (s2);
+	  s3 = SET_NOS_N (s3);
+	  s4 = SET_NOS_N (s4);
+	  s5 = SET_NOS_N (s5);
+	  s6 = SET_NOS_N (s6);
+	  s7 = SET_NOS_N (s7);
+	  s8 = SET_NOS_N (s8);
 	}
       if (source_dc->dc_type & DCT_BOXES)
 	{
@@ -1787,8 +1788,9 @@ sslr_dc_copy (caddr_t * inst, state_slot_ref_t * sslr, data_col_t * target_dc, d
       int s1 = n;
       for (step = 0; step < sslr->sslr_distance; step++)
 	{
-	  int *set_nos = (int *) inst[sslr->sslr_set_nos[step]];
-	  s1 = set_nos[s1];
+	  int32 *set_nos = (int32 *) inst[sslr->sslr_set_nos[step]];
+	  int set_nos_len = box_length (set_nos) / sizeof (int32);
+	  s1 = SET_NOS_N (s1);
 	}
       if (source_dc->dc_type & DCT_BOXES)
 	{
@@ -2254,7 +2256,7 @@ cl_dcf_id (col_ref_t f)
 
 
 void
-cl_dc_funcs ()
+cl_dc_funcs (void)
 {
   cl_dc_func_id = hash_table_allocate (21);
   cl_id_dc_func = hash_table_allocate (21);
@@ -3057,6 +3059,8 @@ vec_ssl_assign (caddr_t * inst, state_slot_t * ssl_to, state_slot_t * ssl_from)
 		}
 	      if (n_sets_1)
 		last_assigned = org_sets[n_sets_1 - 1];
+              if (n_sets_1 > 0 && 0 == dc_from->dc_n_values) /* can't do against empty, most likely aggregate on empty set, so no assign here */
+                continue;
 	      switch (sz)
 		{
 		case 8:
@@ -3223,8 +3227,8 @@ ssl_dcp_sm (caddr_t * inst, state_slot_t * ssl, int n1, int n2, int use_sets)
 	  int step;
 	  for (step = 0; step < sslr->sslr_distance; step++)
 	    {
-	      int *set_nos = QST_BOX (int *, inst, sslr->sslr_set_nos[step]);
-	      int n_set_nos = box_length (set_nos) / sizeof (int);
+	      int32 *set_nos = QST_BOX (int32 *, inst, sslr->sslr_set_nos[step]);
+	      int32 n_set_nos = box_length (set_nos) / sizeof (int32);
 	      if (inx >= n_set_nos)
 		{
 		  printf ("ref chain out of range\n");

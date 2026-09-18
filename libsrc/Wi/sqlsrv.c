@@ -8,7 +8,7 @@
  *  This file is part of the OpenLink Software Virtuoso Open-Source (VOS)
  *  project.
  *
- *  Copyright (C) 1998-2024 OpenLink Software
+ *  Copyright (C) 1998-2026 OpenLink Software
  *
  *  This project is free software; you can redistribute it and/or modify it
  *  under the terms of the GNU General Public License as published by the
@@ -709,7 +709,7 @@ client_connection_reset (client_connection_t * cli)
   cli->cli_not_char_c_escape = 0;
   cli->cli_utf8_execs = 0;
   cli->cli_no_system_tables = 0;
-  cli->cli_start_time = 0;
+  cli->cli_start_time_usec = 0;
   cli->cli_terminate_requested = 0;
   if (client_connection_reset_hook)
     cli->cli_outp_worker = client_connection_reset_hook (cli->cli_outp_worker);
@@ -897,7 +897,7 @@ srv_add_login (client_connection_t *cli)
 
 
 uint32
-srv_get_n_logons ()
+srv_get_n_logons (void)
 {
   uint32 res;
   mutex_enter (logins_mutex);
@@ -908,7 +908,7 @@ srv_get_n_logons ()
 
 
 dk_set_t
-srv_get_logons ()
+srv_get_logons (void)
 {
   dk_set_t res = NULL;
   client_connection_t *p_cli, *p_cli2;
@@ -1564,7 +1564,7 @@ sf_stmt_prepare (caddr_t stmt_id, char *text, long explain,
   if (!stmt && err)
     goto report_error;
   cli->cli_terminate_requested = 0;
-  cli->cli_start_time = time_now_msec;
+  cli->cli_start_time_usec = get_usec_real_time();
   if (!stmt || stmt->sst_cursor_state)
     {
       /* There's an instance. can't do it */
@@ -1747,8 +1747,8 @@ cli_set_start_times (client_connection_t * cli)
 {
   if (prof_on)
     dt_now ((caddr_t)&cli->cli_start_dt);
-  cli->cli_start_time = get_msec_real_time ();
-  cli->cli_ws_check_time = cli->cli_start_time;
+  cli->cli_start_time_usec = get_usec_real_time();
+  cli->cli_ws_check_time = cli->cli_start_time_usec / 1000UL;
   cli->cli_cl_start_ts = rdtsc ();
   cli->cli_activity.da_thread_time = 0;
 }
@@ -1799,7 +1799,7 @@ sf_sql_execute (caddr_t stmt_id, char *text, char *cursor_name,
 #endif
 
   cli->cli_terminate_requested = 0;
-  cli->cli_start_time = time_now_msec;
+  cli->cli_start_time_usec = get_usec_real_time();
   if (!stmt || stmt->sst_cursor_state)
     {
       /* Busy */
@@ -3654,7 +3654,7 @@ extern int c_query_log;
 
 
 void
-sql_code_global_init ()
+sql_code_global_init (void)
 {
   if (0 && cluster_enable && cl_no_init)
     return;
@@ -3694,7 +3694,7 @@ sql_code_global_init ()
 
 
 void
-sql_code_arfw_global_init ()
+sql_code_arfw_global_init (void)
 {
   int was_col  = enable_col_by_default;
   enable_col_by_default = 0;
@@ -3899,7 +3899,7 @@ srv_global_init_clear_table (char *stmt)
 
 
 static void
-srv_global_init_drop ()
+srv_global_init_drop (void)
 {
   id_hash_iterator_t hit;
   char ** tn;
@@ -3981,7 +3981,7 @@ srv_global_init_plugin_actions (dk_set_t *set_ptr, char *mode)
 static server_func
 sf_sql_connect_wrapper (caddr_t args[])
 {
-  return sf_sql_connect (args[0], args[1], args[2], (caddr_t *) args[3]);
+  return (server_func) sf_sql_connect (args[0], args[1], args[2], (caddr_t *) args[3]);
 }
 
 static server_func
@@ -4008,14 +4008,14 @@ sf_sql_fetch_wrapper (caddr_t args[])
 static server_func
 sf_sql_transact_wrapper (caddr_t args[])
 {
-  sf_sql_transact ((long) args[0], args[1]);
+  sf_sql_transact ((long) args[0], (caddr_t *) args[1]);
   return NULL;			/* void function */
 }
 
 static server_func
 sf_sql_free_stmt_wrapper (caddr_t args[])
 {
-  return (caddr_t) sf_sql_free_stmt (args[0], (int)args[1]);
+  return (server_func) sf_sql_free_stmt (args[0], (int)args[1]);
 }
 
 static server_func
@@ -4042,7 +4042,7 @@ sf_sql_extended_fetch_wrapper (caddr_t args[])
 static server_func
 sf_sql_no_threads_reply_wrapper (caddr_t args[])
 {
-  return sf_sql_no_threads_reply ();
+  return (server_func) sf_sql_no_threads_reply ();
 }
 
 static server_func
@@ -4056,6 +4056,7 @@ void
 srv_global_init (char *mode)
 {
 /* Sanity check for list, to detect errors like errors catched by AMD Opteron port */
+  int saved_sqlc_hook_enable;
 #ifdef DEBUG
   caddr_t *probe = list (7, NULL, 1, 2, 3L, 4L, box_dv_short_string("5"), box_dv_short_string("6"));
   if (probe[0] != NULL) GPF_T1("list probe 0");
@@ -4068,6 +4069,9 @@ srv_global_init (char *mode)
 #endif
 
   db_read_cfg (NULL, mode);
+  saved_sqlc_hook_enable = sqlc_hook_enable;
+  sqlc_hook_enable = 0;
+
   PrpcInitialize1 (lite_mode ? DK_ALLOC_RESERVE_DISABLED : DK_ALLOC_RESERVE_PREPARED);
   background_sem = semaphore_allocate (0);
 
@@ -4363,7 +4367,6 @@ srv_global_init (char *mode)
     }
 #endif
   dbev_startup ();
-  sqlc_hook_enable = 1;
   rdf_key_comp_init ();
   if (default_charset_name && !default_charset)
     log_error ("Default charset %.200s not defined. Reverting to ISO-8859-1", default_charset_name);
@@ -4378,21 +4381,21 @@ srv_global_init (char *mode)
       query_t *qr;
       char e_text [200];
 
-      snprintf (e_text, sizeof (e_text), "USER_CHANGE_PASSWORD ('dba', '%.20s', '%.20s')", f_old_dba_pass, f_new_dba_pass);
+      snprintf (e_text, sizeof (e_text), "USER_CHANGE_PASSWORD ('dba', ?, ?)");
       qr = sql_compile (e_text, bootstrap_cli, &err, SQLC_DEFAULT);
       if (!err)
 	{
-	  err = qr_quick_exec (qr, bootstrap_cli, NULL, NULL, 0);
+	  err = qr_quick_exec (qr, bootstrap_cli, NULL, NULL, 2, ":0", f_old_dba_pass, QRP_STR, ":1", f_new_dba_pass, QRP_STR);
 	  qr_free (qr);
 	}
       log_info ("The DBA password is changed.");
       if (f_new_dav_pass)
 	{
-	  snprintf (e_text, sizeof (e_text), "USER_CHANGE_PASSWORD ('dav', 'dav', '%.20s')", f_new_dav_pass);
+	  snprintf (e_text, sizeof (e_text), "USER_CHANGE_PASSWORD ('dav', 'dav', ?)");
 	  qr = sql_compile (e_text , bootstrap_cli, &err, SQLC_DEFAULT);
 	  if (!err)
 	    {
-	      err = qr_quick_exec (qr, bootstrap_cli, NULL, NULL, 0);
+	      err = qr_quick_exec (qr, bootstrap_cli, NULL, NULL, 1, ":0", f_new_dav_pass, QRP_STR);
 	      qr_free (qr);
 	    }
 	  log_info ("The DAV password is changed.");
@@ -4427,6 +4430,7 @@ srv_global_init (char *mode)
   st_sys_ram = get_total_sys_mem ();
   sqlc_set_client (NULL);
   enable_col_by_default = c_col_by_default;
+  sqlc_hook_enable = saved_sqlc_hook_enable;
 }
 
 
@@ -4453,10 +4457,10 @@ DBG_NAME(srv_make_new_error) (DBG_PARAMS const char *code, const char *virt_code
 
   if (code[1] == 'Y')
     virtuoso_sleep (0, 10000);
-    if ('S' == code[0] || '4' == code[0])
-      {
-        at_printf (("Host %d make err %s %s in %s\n", local_cll.cll_this_host, code, temp, cl_thr_stat ()));
-      }
+  if ('S' == code[0] || '4' == code[0])
+    {
+      at_printf (("Host %d make err %s %s in %s\n", local_cll.cll_this_host, code, temp, cl_thr_stat ()));
+    }
 #ifdef SIGNAL_DEBUG
   ctx = THREAD_CURRENT_THREAD->thr_reset_ctx;
   for (ctx_ctr = 0, ctx_iter = ctx; NULL != ctx_iter; ctx_ctr++, ctx_iter = ctx_iter->j_parent) { /*do nothing*/; }
@@ -4546,7 +4550,7 @@ srv_make_trx_error (int code, caddr_t detail)
       case LTE_SQL_ERROR:
         {
           du_thread_t *self = THREAD_CURRENT_THREAD;
-          caddr_t *probable_err = (caddr_t *)thr_get_error_code (self);
+          caddr_t probable_err = thr_get_error_code (self);
           if (DV_ARRAY_OF_POINTER != DV_TYPE_OF (probable_err))
             probable_err = NULL;
           if (NULL == probable_err)
@@ -4560,7 +4564,7 @@ srv_make_trx_error (int code, caddr_t detail)
             {
 	      err = srv_make_new_error ("4000X", "SR176",
 	        "Transaction rolled back due to previous SQL error %s (((\n%s\n)))%s%s",
-					probable_err[1], probable_err[2], detail ? " : " : "", detail ? detail : "");
+					ERR_STATE(probable_err), ERR_MESSAGE(probable_err), detail ? " : " : "", detail ? detail : "");
 	      break;
             }
         }

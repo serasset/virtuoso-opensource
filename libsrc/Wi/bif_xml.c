@@ -6,7 +6,7 @@
  *  This file is part of the OpenLink Software Virtuoso Open-Source (VOS)
  *  project.
  *
- *  Copyright (C) 1998-2024 OpenLink Software
+ *  Copyright (C) 1998-2026 OpenLink Software
  *
  *  This project is free software; you can redistribute it and/or modify it
  *  under the terms of the GNU General Public License as published by the
@@ -4065,8 +4065,9 @@ bif_xte_nodebld_acc_impl (caddr_t * qst, state_slot_t ** args, int preserve_args
 	    break;
 	  default:
 	    {
-	      caddr_t strg = box_cast_to_UTF8 (qst, dst[0]);
-	      dst[0] = strg;
+	      caddr_t strg = dst[0];
+              dst[0] = NULL; /* remove reference to the original, next can signal */
+              dst[0] = box_cast_to_UTF8 (qst, strg);
 	      dst++;
 	      break;
 	    }
@@ -4312,7 +4313,7 @@ bif_int_vectorbld_acc (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
   int argcount;			/* number of arguments in the call */
   int arg_inx;			/* index of current argument */
   int new_filled_count;		/* value of filled_count at the end of the procedure */
-  int64 *acc = bif_array_arg (qst, args, 0, "int_vector_agg");
+  int64 *acc = (int64 *) bif_array_arg (qst, args, 0, "int_vector_agg");
   caddr_t *dst;
   qi_signal_if_trx_error ((query_instance_t *) qst);
   if (1 > BOX_ELEMENTS (args))
@@ -4322,7 +4323,7 @@ bif_int_vectorbld_acc (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
   if (NULL == acc)
     {
       acc = (int64 *) dk_alloc_box_zero (sizeof (int64) * 15 /*  2^n - 1 */ , DV_ARRAY_OF_LONG);
-      qst_set (qst, args[0], acc);
+      qst_set (qst, args[0], (caddr_t) acc);
     }
   filled_count = acc[0];
   acc_length = BOX_ELEMENTS (acc);
@@ -4339,16 +4340,16 @@ bif_int_vectorbld_acc (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
     sqlr_new_error ("22003", "SR346", "Out of memory allocation limits: the composed vector contains too many items");
   if (acc_length != new_acc_length)
     {
-      caddr_t new_acc;
-      if (NULL == (new_acc = dk_try_alloc_box (sizeof (int64) * new_acc_length, DV_ARRAY_OF_LONG)))
+      int64 * new_acc;
+      if (NULL == (new_acc = (int64 *) dk_try_alloc_box (sizeof (int64) * new_acc_length, DV_ARRAY_OF_LONG)))
 	qi_signal_if_trx_error ((query_instance_t *) qst);
       memset (new_acc, 0, sizeof (int64) * new_acc_length);
       memcpy (new_acc, acc, sizeof (int64) * acc_length);
-      qst_set (qst, args[0], new_acc);
+      qst_set (qst, args[0], (caddr_t) new_acc);
       acc = new_acc;
       acc_length = new_acc_length;
     }
-  dst = acc + filled_count + 1;
+  dst = (caddr_t *) (acc + filled_count + 1);
   for (arg_inx = 1; arg_inx < argcount; arg_inx++)
     {
       caddr_t arg = QST_GET (qst, args[arg_inx]);
@@ -4372,7 +4373,7 @@ bif_int_vectorbld_final (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
   int arg_ctr = BOX_ELEMENTS (args);
   if (1 > arg_ctr)
     sqlr_new_error ("22003", "SR444", "Too few arguments for vectorbld_final");
-  qst_swap_or_get_copy (qst, args[0], (int64 *) (&acc));
+  qst_swap_or_get_copy (qst, args[0], (caddr_t *) (&acc));
   filled_size = sizeof (int64) * acc[0];
   new_box = (caddr_t) dk_alloc_box (filled_size, DV_ARRAY_OF_LONG);
   memcpy (new_box, acc + 1, filled_size);

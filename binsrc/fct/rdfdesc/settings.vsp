@@ -1,8 +1,8 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
-<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<!DOCTYPE html>
+<html lang="en">
+
 <?vsp
-  declare host,gr,page_resource_uri,_S varhar;
+  declare host,gr,page_resource_uri,_S varchar;
   declare sid,ses_parms  varchar;
   declare arr any;
   declare pageUrl varchar;
@@ -40,17 +40,14 @@
       return;
     }
 ?>
+
 <head>
-  <base href="/fct/rdfdesc/" />
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
   <title>Settings</title>
 
-  <link rel="stylesheet" type="text/css" href="/fct/css/default.css"  charset="utf-8" />
-  <link rel="stylesheet" type="text/css" href="/fct/css/highlighter.css" charset="utf-8" />
-  <script type="text/javascript" >
-      var featureList=["tab"];
-  </script>
-  <script type="text/javascript" src="/fct/oat/toolkit/loader.js"></script>
-  <script type="text/javascript" src="/fct/js/description.js"></script>
+  <link rel="stylesheet" type="text/css" href="/fct/css/default.css" />
+  <link rel="stylesheet" type="text/css" href="/fct/css/highlighter.css" />
 </head>
 <body>
   <div id="PG">
@@ -60,13 +57,13 @@
       </div>
       <ul id="main_menu">
         <?vsp if (sid is not null) { ?>
-          <li><a href="<?= b3s_render_fct_link() ?>">Facets</a></li>
+          <li><a href="<?V b3s_render_fct_link() ?>">Facets</a></li>
         <?vsp } ?>
         <li id="mnu_descr"><a href="/describe/?uri=<?U b3s_u2w (_S) ?><?V ses_parms ?>">Description</a></li>
         <li id="mnu_usage" class="sel">
-          <a href="usage.vsp?g=<?U b3s_u2w (_S) ?><?V ses_parms ?>">Metadata</a>
+          <a href="/fct/rdfdesc/usage.vsp?g=<?U b3s_u2w (_S) ?><?V ses_parms ?>">Metadata</a>
         </li>
-        <li id="mnu_settings"><a href="settings.vsp?uri=<?U b3s_u2w (page_resource_uri) ?><?V ses_parms ?>">Settings</a></li>
+        <li id="mnu_settings"><a href="/fct/rdfdesc/settings.vsp?uri=<?U b3s_u2w (page_resource_uri) ?><?V ses_parms ?>">Settings</a></li>
       </ul>
 
     </div> <!-- #HD -->
@@ -77,7 +74,7 @@
         <table> <!-- yeah I know but life's just too short. -->
           <tr>
             <td></td>
-            <td><input class="ckb" id="sas_ckb" type="checkbox" <?= b3s_sas_selected() ?> onchange="javascript:sas_cb();"/> <label class="ckb" for="sas_ckb">owl:sameAs</label></td>
+            <td><input class="ckb" id="sas_ckb" type="checkbox" <?V b3s_sas_selected() ?> onchange="javascript:sas_cb();"/> <label class="ckb" for="sas_ckb">owl:sameAs</label></td>
           </tr>
           <tr>
             <td><label for="inf_sel">Inference Rule:</label></td>
@@ -97,5 +94,12 @@
       </div> <!-- #ft_b -->
     </div> <!-- #FT -->
   </div> <!-- #PG -->
+  <div>
+    <script type="text/javascript">
+	var featureList=["tab"];
+    </script>
+    <script type="text/javascript" src="/fct/oat/toolkit/loader.js"></script>
+    <script type="text/javascript" src="/fct/js/description.js"></script>
+  </div>
 </body>
 </html>

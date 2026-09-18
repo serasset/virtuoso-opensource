@@ -3,7 +3,7 @@
  *  This file is part of the OpenLink Software Virtuoso Open-Source (VOS)
  *  project.
  *  
- *  Copyright (C) 1998-2024 OpenLink Software
+ *  Copyright (C) 1998-2026 OpenLink Software
  *  
  *  This project is free software; you can redistribute it and/or modify it
  *  under the terms of the GNU General Public License as published by the
@@ -24,6 +24,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#ifdef _WIN32
+#define strdup _strdup
+#endif
 
 typedef struct cut_search_replace_s
 {
@@ -55,8 +59,6 @@ typedef struct cut_env_s
 } cut_env_t;
 
 static char errmsg_buf[1000];
-
-char *strdup(const char *s);
 
 void readtextfile (const char *src_name, char **bufptr, size_t *lenptr, char **err_ret)
 {
@@ -137,6 +139,7 @@ void cut_buf_compose_text (cut_buf_t *tgt)
   tgt->cb_len = tgt_tail - tgt->cb_buf;
 }
 
+#if 0
 char *cut_pattern_match (const char *src, const char *pattern, const char *replace)
 {
   char *res = malloc ( strlen (src) + 1 + strlen (replace));
@@ -162,6 +165,7 @@ fail:
   free (res);
   return NULL;
 }
+#endif
 
 int strbegins (const char * haystack, const char * needle)
 {
@@ -280,7 +284,7 @@ void cut_substitute_all (cut_env_t *env, cut_buf_t *tgt, cut_buf_t *src)
 
 
 
-int main (int argc, const char *argv[])
+int main (int argc, char *argv[])
 {
   char *err = NULL;
   cut_env_t *env = malloc (sizeof (cut_env_t));

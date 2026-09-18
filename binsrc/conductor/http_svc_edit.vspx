@@ -4,7 +4,7 @@
  -  This file is part of the OpenLink Software Virtuoso Open-Source (VOS)
  -  project.
  -
- -  Copyright (C) 1998-2024 OpenLink Software
+ -  Copyright (C) 1998-2026 OpenLink Software
  -
  -  This project is free software; you can redistribute it and/or modify it
  -  under the terms of the GNU General Public License as published by the
@@ -286,7 +286,7 @@
                       <![CDATA[
                       self.mode := '';
 		      self.vc_data_bind(e);
-		      self.vc_redirect (sprintf ('http_serv_mgmt.vspx?openat=%s', self._host));
+		      self.vc_redirect (sprintf ('http_serv_mgmt.vspx?openat=%U', self._host));
                       ]]>
                     </v:script>
                   </v:on-post>
@@ -360,7 +360,7 @@
               <td>
                 <v:data-list xhtml_id="dl_soapuser"
                              name="dl_soapuser"
-			     sql="select ' __none' as UNAME, 'none' as UFNAME from DB.DBA.SYS_USERS union select U_NAME, U_NAME from DB.DBA.SYS_USERS where U_SQL_ENABLE = 1 and U_IS_ROLE = 0 order by UNAME" key-column="UNAME" value-column="UFNAME" defvalue="--case when self.vspuser='' then ' __none' else self.vspuser end"
+			     sql="select top 1 ' __none' as UNAME, 'none' as UFNAME from DB.DBA.SYS_USERS union all select top 1000 U_NAME, U_NAME from DB.DBA.SYS_USERS where U_SQL_ENABLE = 1 and U_IS_ROLE = 0 order by UNAME" key-column="UNAME" value-column="UFNAME" defvalue="--case when self.vspuser='' then ' __none' else self.vspuser end"
                              width="235"
                              height="24"/>
               </td>
@@ -464,7 +464,7 @@
                       <![CDATA[
                       self.mode := '';
                       self.vc_data_bind(e);
-		      self.vc_redirect (sprintf ('http_serv_mgmt.vspx?openat=%s', self._host));
+		      self.vc_redirect (sprintf ('http_serv_mgmt.vspx?openat=%U', self._host));
                       ]]>
                     </v:script>
                   </v:on-post>
@@ -590,7 +590,7 @@
                       else {
                         self.mode := '';
 			self.vc_data_bind(e);
-			self.vc_redirect (sprintf ('http_serv_mgmt.vspx?openat=%s', self._host));
+			self.vc_redirect (sprintf ('http_serv_mgmt.vspx?openat=%U', self._host));
                       }
                       ]]>
                     </v:script>

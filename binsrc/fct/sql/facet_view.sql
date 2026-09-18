@@ -4,7 +4,7 @@
 --  This file is part of the OpenLink Software Virtuoso Open-Source (VOS)
 --  project.
 --
---  Copyright (C) 1998-2024 OpenLink Software
+--  Copyright (C) 1998-2026 OpenLink Software
 --
 --  This project is free software; you can redistribute it and/or modify it
 --  under the terms of the GNU General Public License as published by the
@@ -516,7 +516,7 @@ fct_query_info (in tree any,
 
             if (length(lat) and length(lon))
               {
-                http (sprintf ('%s is within %s km radius of lat:<span class="loc_lat">%s</span>, lon:<span class="loc_lon">%s</span>%s',
+                http (sprintf ('%s is within %s km radius of lat:<span class="loc_lat">%V</span>, lon:<span class="loc_lon">%V</span>%s', 
                                fct_var_tag(this_s, ctx),
                                d,
                                lat,
@@ -592,7 +592,7 @@ fct_view_link (in tp varchar, in lim int, in msg varchar, in txt any, in tip any
   if (tip is null)
     tip := msg;
 
-  http (sprintf ('<li><a href="/fct/facet.vsp?cmd=set_view&sid=%d&type=%s&limit=%d&offset=0" title="%V">%s</a></li>',
+  http (sprintf ('<li><a href="/fct/facet.vsp?cmd=set_view&sid=%d&type=%U&limit=%d&offset=0" title="%V">%V</a></li>',
                  connection_get ('sid'), tp, lim, tip, msg), txt);
 }
 ;
@@ -709,9 +709,9 @@ fct_nav (in tree any,
             {
               gval := glst [i];
               if (gval <> 'virtrdf:geo_cont')
-                gopt := gopt || sprintf ('<option value="%s">%s</option>', gval, gval);
+                gopt := gopt || sprintf ('<option value="%s">%V</option>', gval, gval);
             }
-      http (sprintf ('<li><a id="map_link" href="/fct/facet.vsp?cmd=set_view&sid=%d&type=%s&limit=%d&offset=0" title="%V">%s</a>&nbsp;'||
+      http (sprintf ('<li><a id="map_link" href="/fct/facet.vsp?cmd=set_view&sid=%d&type=%U&limit=%d&offset=0" title="%V">%V</a>&nbsp;'||
 	    		'<select name="map_of" onchange="javascript:link_change(this.value)">'||
 	    		'<option value="any">Any location</option>'||
 	    		'<option value="">Shown items</option>'||
@@ -1020,13 +1020,6 @@ fct_web (in tree any, in sid int)
 
   fct_dbg_msg (sprintf ('reply: %s', cast (r_ses as varchar)));
 
-  declare _addthis_key varchar;
-  _addthis_key := registry_get ('fct_addthis_key');
-  if (not isstring(_addthis_key)) _addthis_key := null;
-  if ('1' = _addthis_key) _addthis_key := 'xa-4ce13e0065cdadc0';
-
-  --dbg_printf('addthis_key: %s', _addthis_key);
-
   http_value (xslt (registry_get ('_fct_xslt_') || 'fct_vsp.xsl',
                     reply,
 		    vector ('sid',
@@ -1051,8 +1044,6 @@ fct_web (in tree any, in sid int)
                             p_qry,
                             'p_xml',
                             p_xml,
-                            'addthis_key',
-                            _addthis_key,
                             'tree',
                             tree,
 			    'agg_res',
@@ -1446,8 +1437,8 @@ http('
 <script type="text/javascript">
 var featureList = ["","",""];
 
-var sparql_ep = ''http://<?=uriqa_str?>/sparql'';
-var isparql_ep = ''http://<?=uriqa_str?>/isparql'';
+var sparql_ep = ''http://<?V uriqa_str ?>/sparql'';
+var isparql_ep = ''http://<?V uriqa_str ?>/isparql'';
 
 function init() {  }
 
@@ -1955,7 +1946,7 @@ fct_bold_tags (in s varchar)
 
   if (not isstring (s))
     return s;
-  ret := xtree_doc (sprintf ('<span class="srch_xerpt">%s</span>', s));
+  ret := xtree_doc (sprintf ('<span class="srch_xerpt">%V</span>', s));
 
   return ret;
 }
@@ -2708,14 +2699,6 @@ create procedure fct_page_head ()
     <div id="homelink"></div>
   </div> <!-- hd_l -->
   <div id="hd_r">
-    <div class="addthis_toolbox addthis_default_style">
-      <a class="addthis_button_compact"></a>
-      <a class="addthis_button_preferred_1"></a>
-      <a class="addthis_button_preferred_2"></a>
-      <a class="addthis_button_preferred_3"></a>
-      <a class="addthis_button_preferred_4"></a>
-      <a class="addthis_button_google_plusone"></a>
-    </div>
   </div> <!-- hd_r -->');
 }
 ;

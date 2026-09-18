@@ -6,7 +6,7 @@
  *  This file is part of the OpenLink Software Virtuoso Open-Source (VOS)
  *  project.
  *
- *  Copyright (C) 1998-2024 OpenLink Software
+ *  Copyright (C) 1998-2026 OpenLink Software
  *
  *  This project is free software; you can redistribute it and/or modify it
  *  under the terms of the GNU General Public License as published by the
@@ -1414,7 +1414,7 @@ xenc_key_t * xenc_key_create_from_x509_cert (char * name, char * certificate, ch
 	      X509_STORE_add_cert (CA_certs, x);
 	    }
 	  mutex_leave (xenc_keys_mtx);
-	  sk_free (ca_list);
+	  sk_X509_pop_free (ca_list, X509_free);
 	}
     }
   else if (type == CERT_DER_FORMAT)
@@ -1630,7 +1630,7 @@ caddr_t bif_xenc_DH_get_params (caddr_t * qst, caddr_t * err_r, state_slot_t ** 
   int n, len;
   caddr_t buf = NULL, ret, b64;
   DH *dh;
-  BIGNUM *num;
+  const BIGNUM *num;
 
   mutex_enter (xenc_keys_mtx);
   key = xenc_get_key_by_name (name, 0);
@@ -2940,7 +2940,7 @@ xenc_id_t xenc_encode_by_key (xenc_key_t * key, dk_session_t * ses, long seslen,
   xenc_id_t id = xenc_next_id ();
   char id_str[200];
   uuid_t id_stat;
-  uuid_unparse (id, id_str);
+  uuid_unparse ((const unsigned char *) id, id_str);
   memcpy (&id_stat, id, sizeof (uuid_t));
 
   snprintf (buf, 1024, "<xenc:EncryptedData Type=\"" XENC_NS "%s" "\" Id=\"Id-%s\" ", xenc_types[type_idx], id_str);
@@ -4143,7 +4143,7 @@ void xenc_security_token_id_format (char * buf, int maxlen, xenc_id_t id, int is
   else
     snprintf (buf, maxlen, "#SecurityToken-");
 
-  uuid_unparse (id, buf + strlen (buf));
+  uuid_unparse ((const unsigned char *) id, buf + strlen (buf));
 }
 
 void xenc_write_key_info_tag (dk_session_t * ses, const char * name)
@@ -4419,7 +4419,7 @@ xenc_generate_key_tag (xenc_key_t * key, int extended_ver, xenc_id_t * ids, int 
 	      char uuid_str[200];
 	      char buf[256];
 	      xenc_tag_t * dr;
-	      uuid_unparse (id, uuid_str);
+	      uuid_unparse ((const unsigned char *) id, uuid_str);
 	      snprintf (buf, 255, "#Id-%s", uuid_str);
 	      dr = xenc_tag_create (XENC_NS, ":DataReference");
 	      xenc_tag_add_att (dr, "URI", buf);
@@ -4744,7 +4744,7 @@ caddr_t xenc_generate_encrypted_key_tag (query_instance_t * qi, xenc_key_inst_t 
 	  char uuid_str[200];
 	  char buf[256];
 	  xenc_tag_t * dr;
-	  uuid_unparse (id, uuid_str);
+	  uuid_unparse ((const unsigned char *) id, uuid_str);
 	  snprintf (buf, 255, "#Id-%s", uuid_str);
 	  dr = xenc_tag_create (XENC_NS, ":DataReference");
 	  xenc_tag_add_att (dr, "URI", buf);
@@ -4783,7 +4783,7 @@ caddr_t * xenc_generate_ref_list (query_instance_t * qi, xenc_id_t * ids)
       xenc_tag_t * ref;
       memset (id_str, 0, 200);
       stpcpy (id_str, "#Id-");
-      uuid_unparse ((uuid_t*)id, id_str + strlen (id_str));
+      uuid_unparse ((const unsigned char *) id, id_str + strlen (id_str));
 
       ref = xenc_tag_create (XENC_URI, ":DataReference");
       xenc_tag_add_att (ref, "URI", id_str);
@@ -5451,7 +5451,7 @@ caddr_t * signature_serialize_1 (dsig_signature_t * dsig, wsse_ser_ctx_t * sctx)
   return ret_tag;
 }
 
-dsig_signature_t * dsig_template_1 ()
+dsig_signature_t * dsig_template_1 (void)
 {
   NEW_VAR (dsig_signature_t, dsig);
   NEW_VAR (dsig_transform_t, tr);
@@ -5905,7 +5905,7 @@ void xenc_aes_enctest();
 void xenc_kt_test ();
 void dsig_rsa_sha1_sign_test();
 
-void xmlenc_base64_test()
+void xmlenc_base64_test(void)
 {
   char buf0[] = "The Importers are used by the proxy generator of ASP.NET, which is used by Visual Studio .NET and the wsdl.exe command-line tool. The Importers will pick up any known <<format extensions>> that exist in the WSDL file and will turn them into client side SOAP extension attributes in the proxy. The Importers will also inspect the WSDL file for the relevant WS-Security headers and will remove the automatically handled and created SoapHeaders on the client side from the generated proxy, because the client-side proxy will handle these headers internally.";
     char buf1[] = "The Importers are used by the proxy generator of ASP.NET";
@@ -5976,7 +5976,7 @@ void xmlenc_base64_test()
   return;
 }
 
-void xmlenc_des3_test()
+void xmlenc_des3_test(void)
 {
   xenc_try_block_t t;
   char inbuf[] = "The Importers are used by the proxy generator of ASP.NET, which is used by Visual Studio .NET and the wsdl.exe command-line tool. The Importers will pick up any known <<format extensions>> that exist in the WSDL file and will turn them into client side SOAP extension attributes in the proxy. The Importers will also inspect the WSDL file for the relevant WS-Security headers and will remove the automatically handled and created SoapHeaders on the client side from the generated proxy, because the client-side proxy will handle these headers internally.";
@@ -6110,7 +6110,7 @@ void xmlenc_des3_test()
   return;
 }
 
-void xmlenc_rsa_test()
+void xmlenc_rsa_test(void)
 {
   xenc_try_block_t t;
   char buf0[] = "The Importers are used by the proxy generator of ASP.NET, which is used by Visual Studio .NET and the wsdl.exe command-line tool. The Importers will pick up any known <<format extensions>> that exist in the WSDL file and will turn them into client side SOAP extension attributes in the proxy. The Importers will also inspect the WSDL file for the relevant WS-Security headers and will remove the automatically handled and created SoapHeaders on the client side from the generated proxy, because the client-side proxy will handle these headers internally.";
@@ -6200,7 +6200,7 @@ caddr_t bif_xenc_test (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 }
 
 /* encrypts 3DES key by itself, and decrypt it. */
-void xenc_kt_test ()
+void xenc_kt_test (void)
 {
   xenc_key_t * key = xenc_key_create ("virtdev_test@localhost", XENC_TRIPLEDES_ALGO, XENC_TRIPLEDES_ALGO, 1);
   xenc_key_t * new_key = 0;
@@ -6346,8 +6346,11 @@ caddr_t xenc_x509_get_key_identifier (X509 * cert)
       return ret;
     }
 
-  ret = dk_alloc_box (ikeyid->length, DV_BIN);
-  memcpy (ret, ikeyid->data, ikeyid->length);
+  {
+    int ikeyid_len = ASN1_STRING_length (ikeyid);
+    ret = dk_alloc_box (ikeyid_len, DV_BIN);
+    memcpy (ret, ASN1_STRING_get0_data (ikeyid), ikeyid_len);
+  }
   ASN1_OCTET_STRING_free(ikeyid);
   return ret;
 }
@@ -6406,8 +6409,11 @@ bif_x509_get_subject (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
       sqlr_new_error ("42000", "XENC24", "could not get subject key identifier for %s certificate", name);
     }
 
-  ret = dk_alloc_box (ikeyid->length, DV_BIN);
-  memcpy (ret, ikeyid->data, ikeyid->length);
+  {
+    int ikeyid_len = ASN1_STRING_length (ikeyid);
+    ret = dk_alloc_box (ikeyid_len, DV_BIN);
+    memcpy (ret, ASN1_STRING_get0_data (ikeyid), ikeyid_len);
+  }
   ASN1_OCTET_STRING_free(ikeyid);
   return ret;
 }
@@ -6624,7 +6630,7 @@ err:
 }
 
 static void
-x509_add_extensions_from_vector (X509 *issuer, X509 *x, caddr_t ** exts)
+x509_add_extensions_from_vector (X509 *issuer, X509 *x, caddr_t * exts)
 {
   int i;
   for (i = 0; i < BOX_ELEMENTS (exts); i += 2)
@@ -7280,7 +7286,7 @@ bif_xenc_pkcs12_export (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 	  certs = sk_X509_new_null ();
 	  for (i = 1; i < sk_X509_num (chain) ; i++)
 	    sk_X509_push (certs, sk_X509_value (chain, i));
-	  sk_free (chain);
+	  sk_X509_pop_free (chain, X509_free);
 	}
       if (inf)
 	{
@@ -7303,7 +7309,8 @@ bif_xenc_pkcs12_export (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
     }
   BIO_free (b);
   PKCS12_free (p12);
-  sk_free (certs);
+  if (certs)
+    sk_X509_pop_free (certs, X509_free);
   if (inf)
     sk_X509_INFO_pop_free (inf, X509_INFO_free);
   return ret;
@@ -7721,7 +7728,7 @@ bif_xenc_x509_verify_array (caddr_t * qst, caddr_t * err_ret, state_slot_t ** ar
 {
   char * me = "x509_verify_array";
   caddr_t cert_name = bif_string_arg (qst, args, 0, me);
-  caddr_t * ca_certs  = bif_arg (qst, args, 1, me);
+  caddr_t * ca_certs  = (caddr_t *) bif_arg (qst, args, 1, me);
   xenc_key_t * cert = xenc_get_key_by_name (cert_name, 1);
   int rc = 0, inx;
   X509 *ca_cert;
@@ -7757,7 +7764,7 @@ bif_xenc_x509_cert_verify_array (caddr_t * qst, caddr_t * err_ret, state_slot_t 
 {
   char * me = "x509_cert_verify_array";
   caddr_t cert_text = bif_string_arg (qst, args, 0, me);
-  caddr_t * ca_certs  = bif_arg (qst, args, 1, me);
+  caddr_t * ca_certs  = (caddr_t *) bif_arg (qst, args, 1, me);
   X509 * cert = x509_from_pem (cert_text);
   int rc = 0, inx;
   X509 *ca_cert;
@@ -7949,7 +7956,7 @@ bif_xenc_x509_ca_certs_list (caddr_t * qst, caddr_t * err_ret, state_slot_t ** a
   return ret;
 }
 
-void bif_xmlenc_init ()
+void bif_xmlenc_init (void)
 {
 #ifdef DEBUG
   log_info ("xmlenc_init()");
@@ -8146,7 +8153,7 @@ caddr_t bif_xenc_key_exists (caddr_t * qst, caddr_t * err_r, state_slot_t ** arg
 }
 
 
-void bif_xmlenc_init ()
+void bif_xmlenc_init (void)
 {
   bif_define ("xenc_key_exists", bif_xenc_key_exists);
 }

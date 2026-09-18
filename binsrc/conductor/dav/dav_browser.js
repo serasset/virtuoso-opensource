@@ -3,7 +3,7 @@
  *  This file is part of the OpenLink Software Virtuoso Open-Source (VOS)
  *  project.
  *
- *  Copyright (C) 1998-2024 OpenLink Software
+ *  Copyright (C) 1998-2026 OpenLink Software
  *
  *  This project is free software; you can redistribute it and/or modify it
  *  under the terms of the GNU General Public License as published by the
@@ -1405,14 +1405,8 @@ WEBDAV.menuMouseOut = function (event)
     return false;
   }
 
-  if (window.event)
-  {
-    current = this;
-    related = window.event.toElement;
-  } else {
-    current = event.currentTarget;
-    related = event.relatedTarget;
-  }
+  current = event.currentTarget;
+  related = event.relatedTarget;
   if ((current != related) && !menuMouseIn(current, related))
     OAT.Dom.hide(current);
 }
@@ -1823,10 +1817,22 @@ WEBDAV.nameByMimeTypeSelect = function (obj)
 
 WEBDAV.turtleRedirectAppChange = function (obj)
 {
-  if (obj.value == 'sponger')
-    $('dav_turtleRedirectParams').value = '&sponger:get=soft';
-  else if (obj.value == 'fct')
-    $('dav_turtleRedirectParams').value = '&sponger:get=soft';
-  else if (obj.value == 'osde')
-    $('dav_turtleRedirectParams').value = '&view=statements';
+  const datalist = document.getElementById('sponger_modes');
+  datalist.innerHTML = '';
+  if (obj.value === 'sponger' || obj.value === 'fct') {
+    const values = [
+      '&sponger:get=soft',
+      '&sponger:get=add',
+      '&sponger:get=replace'
+    ];
+    values.forEach(val => {
+      const option = document.createElement('option');
+      option.value = val;
+      datalist.appendChild(option);
+    });
+  } else if (obj.value === 'osde') {
+    const option = document.createElement('option');
+    option.value = '&view=statements';
+    datalist.appendChild(option);
+  }
 };

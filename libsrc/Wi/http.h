@@ -8,7 +8,7 @@
  *  This file is part of the OpenLink Software Virtuoso Open-Source (VOS)
  *  project.
  *
- *  Copyright (C) 1998-2024 OpenLink Software
+ *  Copyright (C) 1998-2026 OpenLink Software
  *
  *  This project is free software; you can redistribute it and/or modify it
  *  under the terms of the GNU General Public License as published by the
@@ -43,6 +43,8 @@
 #include <openssl/bio.h>
 #include <openssl/asn1.h>
 #include <openssl/md5.h>
+
+#include "util/ssl_compat.h"
 #endif
 
 #ifndef _WI_STRLIKE_H
@@ -178,7 +180,7 @@ typedef struct ws_acl_s
 
 typedef struct acl_hit_s
   {
-    int64 ah_initial;	/*!< initial time */
+    time_usec_t ah_initial;	/*!< initial time */
     long ah_count;	/*!< hits since initial */
     float ah_avg;	/*!< for statistics */
   } acl_hit_t;
@@ -204,6 +206,8 @@ extern long  tws_bad_request;
 #define WM_ERROR 4	/*!< comment out this definition to stop sending 401 Bad request */
 #define WM_HEAD 5
 #define WM_OPTIONS 6
+#define WM_PUT 7
+#define WM_DELETE 8
 
 #define WM_URIQA_FIRST 100
 #define WM_URIQA_MGET 100
@@ -357,7 +361,9 @@ the order of columns in dks_charclasses, file dks_esc.c */
 #define DKS_ESC_JAVA_SQ		0x12	/*! 18 */
 #define DKS_ESC_JAVA_DQ		0x13	/*! 19 */
 #define DKS_ESC_QNAME_11	0x14	/*! 20 */
-#define COUNTOF__DKS_ESC	0x15	/*! 21 */
+#define DKS_ESC_TSV_DQ		0x15	/*! 21 */
+#define DKS_ESC_JSWRITE_CANON	0x16	/*! 22 */
+#define COUNTOF__DKS_ESC	0x17	/*! 23 */
 
 #define DKS_ESC_COMPAT_HTML	0x100
 #define DKS_ESC_COMPAT_SOAP	0x200
@@ -428,7 +434,6 @@ typedef enum {
 extern char * http_cli_proxy_server;
 int http_cli_target_is_proxy_exception (char *);
 void ws_http_body_read (ws_connection_t * ws, dk_session_t **out);
-int ws_check_connect_timeout (session_t *ses, timeout_t * to, int want);
 
 #define WS_CE_NONE 1
 #define WS_CE_CHUNKED 2
@@ -439,6 +444,7 @@ size_t http_threads_mem_report (void);
 extern dk_hash_t * ws_cli_sessions;
 extern dk_mutex_t * ws_cli_mtx;
 int ws_is_https (ws_connection_t * ws);
+void http_set_default_options (ws_connection_t * ws);
 extern int www_maintenance;
 
 #endif /* _HTTP_H */

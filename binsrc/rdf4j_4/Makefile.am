@@ -2,7 +2,7 @@
 #  This file is part of the OpenLink Software Virtuoso Open-Source (VOS)
 #  project.
 #
-#  Copyright (C) 1998-2024 OpenLink Software
+#  Copyright (C) 1998-2026 OpenLink Software
 #
 #  This project is free software; you can redistribute it and/or modify it
 #  under the terms of the GNU General Public License as published by the
@@ -51,6 +51,7 @@ RDF4J_SRC= \
 	virtuoso_driver/VirtuosoRepository.java \
 	virtuoso_driver/VirtuosoRepositorySchema.java \
 	virtuoso_driver/VirtuosoTupleQuery.java \
+	virtuoso_driver/VirtuosoValueFactory.java \
 	virtuoso_driver/VirtuosoUpdate.java
 
 RDF4J_XSL = \
@@ -64,8 +65,9 @@ SAMPLES_SOURCE= \
 RDF4J_CLASSPATH= lib/slf4j-api-1.7.32.jar:lib/commons-io-2.11.0.jar:lib/eclipse-rdf4j-4.0.2-onejar.jar:$(top_srcdir)/libsrc/JDBCDriverType4/virtjdbc4_2.jar
 
 
+all-am:
 
-all-am:	$(TARGETS)
+build: $(TARGETS)
 
 install-data-local:
 	-mkdir "$(DESTDIR)${libdir}/rdf4j_4"
@@ -139,6 +141,7 @@ EXTRA_DIST = \
 	META-INF/services/org.eclipse.rdf4j.repository.config.RepositoryFactory \
 	virtuoso.ttl \
 	virtuoso_driver/*.java \
+	virtuoso_driver/*.rdf \
 	virtuoso_driver/data.nt \
 	manifest.main \
 	virt_rdf4j_4.jar

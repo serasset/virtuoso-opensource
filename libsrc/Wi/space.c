@@ -8,7 +8,7 @@
  *  This file is part of the OpenLink Software Virtuoso Open-Source (VOS)
  *  project.
  *
- *  Copyright (C) 1998-2024 OpenLink Software
+ *  Copyright (C) 1998-2026 OpenLink Software
  *
  *  This project is free software; you can redistribute it and/or modify it
  *  under the terms of the GNU General Public License as published by the
@@ -34,7 +34,7 @@
 #endif
 
 #ifdef PAGE_TRACE
-int page_trace_on = 1;
+int page_trace_on = 0;
 #endif
 
 
@@ -234,7 +234,7 @@ it_new_page (index_tree_t * it, dp_addr_t addr, int type, oid_t col_id,
   if (!physical_dp)
     {
       log_error ("Out of disk space for database");
-      if (DPF_INDEX == type)
+	  if (DPF_INDEX == type && DBS_TEMP != em->em_dbs->dbs_type)
 	{
 	  /* a split must never fail to get a page.  Use the remap hold as a backup */
 	  physical_dp = em_new_dp (it->it_extent_map, EXT_REMAP, 0, &has_hold->itc_n_pages_on_hold);

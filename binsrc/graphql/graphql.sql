@@ -253,7 +253,8 @@ GQL_PARSE_REQUEST (in str any, inout variables any, inout g_iid any, inout tree 
    }
 
   -- array of names of all known existing directives w/o pre-processing built-ins
-  known_directives := (SELECT VECTOR_AGG ("dname", "locs") FROM (SPARQL SELECT str(?dname) as ?dname GROUP_CONCAT(?loc, ",") as ?locs
+  known_directives := (SELECT VECTOR_AGG ("dname", "locs") FROM (SPARQL define input:storage ""
+  SELECT str(?dname) as ?dname GROUP_CONCAT(?loc, ",") as ?locs
     {
       GRAPH <urn:graphql:schema> { gql:Map gql:dataGraph ?g }
       GRAPH ?g { gqi:__schema gqi:directives [ gqi:name ?dname ; gqi:locations ?loc ] FILTER (str(?dname) not in ("skip", "include"))
@@ -579,6 +580,20 @@ GQL_DIRECTIVES_CHECK (in directives_list any, inout variables any, inout known_d
 }
 ;
 
+create procedure GQL_VAR_NAME(in x any)
+{
+  declare wb int;
+  declare pref varchar;
+  if (length(x) <= 80)
+    return x;
+  pref := subseq(x, 0, 80);
+  wb := strrchr(pref, '·');
+  if (wb is not null)
+    pref := subseq(x, 0, wb);
+  return concat (pref,'·',subseq (bin2hex (xenc_digest (x, 'sha256')), 0, 10));
+}
+;
+
 create procedure
 GQL_DIECTIVES_APPLY (in var_name varchar, in directives any, inout variables any,
     inout tp varchar, inout sql_table_option varchar, inout filter_exp varchar, inout graph_exp varchar)
@@ -644,6 +659,7 @@ GQL_CONSTRUCT (in g_iid any, in tree any, in variables any, in parent any,
   declare i, j int;
   declare elm, args, directives any;
   declare var_name, var_name_only varchar;
+  declare vn, vno, pn varchar;
   declare sql_table_option, filter_exp, graph_exp varchar;
 
   if (not isvector (tree))
@@ -664,6 +680,7 @@ GQL_CONSTRUCT (in g_iid any, in tree any, in variables any, in parent any,
         {
           parent_cls := parent[0];
           parent_name := parent[1];
+          pn := GQL_VAR_NAME (parent_name);
           parent_prop := parent[2];
           prefix := parent_name || '·';
         }
@@ -673,6 +690,8 @@ GQL_CONSTRUCT (in g_iid any, in tree any, in variables any, in parent any,
       field_type := tree[5];
       var_name_only := var_name := tree[1];
       var_name := concat (prefix, var_name);
+      vno := GQL_VAR_NAME (var_name_only);
+      vn := GQL_VAR_NAME (var_name);
       local_filter := '';
       tree := tree[3];
       if ((isvector (tree) or parent_name is null) and var_name <> '__typename')
@@ -684,7 +703,7 @@ GQL_CONSTRUCT (in g_iid any, in tree any, in variables any, in parent any,
                        ' { gql:Map gql:schemaObjects <%s> . <%s> gql:rdfClass ?class ; gql:type ?class_type . }}'),
                                 id_to_iri (g_iid), id_to_iri(gcls_iid), id_to_iri(gcls_iid)));
           -- XXX: we first look at topmost `query` classes if such declared
-          for select "class", "class_type" from (sparql select ?class ?class_type where
+          for select "class", "class_type" from (sparql define input:storage "" select ?class ?class_type where
                     { graph ?:g_iid { gql:Map gql:schemaObjects ?:gcls_iid .
                             ?:gcls_iid gql:rdfClass ?class ; gql:type ?class_type . }}) dt0 do
             {
@@ -701,7 +720,8 @@ GQL_CONSTRUCT (in g_iid any, in tree any, in variables any, in parent any,
                         ' [] a owl:ObjectProperty ; gql:field <%s> ; rdfs:range ?class ; gql:type ?class_type . }} '),
                                 id_to_iri (g_iid), id_to_iri(gcls_iid)));
 
-              for select "obj_prop", "class", "class_type" from (sparql select ?obj_prop ?class ?class_type where { graph ?:g_iid {
+              for select "obj_prop", "class", "class_type" from (sparql define input:storage ""
+                                select ?obj_prop ?class ?class_type where { graph ?:g_iid {
                     ?obj_prop a owl:ObjectProperty ; gql:field ?:gcls_iid ; rdfs:range ?class ; gql:type ?class_type . }}) dt1 do
                 {
                   if (cls is not null and cls <> "class")
@@ -729,21 +749,22 @@ GQL_CONSTRUCT (in g_iid any, in tree any, in variables any, in parent any,
               var_name <> '__schema' and not (gqt_is_list (cls_type)) and parent_cls is null and not isvector (args))
             signal ('GQLAR', sprintf ('The field `%s` is an Object and no parent field or arguments.', var_name_only));
 
-          GQL_DIECTIVES_APPLY (var_name, directives, variables, cls_type, sql_table_option, filter_exp, graph_exp);
+          GQL_DIECTIVES_APPLY (vn, directives, variables, cls_type, sql_table_option, filter_exp, graph_exp);
           dict_put (dict, var_name, cls_type);
           parent := vector (iri_to_id (cls), var_name, null);
           if (parent_cls is null and var_name <> '__type')
-            http (sprintf ('%s ?%s a <%s> %s. %s\n', graph_exp, var_name, cls, sql_table_option, filter_exp), patterns);
+            http (sprintf ('%s ?%s a <%s> %s. %s\n', graph_exp, vn, cls, sql_table_option, filter_exp), patterns);
           else if (parent_cls is null and var_name = '__type')
-            http (sprintf (' ?%s a [] . \n', var_name), patterns);
+            http (sprintf (' ?%s a [] . \n', vn), patterns);
 
           if (parent_name is null)
-            http (sprintf (' :data :%s ?%s . \n', var_name, var_name), triples);
+            http (sprintf (' :data :%s ?%s . \n', var_name, vn), triples);
         }
       if (gql_args (args))
 	{
           declare arg_name, arg_value, expression, neg, iri_given any;
           declare arg_iid, fld_iid iri_id_8;
+          declare an varchar;
 
           iri_given := 0;
           fld_iid := GQL_IID (var_name_only);
@@ -752,6 +773,7 @@ GQL_CONSTRUCT (in g_iid any, in tree any, in variables any, in parent any,
 	  {
 	    arg_name := args[j];
 	    arg_value := args[j + 1];
+            an := GQL_VAR_NAME (arg_name);
             if (gql_var (arg_value))
               arg_value := get_keyword (arg_value[1], variables, NULL);
             arg_iid := GQL_IID (arg_name);
@@ -765,18 +787,18 @@ GQL_CONSTRUCT (in g_iid any, in tree any, in variables any, in parent any,
                 ftx := DB.DBA.FTI_MAKE_SEARCH_STRING (arg_value);
                 if (ftx is null)
                   signal ('GQLFX', sprintf ('Can not search "%s" with an empty pattern', var_name));
-                http (sprintf (' ?%s ?%s·search ?%s . \n', var_name, arg_name, arg_name), patterns);
-                http (sprintf (' FILTER (bif:contains (?%s, \'%s\')) \n',  arg_name, ftx), vals);
+                http (sprintf (' ?%s ?%s·search ?%s . \n', vn, an, an), patterns);
+                http (sprintf (' FILTER (bif:contains (?%s, \'%s\')) \n',  an, ftx), vals);
               }
             else if (arg_name = 'iri')
               {
-              http (sprintf (' FILTER (?%s = <%s>) \n',  var_name, arg_value), vals);
+                http (sprintf (' FILTER (?%s = <%s>) \n',  vn, arg_value), vals);
                 if (for_update and id_prop is not null)
                   signal ('GQLSX', '`ID` and `iri` arguments conflict for update operation');
                 iri_given := 1;
               }
             else if (arg_name = 'lang') -- similarly we may add various functions
-              local_filter := concat (local_filter, sprintf (' FILTER (lang(?%s) = \'%s\') \n',  var_name, arg_value));
+              local_filter := concat (local_filter, sprintf (' FILTER (lang(?%s) = \'%s\') \n',  vn, arg_value));
             else
               {
                 declare xsd_type varchar;
@@ -800,7 +822,7 @@ GQL_CONSTRUCT (in g_iid any, in tree any, in variables any, in parent any,
                        '  ?prop1 rdfs:domain ?range ; gql:field <%s> . } }}'),
                       id_to_iri (g_iid), id_to_iri (cls), id_to_iri(arg_iid), id_to_iri(fld_iid), id_to_iri(arg_iid) ));
 
-                for select "prop0", "prop1", "tp0", "range0" from (sparql select ?prop0 ?prop1 ?tp0 ?range0
+                for select "prop0", "prop1", "tp0", "range0" from (sparql define input:storage "" select ?prop0 ?prop1 ?tp0 ?range0
                     where { graph ?:g_iid {
                         ?:cls rdfs:subClassOf* ?domain .
                         ?prop0 rdfs:domain ?domain ; gql:type ?tp0 ; rdfs:range ?range0 ; gql:field ?:arg_iid .
@@ -826,16 +848,17 @@ GQL_CONSTRUCT (in g_iid any, in tree any, in variables any, in parent any,
                   signal ('GQLSX', '`ID` and `iri` arguments conflict for update operation');
 
                 arg_name := concat (prefix, var_name_only, '·', arg_name);
+                an := GQL_VAR_NAME (arg_name);
                 expression := GQL_FUNCTION_EXP (arg_value, neg);
-                http (sprintf (' ?%s <%s> ?%s . \n', var_name, prop, arg_name), patterns);
+                http (sprintf (' ?%s <%s> ?%s . \n', vn, prop, an), patterns);
                 if (arg_value is null)
-                  http (sprintf ('FILTER (?%s = rdf:nil) \n',  arg_name), vals);
+                  http (sprintf ('FILTER (?%s = rdf:nil) \n',  an), vals);
                 else if (expression is not null)
                   {
                     arg_value := arg_value[1][0][2];
                     if (gql_var (arg_value))
                       arg_value := get_keyword (arg_value[1], variables, NULL);
-                    http (sprintf ('FILTER (%s %s (?%s, %s)) \n', neg, expression, arg_name, GQL_VAL_PRINT (arg_value, xsd_type)), vals);
+                    http (sprintf ('FILTER (%s %s (?%s, %s)) \n', neg, expression, an, GQL_VAL_PRINT (arg_value, xsd_type)), vals);
                   }
                 else if (gql_expression (arg_value))
                   {
@@ -845,7 +868,7 @@ GQL_CONSTRUCT (in g_iid any, in tree any, in variables any, in parent any,
                     arg_value := arg_value[2];
                     if (gql_var (arg_value))
                       arg_value := get_keyword (arg_value[1], variables, NULL);
-                    http (sprintf ('FILTER (%s ?%s %s %s ) \n', neg, arg_name, op, GQL_VAL_PRINT (arg_value, xsd_type)), vals);
+                    http (sprintf ('FILTER (%s ?%s %s %s ) \n', neg, an, op, GQL_VAL_PRINT (arg_value, xsd_type)), vals);
                   }
                 else if (gql_obj (arg_value))
                   {
@@ -859,12 +882,12 @@ GQL_CONSTRUCT (in g_iid any, in tree any, in variables any, in parent any,
                   {
                     declare vlist varchar;
                     vlist := GQL_SQL_ARRAY_STR (arg_value, xsd_type);
-                    http (sprintf (' FILTER (?%s IN %s) \n',  arg_name, vlist), vals);
+                    http (sprintf (' FILTER (?%s IN %s) \n',  an, vlist), vals);
                   }
                 else if (tp = 'IRI' or gqt_is_obj (tp) or gqt_is_list (tp))
-                  http (sprintf (' FILTER (?%s = <%s>) \n',  arg_name, arg_value), vals);
+                  http (sprintf (' FILTER (?%s = <%s>) \n',  an, arg_value), vals);
                 else
-                  http (sprintf (' FILTER (?%s = %s) \n',  arg_name, GQL_VAL_PRINT (arg_value, xsd_type)), vals);
+                  http (sprintf (' FILTER (?%s = %s) \n',  an, GQL_VAL_PRINT (arg_value, xsd_type)), vals);
                 has_filter := 1;
                 skip_filter:;
               }
@@ -887,7 +910,7 @@ GQL_CONSTRUCT (in g_iid any, in tree any, in variables any, in parent any,
                   ' { ?range rdfs:subClassOf* ?domain . <%s> rdfs:range  ?range . ?prop0 rdfs:domain ?domain ; gql:field <%s> ; gql:type ?tp0 . }}'),
                                 id_to_iri (g_iid), id_to_iri(parent_prop), id_to_iri(fld_iid)));
 
-              for select "prop0", "tp0" from (sparql select ?prop0 ?tp0 where { graph ?:g_iid
+              for select "prop0", "tp0" from (sparql define input:storage "" select ?prop0 ?tp0 where { graph ?:g_iid
                    {
                      ?range rdfs:subClassOf* ?domain .
                      ?:parent_prop rdfs:range  ?range .
@@ -906,7 +929,7 @@ GQL_CONSTRUCT (in g_iid any, in tree any, in variables any, in parent any,
                        ' { <%s> rdfs:subClassOf* ?domain . ?prop0 rdfs:domain ?domain ; gql:field <%s> ; gql:type ?tp0 . }}'),
                                 id_to_iri (g_iid), id_to_iri(parent_cls), id_to_iri(fld_iid)));
 
-              for select "prop0", "tp0"  from (sparql select ?prop0 ?tp0 where { graph ?:g_iid
+              for select "prop0", "tp0"  from (sparql define input:storage "" select ?prop0 ?tp0 where { graph ?:g_iid
                         {
                           ?:parent_cls rdfs:subClassOf* ?domain .
                           ?prop0 rdfs:domain ?domain ;
@@ -929,24 +952,24 @@ GQL_CONSTRUCT (in g_iid any, in tree any, in variables any, in parent any,
           if (var_name_only not in ('__typename', 'iri'))
             {
               tp := iri_split (tp, null, 0,1);
-              GQL_DIECTIVES_APPLY (var_name, directives, variables, tp, sql_table_option, filter_exp, graph_exp);
+              GQL_DIECTIVES_APPLY (vn, directives, variables, tp, sql_table_option, filter_exp, graph_exp);
               dict_put (dict, var_name, tp);
               parent [2] := prop;
-              http (sprintf (' ?%s :%s ?%s . \n', parent_name, var_name, var_name), triples);
+              http (sprintf (' ?%s :%s ?%s . \n', pn, var_name, vn), triples);
               if (not has_filter)
                 http (sprintf (' OPTIONAL {%s', graph_exp), patterns);
               else
                 http (sprintf (' {%s\t', graph_exp), patterns);
               -- IMPORTANT: make it hash, huge unions exhibit weird SQL engine problem on loop
               if (connection_get ('__intro') = 1)
-                http (sprintf ('  ?%s <%s> ?%s option (table_option "hash") . \n', parent_name, prop, var_name), patterns);
+                http (sprintf ('  ?%s <%s> ?%s option (table_option "hash") . \n', pn, prop, vn), patterns);
               else
-                http (sprintf ('  ?%s <%s> ?%s %s. %s\n', parent_name, prop, var_name, sql_table_option, filter_exp), patterns);
+                http (sprintf ('  ?%s <%s> ?%s %s. %s\n', pn, prop, vn, sql_table_option, filter_exp), patterns);
               -- we filter non literals when not expected, in theory should not be needed, but practice shows different
               -- do this with config setting and never for introspection
               if (atoi (registry_get ('graphql-enable-non-object-fitering', '0'))
                   and not(connection_get ('__intro')) and (gqt_is_obj (tp) or gqt_is_list (tp)))
-                http (sprintf (' FILTER (isIRI (?%s)) . \n', var_name), patterns);
+                http (sprintf (' FILTER (isIRI (?%s)) . \n', vn), patterns);
             }
           else if (var_name_only = '__typename')
             {
@@ -974,19 +997,19 @@ GQL_CONSTRUCT (in g_iid any, in tree any, in variables any, in parent any,
                }
 
               if (sdl_name is not null)
-                http (sprintf (' ?%s :%s "%s" . \n', parent_name, var_name, sdl_name), triples);
+                http (sprintf (' ?%s :%s "%s" . \n', pn, var_name, sdl_name), triples);
               else
-                http (sprintf (' ?%s :%s `bif:iri_split(coalesce(?%s,""),0,0,1)` . \n', parent_name, var_name, var_name), triples);
+                http (sprintf (' ?%s :%s `bif:iri_split(coalesce(?%s,""),0,0,1)` . \n', pn, var_name, vn), triples);
 
-              http (sprintf (' { ?%s rdf:type ?%s . \n', parent_name, var_name), patterns);
+              http (sprintf (' { ?%s rdf:type ?%s . \n', pn, vn), patterns);
             }
           else
             {
               -- no selection, containing field already added to patern, so we just put in results
-              http (sprintf (' ?%s :%s ?%s . \n', parent_name, var_name, parent_name), triples);
+              http (sprintf (' ?%s :%s ?%s . \n', pn, var_name, pn), triples);
               -- IRI ref must be object, the top level is always an S i.e. have no interpunct in name
               if (var_name_only = 'iri' and strchr (parent_name, '·') is not null)
-                http (sprintf (' FILTER (isIRI (?%s)) . \n', parent_name), patterns);
+                http (sprintf (' FILTER (isIRI (?%s)) . \n', pn), patterns);
             }
         }
       -- XXX: currently is disabled as it is very strict type checking, so relax for now
@@ -1041,7 +1064,7 @@ create procedure GQL_FIELD_CAST (in g_iid iri_id_8, inout variables any,
   fld_iid := GQL_IID (fld_name);
   prop := null;
   pattern := null;
-  for select * from (sparql select ?prop0 ?range0 ?tp0 ?pattern0
+  for select * from (sparql define input:storage "" select ?prop0 ?range0 ?tp0 ?pattern0
             where { graph ?:g_iid {
                     ?prop0 rdfs:domain ?domain ;
                         rdfs:range ?range0 ;
@@ -1256,7 +1279,8 @@ GQL_UPDATE (in g_iid any, in tree any, in variables any, in parent any, inout tr
                                 id_to_iri (g_iid), id_to_iri(gcls_iid), id_to_iri(gcls_iid)));
 
           cls := null;
-          for select "class", "class_type", "iri_pattern", "data_graph0", "sparql_op0", "qry0" from (sparql select * where
+          for select "class", "class_type", "iri_pattern", "data_graph0", "sparql_op0", "qry0" from (sparql define input:storage ""
+          select * where
                     { graph ?:g_iid { gql:Map gql:schemaObjects ?gcls .
                             ?gcls gql:rdfClass ?class ; gql:type ?class_type ; gql:mutationType ?sparql_op0 .
                             optional { ?gcls gql:sparqlQuery ?qry0 }
@@ -1294,7 +1318,7 @@ GQL_UPDATE (in g_iid any, in tree any, in variables any, in parent any, inout tr
           vectorbld_init (triples_vec);
           fld_iid := GQL_IID (var_name_only);
           id_prop := id_field := null;
-          for select "prop0", "field0" from (sparql select ?prop0 ?field0
+          for select "prop0", "field0" from (sparql define input:storage "" select ?prop0 ?field0
                 where { graph ?:g_iid { ?prop0 rdfs:domain `iri(?:cls)` ; gql:type gql:ID ; gql:field ?field0 . }}) dt0 do
             {
               if (id_prop is not null)
@@ -1348,7 +1372,7 @@ GQL_UPDATE (in g_iid any, in tree any, in variables any, in parent any, inout tr
                     id_to_iri (g_iid), id_to_iri (cls), id_to_iri(arg_iid), id_to_iri (cls), id_to_iri(fld_iid), id_to_iri(arg_iid) ));
 
               for select "prop0", "prop1", "tp0", "rangeType0", "rangeType1"
-                  from (sparql select ?prop0 ?prop1 ?tp0 ?rangeType0 ?rangeType1
+                  from (sparql define input:storage "" select ?prop0 ?prop1 ?tp0 ?rangeType0 ?rangeType1
                   where { graph ?:g_iid {
                     ?prop0 rdfs:domain `iri(?:cls)` ; gql:type ?tp0 ; gql:field ?:arg_iid ; rdfs:range ?rangeType0 .
                   optional {  [] rdfs:domain `iri(?:cls)`  ; rdfs:range ?range ; gql:field ?:fld_iid .
@@ -1547,11 +1571,11 @@ GQL_TRANSFORM (in str varchar, in g_iid varchar,
   if (length (triples) < 1)
     signal ('GQLEX', 'The query not generates any statements');
 
-  inference_name := (sparql select ?inference_name where { graph ?:g_iid { gql:Map gql:inferenceName ?inference_name }});
+  inference_name := (sparql define input:storage "" select ?inference_name where { graph ?:g_iid { gql:Map gql:inferenceName ?inference_name }});
   if (inference_name is not null)
     http (sprintf ('define input:inference "%s" ', inference_name), qry);
 
-  data_graph := (sparql select ?data_graph where { graph ?:g_iid { gql:Map gql:dataGraph ?data_graph }});
+  data_graph := (sparql define input:storage "" select ?data_graph where { graph ?:g_iid { gql:Map gql:dataGraph ?data_graph }});
   if (data_graph is not null)
     http (sprintf ('define input:default-graph-uri "%s" \n', data_graph), qry);
   http (pragmas, qry);
@@ -2033,7 +2057,7 @@ create procedure DB.DBA.HP_AUTH_GRAPHQL_USER (in realm varchar)
           cert=>val_cert,
           webidGraph=>val_webidGraph);
       sparql clear graph ?:val_webidGraph;
-      if (not VAL.DBA.is_admin_user (val_uname) and sys_stat ('enable_g_in_sec') = 1)
+      if (not VAL.DBA.is_admin_user (val_uname) and sys_stat ('enable_g_in_sec') > 0)
         {
           connection_set ('SPARQLUserId', 'VAL_SPARQL_ADMIN_G_CTX');
           VAL.DBA.set_graph_context_query (serviceId=>val_serviceId, realm=>val_realm, certificate=>val_cert);
@@ -2214,7 +2238,7 @@ create procedure GQL_CREATE_TYPE_SCHEMA (in g_iri varchar)
               }
                 else
                   {
-                if (not (sparql ask where { graph `iri(?:g_iri)` { gql:Map gql:schemaObjects ?cls . ?cls gql:rdfClass `iri(?:range_class)` . }})
+                if (not (sparql define input:storage "" ask where { graph `iri(?:g_iri)` { gql:Map gql:schemaObjects ?cls . ?cls gql:rdfClass `iri(?:range_class)` . }})
                    and range_ns_uri <> GQL_XSD_IRI(''))
                   {
                     sql_warning ('01V01', 'GQLW0', sprintf ('Ref. property %s to undefined class %s.', "prop", "rangeType"));
@@ -2445,7 +2469,7 @@ create procedure GQL_INTRO_ADD (in g_iri varchar, in tgt_iri varchar := 'urn:gra
   if (current_proc_name (1) is null)
     result_names (status);
   any_error := 0;
-  for select * from (sparql select ?typeName
+  for select * from (sparql define input:storage "" select ?typeName
         where { graph `iri(?:tgt_iri)` { gqi:__schema gqi:types ?type0 . ?type0 gqi:name ?typeName0 }
                 graph `iri(?:g_iri)`   { gqi:__schema gqi:types ?type . ?type gqi:name ?typeName }
                 filter (?typeName0 = ?typeName) }) dt do
@@ -2673,7 +2697,7 @@ create procedure GQL_READ_TYPES (in tree any, inout dict any, in schema_iri varc
 
   schema_iid := iri_to_id (schema_iri);
   types := dict_new (31);
-  for select "name", "kind" from (sparql select str(?name) as ?name  str(?kind) as ?kind
+  for select "name", "kind" from (sparql define input:storage "" select str(?name) as ?name  str(?kind) as ?kind
             { graph ?:schema_iid { gqi:__schema gqi:types [ gqi:name ?name ; gqi:kind ?kind ] }}) dt do
     {
       if (subseq ("name", 0, 2) <> '__')

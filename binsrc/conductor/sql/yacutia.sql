@@ -4,7 +4,7 @@
 --  This file is part of the OpenLink Software Virtuoso Open-Source (VOS)
 --  project.
 --
---  Copyright (C) 1998-2024 OpenLink Software
+--  Copyright (C) 1998-2026 OpenLink Software
 --
 --  This project is free software; you can redistribute it and/or modify it
 --  under the terms of the GNU General Public License as published by the
@@ -472,15 +472,15 @@ create procedure adm_menu_tree ()
         <node name="SPARQL ACL" url="sparql_acl.vspx" id="277" place="1" allowed="yacutia_acls"/>
       </node>'
      end,
-   '<node name="Views" url="db_rdf_objects.vspx" id="271" allowed="yacutia_rdf_schema_objects_page"/>
-   <node name="Views" url="db_rdf_class.vspx" id="272" place="1"/>
-   <node name="Views" url="db_rdf_owl.vspx" id="273" place="1"/>
-   <node name="Views" url="db_rdf_view_1.vspx" id="273" place="1"/>
-   <node name="Views" url="db_rdf_view_2.vspx" id="273" place="1"/>
-   <node name="Views" url="db_rdf_view_3.vspx" id="273" place="1"/>
-   <node name="Views" url="db_rdf_view_tb.vspx" id="273" place="1"/>
-   <node name="Views" url="db_rdf_view_cols.vspx" id="273" place="1"/>
-   <node name="Views" url="db_rdf_view_pk.vspx" id="273" place="1"/>',
+   '<node name="RDF Views" url="db_rdf_objects.vspx" id="271" allowed="yacutia_rdf_schema_objects_page"/>
+   <node name="RDF Views" url="db_rdf_class.vspx" id="272" place="1"/>
+   <node name="RDF Views" url="db_rdf_owl.vspx" id="273" place="1"/>
+   <node name="RDF Views" url="db_rdf_view_1.vspx" id="273" place="1"/>
+   <node name="RDF Views" url="db_rdf_view_2.vspx" id="273" place="1"/>
+   <node name="RDF Views" url="db_rdf_view_3.vspx" id="273" place="1"/>
+   <node name="RDF Views" url="db_rdf_view_tb.vspx" id="273" place="1"/>
+   <node name="RDF Views" url="db_rdf_view_cols.vspx" id="273" place="1"/>
+   <node name="RDF Views" url="db_rdf_view_pk.vspx" id="273" place="1"/>',
    case when check_package('rdb2rdf') then
   '<node name="R2RML" url="r2rml_import.vspx" id="273" />
    <node name="R2RML" url="r2rml_validate.vspx" id="273" place="1"/>
@@ -5487,16 +5487,6 @@ create procedure DB.DBA.BACKUP_MAKE_CL (in prefix varchar, in max_pages integer,
 }
 ;
 
-create procedure Y_RDF_VIEW_DROP_STMT (in q any)
-{
-  if (__proc_exists ('DB.DBA.RDF_VIEW_DROP_STMT') is not null)
-    return RDF_VIEW_DROP_STMT (q);
-  else
-    return '';
-
-}
-;
-
 create procedure Y_SQL_ESC_NAME (in fn varchar)
 {
   declare q, o, n, tmp any;
@@ -5622,7 +5612,7 @@ create procedure y_col_dts (in t varchar)
 	 TYPE_NAME := 'integer';
        if (TYPE_NAME = 'decimal')
 	 TYPE_NAME := 'double precision';
-       http (sprintf ('<option %s>%s</option>', case when upper (TYPE_NAME) = t then 'selected' else '' end, upper (TYPE_NAME)));
+       http (sprintf ('<option %s>%V</option>', case when upper (TYPE_NAME) = t then 'selected' else '' end, upper (TYPE_NAME)));
     }
   http (sprintf ('<option %s>ANY</option>', case when 'ANY' = t then 'selected' else '' end));
 }
@@ -6084,7 +6074,7 @@ DB.DBA.URLREWRITE_CREATE_RULELIST ('pki_certs_list1', 1, vector ('pki_cert_rule1
 DB.DBA.URLREWRITE_CREATE_REGEX_RULE ('pki_cert_rule1', 1,
     '/issuer/([^/]*)/([^/]*)/([^/]*)\x24',
     vector('m', 'uid', 'id'), 1,
-    '/issuer/%s?key_name=%s&username=%U', vector('m', 'id', 'uid'),
+    '/issuer/%s?key_name=%U&username=%U', vector('m', 'id', 'uid'),
     null,
     null,
     2);

@@ -4,7 +4,7 @@
  *  This file is part of the OpenLink Software Virtuoso Open-Source (VOS)
  *  project.
  *
- *  Copyright (C) 1998-2024 OpenLink Software
+ *  Copyright (C) 1998-2026 OpenLink Software
  *
  *  This project is free software; you can redistribute it and/or modify it
  *  under the terms of the GNU General Public License as published by the
@@ -1003,7 +1003,7 @@ void ssg_free_internals (spar_sqlgen_t *ssg);
       ssg_puts_with_comment (" AS", cmt); \
       ssg_putchar (' '); \
       ssg_prin_id (ssg, (asname)); \
-    } } while (0);
+    } } while (0)
 
 #define ssg_putbuf(buf,bytes) session_buffered_write (ssg->ssg_out, (buf), (bytes))
 
@@ -1019,7 +1019,7 @@ extern void spar_sqlprint_error_impl (spar_sqlgen_t *ssg, const char *msg);
 
 
 #define SSG_INDENT_FACTOR 2
-#define SSG_MAX_ALLOWED_LINE_COUNT 10000
+#define SSG_MAX_ALLOWED_LINE_COUNT 50000
 #define ssg_newline(back) \
   do { \
     int ind = ssg->ssg_indent; \

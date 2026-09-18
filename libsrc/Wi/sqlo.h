@@ -8,7 +8,7 @@
  *  This file is part of the OpenLink Software Virtuoso Open-Source (VOS)
  *  project.
  *
- *  Copyright (C) 1998-2024 OpenLink Software
+ *  Copyright (C) 1998-2026 OpenLink Software
  *
  *  This project is free software; you can redistribute it and/or modify it
  *  under the terms of the GNU General Public License as published by the
@@ -32,9 +32,7 @@ typedef struct df_elt_s df_elt_t;
 typedef struct dfe_reuse_s dfe_reuse_t;
 typedef struct sqlo_s sqlo_t;
 typedef struct locus_s locus_t;
-#ifdef __cplusplus
 typedef struct remote_ds_s remote_ds_t;
-#endif
 
 
 typedef struct ot_virt_col_s
@@ -49,11 +47,7 @@ typedef struct op_table_s
   caddr_t		ot_prefix;
   caddr_t	ot_new_prefix;
   dbe_table_t * 	ot_table;
-#ifdef __cplusplus
   remote_ds_t *	ot_rds;
-#else
-  struct remote_ds_t *	ot_rds;
-#endif
   ST *	ot_dt;
   ST *	ot_left_sel;
   ST *	ot_join_cond;
@@ -497,7 +491,7 @@ struct sqlo_s
   df_elt_t *	so_context_dt;
   time_msec_t	so_last_sample_time; /* used for stopping compilation if longer is elapsed since last sample than the best plan's time */
   int32		so_max_layouts;
-  int32		so_max_memory;
+  size_t	so_max_memory;
   int		so_nth_select_col; /* the position in select list for which an exp is being generated.  Used for adding dependent cols to oby when adding cols to dts  when doing ref from enclosing dt */
   char		so_identity_joins;
   char		so_cache_subqs;

@@ -8,7 +8,7 @@
  *  This file is part of the OpenLink Software Virtuoso Open-Source (VOS)
  *  project.
  *
- *  Copyright (C) 1998-2024 OpenLink Software
+ *  Copyright (C) 1998-2026 OpenLink Software
  *
  *  This project is free software; you can redistribute it and/or modify it
  *  under the terms of the GNU General Public License as published by the
@@ -562,7 +562,7 @@ itc_free (it_cursor_t * it)
 
 
 placeholder_t *
-plh_allocate ()
+plh_allocate (void)
 {
   NEW_PLH(v);
   return v;
@@ -771,13 +771,14 @@ itc_like_compare (it_cursor_t * itc, buffer_desc_t * buf, caddr_t pattern, searc
 
   if (dtp2 != DV_SHORT_STRING && dtp2 != DV_LONG_STRING && dtp2 != DV_WIDE && dtp2 != DV_LONG_WIDE )
     return DVC_LESS;
-    switch (dtp2)
+
+  switch (dtp2)
       {
       case DV_WIDE:
       case DV_LONG_WIDE:
       pt = LIKE_ARG_WCHAR;
       break;
-	  }
+  }
   switch (dtp1)
 	      {
     case DV_SHORT_STRING:
@@ -812,7 +813,8 @@ itc_like_compare (it_cursor_t * itc, buffer_desc_t * buf, caddr_t pattern, searc
   memcpy (temp, dv1, len1);
   if (len3)
   memcpy (&temp[len1], dv3, len3);
-  temp[len1 + len3 - 1] += offset;
+  if (0 < (len1 + len3))
+    temp[len1 + len3 - 1] += offset;
   temp[len1 + len3] = 0;
   res = cmp_like (temp, pattern, collation, spec->sp_like_escape, st, pt);
   return res;
@@ -1529,9 +1531,7 @@ search_switch:
 	  return DVC_INDEX_END; /* the non-root became root while waiting for parent, which got popped away by itc_delete_single_leaf.  At end. Return */
 
 	/* This never fails. We're in on the parent node. Where do we go now? */
-#ifdef PMN_THREADS
 	PROCESS_ALLOW_SCHEDULE ();
-#endif
 
 	pos = page_find_leaf (*buf_ret, leaf_from);
 	if (-1 == pos)
@@ -3447,7 +3447,7 @@ cs_new_page (dk_hash_t * cols)
       int64 * place;
       caddr_t * p_value;
       id_hash_iterator (&hit, cs->cs_distinct);
-      while (hit_next (&hit, &p_value, (caddr_t*)&place))
+      while (hit_next (&hit, (caddr_t *) &p_value, (caddr_t*)&place))
 	{
 	  *place &= ~CS_IN_SAMPLE; 
 	}

@@ -8,7 +8,7 @@
  *  This file is part of the OpenLink Software Virtuoso Open-Source (VOS)
  *  project.
  *
- *  Copyright (C) 1998-2024 OpenLink Software
+ *  Copyright (C) 1998-2026 OpenLink Software
  *
  *  This project is free software; you can redistribute it and/or modify it
  *  under the terms of the GNU General Public License as published by the
@@ -459,6 +459,8 @@ hi_bp_set (hash_index_t * hi, it_cursor_t *itc, uint32 code, dp_addr_t dp, short
 	  itc->itc_ltrx->lt_error = LTE_NO_DISK;
 	  itc_bust_this_trx (itc, &hb_buf, ITC_BUST_THROW);
 	}
+      if (itc->itc_ltrx && itc->itc_ltrx->lt_client)
+        itc->itc_ltrx->lt_client->cli_activity.da_temp_pages++;
       HI_BUCKET_PTR_PAGE (hi, code) = hb_buf->bd_page;
       memset (hb_buf->bd_buffer + DP_DATA, 0, PAGE_DATA_SZ);
       set_dbg_fprintf ((stdout, "hi_bp_set:new bp: page=%lu\n", (unsigned long) hb_buf->bd_page));
@@ -929,6 +931,8 @@ itc_ha_disk_row (it_cursor_t * itc, buffer_desc_t * buf, hash_area_t * ha, caddr
 	  itc->itc_ltrx->lt_error = LTE_NO_DISK;
 	  itc_bust_this_trx (itc, &buf, ITC_BUST_THROW);
 	}
+      if (itc->itc_ltrx && itc->itc_ltrx->lt_client)
+        itc->itc_ltrx->lt_client->cli_activity.da_temp_pages++;
       if (!tree->it_hash_first)
 	tree->it_hash_first = new_buf->bd_page;
       if (hash_buf)
@@ -2206,6 +2210,7 @@ runX_begin: ;
 	      {
 		state_slot_t * ssl = setp->setp_dependent_box[dep_box_inx];
 		caddr_t new_val = QST_GET (qst, ssl);
+		caddr_t new_val_copy = NULL;
 		if (DV_DB_NULL == DV_TYPE_OF (new_val))
 		  goto next_mem_col;
 		if (op->go_distinct_ha)
@@ -2214,8 +2219,13 @@ runX_begin: ;
 		    caddr_t d_val = qst_get (qst, op->go_distinct);
 		    if (DV_DB_NULL == DV_TYPE_OF (d_val))
 		      goto next_mem_col;
+		    new_val_copy = box_copy_tree (new_val);
 		    if (DVC_MATCH == itc_ha_feed (&ihfr, op->go_distinct_ha, qst, 0, NULL))
-		      goto next_mem_col;
+		      {
+			dk_free_tree (new_val_copy);
+			goto next_mem_col;
+		      }
+		    new_val = new_val_copy;
 		  }
 
 		/* can be null on the row if 1st value was null. Replace w/ new val */
@@ -2240,7 +2250,7 @@ runX_begin: ;
 		      }
 		    else
 		      {
-			int len1 = IS_BOX_POINTER (dep_ptr[0]) ? box_length (dep_ptr[0]) : 0; 
+			int len1 = IS_BOX_POINTER (dep_ptr[0]) ? box_length (dep_ptr[0]) : 0;
 			int len2 = IS_BOX_POINTER (res) ? box_length (res) : 0;
 			if (DV_TYPE_OF (dep_ptr[0]) == DV_TYPE_OF (res) && len1 == len2 && len1 > 0)
 			  memcpy (dep_ptr[0], res, len1);
@@ -2249,6 +2259,8 @@ runX_begin: ;
 			dk_free_tree (res);
 		      }
 		  }
+		if (new_val_copy)
+		  dk_free_tree (new_val_copy);
 		break;
 	      }
 	    case AMMSC_USER:
@@ -2309,6 +2321,7 @@ runX_begin: ;
 	      {
 		state_slot_t * ssl = setp->setp_dependent_box[dep_box_inx];
 		caddr_t new_val = QST_GET (qst, ssl);
+		caddr_t new_val_copy = NULL;
 		if (DV_DB_NULL == DV_TYPE_OF (new_val))
 		  goto next_disk_col;
 		if (op->go_distinct_ha)
@@ -2317,8 +2330,13 @@ runX_begin: ;
 		    caddr_t d_val = QST_GET (qst, op->go_distinct);
 		    if (DV_DB_NULL == DV_TYPE_OF (d_val))
 		      goto next_disk_col;
+		    new_val_copy = box_copy_tree (new_val);
 		    if (DVC_MATCH == itc_ha_feed (&ihfr, op->go_distinct_ha, qst, 0, NULL))
-		      goto next_disk_col;
+		      {
+			dk_free_tree (new_val_copy);
+			goto next_disk_col;
+		      }
+		    new_val = new_val_copy;
 		  }
 		/* can be null on the row if 1st value was null. Replace w/ new val */
 		if (DV_DB_NULL == DV_TYPE_OF (QST_GET_V (qst, op->go_old_val)))
@@ -2332,6 +2350,8 @@ runX_begin: ;
 		    rf.rf_row = ihfr.ihfr_disk_buf->bd_buffer + itc->itc_map_pos;
 		    row_set_col (&rf, cl, QST_GET_V (qst, op->go_old_val));
 		  }
+		if (new_val_copy)
+		  dk_free_tree (new_val_copy);
 		break;
 	      }
 	    case AMMSC_USER:
@@ -2434,6 +2454,8 @@ setp_order_row (setp_node_t * setp, caddr_t * qst)
     {
       /* this node may be invoked from inside itc_row_check.  If so and there is a trx error, come out as an error, not as RST_DEADLOCK.
        * This will cause itc_next to exit its buffer properly */
+      if (LTE_NO_DISK == qi->qi_trx->lt_error)
+        it_temp_write_cancel (tree);
       sqlr_resignal (srv_make_trx_error (qi->qi_trx->lt_error, NULL));
     }
   END_FAIL (ins_itc);
@@ -3495,7 +3517,7 @@ lt_hi_transact (lock_trx_t * lt, int op)
 
 
 void
-hic_clear ()
+hic_clear (void)
 {
   index_tree_t ** p_it;
   caddr_t p_key;

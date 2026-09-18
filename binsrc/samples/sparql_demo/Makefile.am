@@ -2,7 +2,7 @@
 #  This file is part of the OpenLink Software Virtuoso Open-Source (VOS)
 #  project.
 #  
-#  Copyright (C) 1998-2024 OpenLink Software
+#  Copyright (C) 1998-2026 OpenLink Software
 #  
 #  This project is free software; you can redistribute it and/or modify it
 #  under the terms of the GNU General Public License as published by the
@@ -34,6 +34,13 @@ DAV_FLAGS       = $(VERBOSE) \
                 --var="NEED_VERSION=$(NEED_VERSION)" \
                 --var="TYPE=dav" \
                 --var="VERSION=$(VERSION)"
+
+all-am:
+	@echo "*"
+	@echo "* The SPARQL demo VAD is deprecated and will be removed in a future version"
+	@echo "*"
+
+build: sparql_demo_dav.vad
 
 sparql_demo_dav.vad: $(EXTRA_DIST) Makefile data
 	$(PYTHON) $(top_srcdir)/binsrc/vadpacker/vadpacker.py \

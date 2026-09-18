@@ -8,7 +8,7 @@
  *  This file is part of the OpenLink Software Virtuoso Open-Source (VOS)
  *  project.
  *
- *  Copyright (C) 1998-2024 OpenLink Software
+ *  Copyright (C) 1998-2026 OpenLink Software
  *
  *  This project is free software; you can redistribute it and/or modify it
  *  under the terms of the GNU General Public License as published by the
@@ -1484,7 +1484,7 @@ sqlo_replace_as_exps (ST **tree, sql_scope_t *sco)
     {
       DO_SET (ST **, as_exp, &sco->sco_named_vars)
 	{
-	  if (!CASEMODESTRCMP (as_exp[0]->_.col_ref.name, (*tree)->_.col_ref.name))
+	  if (STAR != (*tree)->_.col_ref.name && !CASEMODESTRCMP (as_exp[0]->_.col_ref.name, (*tree)->_.col_ref.name))
 	    {
 	      *tree = (ST *) t_box_copy_tree ((caddr_t) as_exp[1]);
 	      return;
@@ -2332,6 +2332,14 @@ next_and:
       if (additional_ands)
 	{
 	  ST * right_and = NULL, *right = NULL;
+	  /* If first_and_list is empty after extracting common predicates, the first OR
+	   * branch was entirely the common factor (= TRUE after factoring). By absorption,
+	   * A OR (A AND X) = A, so the remaining OR branches add no constraints. */
+	  if (NULL == first_and_list)
+	    {
+	      tree = additional_ands;
+	      goto done;
+	    }
 	  DO_SET (ST *, first_and, &first_and_list)
 	    {
 	      t_st_and (&right_and, first_and);
@@ -2339,7 +2347,6 @@ next_and:
 	  END_DO_SET ();
 	  if (right_and)
 	    t_st_or (&right, right_and);
-
 	  DO_SET (dk_set_t, and_list, &and_lists)
 	    {
 	      right_and = NULL;
@@ -2355,6 +2362,7 @@ next_and:
 	  if (right)
 	    t_st_and (&additional_ands, right);
 	  tree = additional_ands;
+done:;
 	}
     }
   return tree;
@@ -3211,7 +3219,7 @@ sqlo_scope (sqlo_t * so, ST ** ptree)
       {
 	int old_fun_refs_allowed = so->so_scope ? so->so_scope->sco_fun_refs_allowed : 0;
 
-	if (so->so_scope && !so->so_scope->sco_fun_refs_allowed)
+	if (so->so_scope && !so->so_scope->sco_fun_refs_allowed && !so->so_is_rescope)
 	  sqlc_error (so->so_sc->sc_cc, "37000", "Aggregate function not allowed in context");
 
 	if (AMMSC_AVG == tree->_.fn_ref.fn_code)

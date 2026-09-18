@@ -8,7 +8,7 @@
  *  This file is part of the OpenLink Software Virtuoso Open-Source (VOS)
  *  project.
  *
- *  Copyright (C) 1998-2024 OpenLink Software
+ *  Copyright (C) 1998-2026 OpenLink Software
  *
  *  This project is free software; you can redistribute it and/or modify it
  *  under the terms of the GNU General Public License as published by the
@@ -81,7 +81,7 @@ void itc_free_owned_params (it_cursor_t * itc);
 #define NEW_PLH(v) \
   placeholder_t * v = (placeholder_t*) dk_alloc_box_zero (sizeof (placeholder_t), DV_ITC); \
   v->itc_type = ITC_PLACEHOLDER;
-placeholder_t * plh_allocate ();
+placeholder_t * plh_allocate (void);
 int dv_compare (db_buf_t dv1, db_buf_t dv2, collation_t *collation, unsigned short offset);
 int dv_compare_spec (db_buf_t db, search_spec_t * spec, it_cursor_t * it);
 dp_addr_t leaf_pointer (db_buf_t row, dbe_key_t * key);
@@ -404,7 +404,7 @@ void gen_qmsort (int * in, int * left,
 	    int n_in, sort_cmp_func_t cmp, void* cd, int key_bytes);
 
 void bp_flush (buffer_pool_t * bp, int wait);
-void mt_flush_all ();
+void mt_flush_all (void);
 int page_set_length (buffer_desc_t * buf);
 int bp_buf_enter (buffer_desc_t * buf, it_map_t ** itm_ret);
 buffer_desc_t * bp_get_buffer_1  (buffer_pool_t * bp, buffer_pool_t ** pool_for_action, int mode);
@@ -518,7 +518,7 @@ int  pg_row_check (buffer_desc_t * buf, int irow, int gpf_on_err);
 
 void pg_check_map (buffer_desc_t * buf);
 #else
-#define pg_check_map(buf)
+#define pg_check_map(buf)	((void)0)
 #endif
 int pg_room (db_buf_t page);
 
@@ -555,6 +555,7 @@ void * pm_get (buffer_desc_t * buf, size_t sz);
 index_tree_t *DBG_NAME (it_allocate) (DBG_PARAMS dbe_storage_t *);
 index_tree_t *DBG_NAME (it_temp_allocate) (DBG_PARAMS dbe_storage_t *);
 int DBG_NAME (it_temp_free) (DBG_PARAMS index_tree_t * it);	/*!< \returns zero is the \c it is actually kept, just with smaller it_ref_count; non-zero means real free */
+void it_temp_write_cancel (index_tree_t *tree);
 #ifdef MALLOC_DEBUG
 #define it_allocate(s) dbg_it_allocate (__FILE__, __LINE__, (s))
 #define it_temp_allocate(s) dbg_it_temp_allocate (__FILE__, __LINE__, (s))
@@ -584,8 +585,8 @@ int buf_set_dirty_inside_1 (char *file, int line, buffer_desc_t * buf);
 #define buf_set_dirty_inside(b)  BUF_SET_IS_DIRTY(b,1)
 #endif
 
-#define cl_enlist_ck(it, buf)
-#define cl_set_slice(cli, clm, slice, err)
+#define cl_enlist_ck(it, buf)			((void)0)
+#define cl_set_slice(cli, clm, slice, err)	((void)0)
 
 void wi_new_dirty (buffer_desc_t * buf);
 
@@ -633,7 +634,7 @@ extern char srv_approx_dt[DT_LENGTH];
 int box_length_on_row (caddr_t val);
 void pfh_init (pf_hash_t * pfh, buffer_desc_t * buf);
 extern resource_t * pfh_rc;
-pf_hash_t * pfh_allocate ();
+pf_hash_t * pfh_allocate (void);
 void pfh_free (pf_hash_t * pfh);
 short pfh_var (pf_hash_t * pfh, dbe_col_loc_t * cl, db_buf_t str, int len, unsigned short * prefix_bytes, unsigned short * prefix_ref, dtp_t * extra, int mode);
 row_size_t  row_space_after (buffer_desc_t * buf, short irow);
@@ -836,7 +837,7 @@ extern int enable_gzip;
 extern int isdts_mode;
 extern FILE *http_log;
 extern char * http_soap_client_id_string;
-extern const char * http_client_id_string;
+extern char * http_client_id_string;
 extern char * http_server_id_string;
 extern uint32 http_default_client_req_timeout;
 extern long http_ses_trap;
@@ -866,7 +867,7 @@ extern char *denied_dirs;
 extern char *backup_dirs;
 extern char *safe_execs;
 extern char *dba_execs;
-extern const char *www_root;
+extern char *www_root;
 extern char *temp_dir;
 
 /* Externals from virtuoso */
@@ -937,7 +938,7 @@ long sf_log (caddr_t * replicate);
 
 /* mtwrite.c */
 
-int dbs_dirty_count ();
+int dbs_dirty_count (void);
 void buf_cancel_write (buffer_desc_t * buf);
 void buf_release_read_waits (buffer_desc_t * buf, int itc_state);
 void mt_write_start (int n_oldest);
@@ -1015,7 +1016,7 @@ void blob_log_replace (it_cursor_t * it, blob_layout_t * bl);
 
 void rd_fixup_blob_refs (it_cursor_t * itc, row_delta_t * rd);
 caddr_t blob_to_string_it (lock_trx_t * lt, index_tree_t *it, caddr_t bhp);
-caddr_t blob_to_string (lock_trx_t * lt, caddr_t bhp);
+EXE_EXPORT(caddr_t, blob_to_string, (lock_trx_t * lt, caddr_t bhp));
 caddr_t safe_blob_to_string (lock_trx_t * lt, caddr_t bhp, caddr_t *err);
 dk_session_t *blob_to_string_output_it (lock_trx_t * lt, index_tree_t *it, caddr_t bhp);
 dk_session_t *blob_to_string_output (lock_trx_t * lt, caddr_t bhp);
@@ -1108,7 +1109,7 @@ caddr_t registry_remove (char *name);
 int dbs_write_registry (dbe_storage_t * dbs);
 void dbs_init_registry (dbe_storage_t * dbs);
 void db_replay_registry_sequences (void);
-void cli_bootstrap_cli ();
+void cli_bootstrap_cli (void);
 void db_log_registry (dk_session_t * log);
 void registry_update_sequences (void);
 caddr_t box_deserialize_string (caddr_t text, int opt_len, int64 offset);
@@ -1299,6 +1300,7 @@ extern time_msec_t last_flush_time;
 extern time_msec_t last_exec_time;	/* used to know when the system is idle */
 
 extern unsigned long int cfg_autocheckpoint;	/* Defined in disk.c */
+extern int32 c_soft_checkpoint;	/* Defined in disk.c */
 extern int32 c_checkpoint_interval;
 extern dk_mutex_t * checkpoint_mtx;
 extern int32 cl_run_local_only;
@@ -1359,6 +1361,7 @@ typedef enum { SQW_OFF, SQW_ON, SQW_ERROR } sqw_mode;
 extern sqw_mode sql_warning_mode;
 extern long sql_warnings_to_syslog;
 extern long temp_db_size;
+extern int64 dbs_max_temp_db_pages;
 
 void
 srv_set_cfg(
@@ -1420,7 +1423,7 @@ void dbs_cpt_set_allocated (dbe_storage_t * dbs, dp_addr_t dp, int is_allocd);
 dp_addr_t em_free_count (extent_map_t * em, int type);
 void dbs_ec_enter (dbe_storage_t * dbs);
 void dbs_ec_leave (dbe_storage_t * dbs);
-void clear_old_root_images  ();
+void clear_old_root_images  (void);
 
 extern dk_mutex_t * extent_map_create_mtx;
 #define WAIT_IF(msec) if (msec) virtuoso_sleep ((msec) /1000, 1000 * ((msec) % 1000));
@@ -1439,7 +1442,7 @@ void  memzero (void* p, int len);
 void memcpy_16 (void * target, const void * source, size_t len);
 void memcpy_16_nt (void * t, const void * s, size_t len);
 void memmove_16 (void * t, const void * s, size_t len);
-unsigned  int64 rdtsc();
+unsigned  int64 rdtsc(void);
 
 extern int aq_max_threads;
 extern int in_log_replay;

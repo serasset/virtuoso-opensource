@@ -8,7 +8,7 @@
  *  This file is part of the OpenLink Software Virtuoso Open-Source (VOS)
  *  project.
  *
- *  Copyright (C) 1998-2024 OpenLink Software
+ *  Copyright (C) 1998-2026 OpenLink Software
  *
  *  This project is free software; you can redistribute it and/or modify it
  *  under the terms of the GNU General Public License as published by the
@@ -56,7 +56,7 @@
 #include "xmltree.h"
 #endif
 
-#if defined (PCTCP)
+#if defined (WIN32)
 int last_errno;
 # ifdef errno
 #  undef errno
@@ -73,6 +73,9 @@ int last_errno;
 int ssl_client_use_pkcs12 (SSL *ssl, char *pkcs12file, char *passwd, char * ca);
 int ssl_client_use_db_key (SSL * ssl, char *key, char *ca, caddr_t * err_ret);
 #endif
+
+int32 https_client_seclevel = -1;
+
 
 #define XML_VERSION		"1.0"
 
@@ -185,6 +188,9 @@ http_cli_ctx_init (void)
   ctx->hcctx_prv_req_hdrs = strses_allocate ();
   ctx->hcctx_pub_req_hdrs = strses_allocate ();
   ctx->hcctx_req_body = strses_allocate ();
+#ifdef _SSL
+  ctx->hcctx_ssl_seclevel = -1;
+#endif
   return ctx;
 }
 
@@ -654,6 +660,15 @@ http_cli_handle_socks_conn_post (http_cli_ctx * ctx, caddr_t parm, caddr_t ret_v
   return (HC_RET_OK);
 }
 
+HC_RET
+http_cli_ssl_seclevel (http_cli_ctx* ctx, int32 level)
+{
+#ifdef _SSL
+  ctx->hcctx_ssl_seclevel = level;
+#endif
+  return (HC_RET_OK);
+}
+
 #ifdef _SSL
 HC_RET
 http_cli_ssl_cert (http_cli_ctx * ctx, caddr_t val)
@@ -1033,11 +1048,20 @@ http_cli_connect (http_cli_ctx * ctx)
 	  /*
 	   *  Switch socket to SSL protocol
 	   */
-	  ctx->hcctx_ssl_method = SSLv23_client_method();
+	  ctx->hcctx_ssl_method = TLS_client_method();
 	  ctx->hcctx_ssl_ctx = SSL_CTX_new (ctx->hcctx_ssl_method);
+
+#if OPENSSL_VERSION_NUMBER >= 0x10100000L
+	  if (ctx->hcctx_ssl_seclevel >= 0)
+	    {
+	      SSL_CTX_set_security_level (ctx->hcctx_ssl_ctx, ctx->hcctx_ssl_seclevel);
+	    }
+#endif
+
 	  ctx->hcctx_ssl = SSL_new (ctx->hcctx_ssl_ctx);
 	  if (ctx->hcctx_timeout > 0)
 	    to.to_sec = ctx->hcctx_timeout;
+
 
 #ifndef OPENSSL_NO_TLSEXT
 	  {
@@ -1094,7 +1118,7 @@ http_cli_connect (http_cli_ctx * ctx)
 	      err1[0] = 0;
               con_err = SSL_get_error(ctx->hcctx_ssl, ssl_err);
               if (SSL_ERROR_WANT_READ == con_err || SSL_ERROR_WANT_WRITE == con_err)
-                con_err = ws_check_connect_timeout (ctx->hcctx_http_out->dks_session, &to, con_err);
+                con_err = ssl_check_connect_timeout (ctx->hcctx_http_out->dks_session, &to, con_err);
               if (SSL_ERROR_NONE == con_err)
                 ssl_err = 1;
               else
@@ -1480,6 +1504,9 @@ http_cli_sse_evt_hook (http_cli_ctx * ctx, dk_session_t * ses, char * line, int 
   caddr_t p_name = ctx->hcctx_callback, *args = ctx->hcctx_callback_args;
   client_connection_t * cli = qi->qi_client;
   local_cursor_t * lc = NULL;
+  const char * sse_ret_hook_flag = "HTTP_SSE_RET_FLAG";
+  caddr_t flag_ret, flag_ret_val;
+  int rc = HC_RET_OK;
 
   if (readed > 1)
     {
@@ -1535,7 +1562,13 @@ err_end:
           return (HC_RET_STOP);
         }
     }
-  return (HC_RET_OK);
+  if (id_hash_get_and_remove (cli->cli_globals, (caddr_t) &sse_ret_hook_flag, (caddr_t)(&flag_ret), (caddr_t)(&flag_ret_val)))
+    {
+      rc = unbox (flag_ret_val) ? HC_RET_STOP : HC_RET_OK;
+      dk_free_box (flag_ret);
+      dk_free_box (flag_ret_val);
+    }
+  return rc;
 }
 
 HC_RET
@@ -1564,12 +1597,13 @@ http_cli_read_sse_content (http_cli_ctx * ctx)
                 }
               while (remaining_chunk_size > 0)
                 {
-                  char c;
+                  char c = '\0', c0;
                   int chars_read, to_read;
                   to_read = MIN (remaining_chunk_size, (sizeof (line) - 1));
                   chars_read = 0;
                   do
                     {
+                      c0 = c;
                       c = session_buffered_read_char(ses);
                       to_read--;
                       remaining_chunk_size--;
@@ -1584,6 +1618,9 @@ http_cli_read_sse_content (http_cli_ctx * ctx)
                       else
                         break;
                     }
+                  /* catch if SSE use cr/lf between events */
+                  if (2 == chars_read && 0x0d == c0 && 0x0a == c)
+                    chars_read--;
                   if (HC_RET_OK != (rc = http_cli_sse_evt_hook (ctx, data, line, chars_read)))
                     goto err_ret;
                 }
@@ -2289,6 +2326,39 @@ http_cli_parse_authorize_headers (http_cli_ctx * ctx)
 }
 
 HC_RET
+http_cli_std_handle_upgrade (http_cli_ctx * ctx, caddr_t parm, caddr_t ret_val, caddr_t err_ret)
+{
+  int ret;
+  char *s = NULL, *last;
+  caddr_t url, loc, err = NULL, cookie_header = NULL;
+  dk_set_t cookies = NULL;
+  CATCH_ABORT (http_cli_read_resp_hdrs, ctx, ret);
+  DO_SET (caddr_t, hdr, &ctx->hcctx_resp_hdrs)
+    {
+      if (!strnicmp ("Upgrade:", hdr, 8))
+        {
+	  last = hdr + box_length (hdr) - 3;
+	  s = hdr + 8;
+	  s = skip_lwsp (s, last);
+          if (!strnicmp ("websocket", s, 9))
+            ctx->hcctx_connection_upgrade = HC_U_WEBSOCKET;
+          else
+            ctx->hcctx_connection_upgrade = HC_U_UNKNOWN;
+        }
+      else if (!strnicmp ("Connection:", hdr, 11))
+        {
+	  last = hdr + box_length (hdr) - 3;
+	  s = hdr + 11;
+	  s = skip_lwsp (s, last);
+          if (!strnicmp ("upgrade", s, 7))
+            F_SET (ctx, HC_F_UPGRADE);
+        }
+    }
+  END_DO_SET ();
+  return (HC_RET_OK);
+}
+
+HC_RET
 http_cli_std_handle_redir (http_cli_ctx * ctx, caddr_t parm, caddr_t ret_val, caddr_t err_ret)
 {
   int ret;
@@ -2463,6 +2533,8 @@ http_cli_std_init (char * url, caddr_t * qst)
 
   h = http_cli_make_handler_frame (http_cli_handle_socks_conn_post, NULL, NULL, NULL);
   http_cli_push_hook (ctx, HC_HTTP_CONN_POST, h);
+
+  http_cli_push_resp_evt (ctx, 101, http_cli_make_handler_frame (http_cli_std_handle_upgrade, NULL, NULL, NULL));
 
   return (ctx);
 }
@@ -2847,6 +2919,14 @@ bif_http_client_impl (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args, co
   start_dt = get_msec_real_time ();
   if (!http_cli_main (ctx))
     ret = box_copy_tree (ctx->hcctx_resp_body);
+  if (HC_U_WEBSOCKET == ctx->hcctx_connection_upgrade)
+    {
+      dk_free_tree (ret);
+      ret = dk_alloc_box (2 * sizeof (caddr_t), DV_CONNECTION);
+      ((caddr_t *)ret)[0] = (caddr_t) ctx->hcctx_http_out;
+      ((caddr_t *)ret)[1] = (caddr_t) 1L;
+      ctx->hcctx_http_out = NULL;
+    }
   if (NULL == ret)
     ret = box_dv_short_string ("");
 

@@ -8,7 +8,7 @@
  *  This file is part of the OpenLink Software Virtuoso Open-Source (VOS)
  *  project.
  *
- *  Copyright (C) 1998-2024 OpenLink Software
+ *  Copyright (C) 1998-2026 OpenLink Software
  *
  *  This project is free software; you can redistribute it and/or modify it
  *  under the terms of the GNU General Public License as published by the
@@ -64,7 +64,7 @@ int time2sec (int day, int hour, int min, int sec);
 extern void ts_add_month (TIMESTAMP_STRUCT* ts, int months, int oracle_style);
 extern void ts_add (TIMESTAMP_STRUCT *ts, boxint n, const char *unit);
 int dt_validate (caddr_t dt);
-extern int dt_compare (caddr_t dt1, caddr_t dt2, int cmp_is_safe);
+extern int dt_compare (ccaddr_t dt1, ccaddr_t dt2, int cmp_is_safe);
 void dt_to_GMTimestamp_struct (ccaddr_t dt, GMTIMESTAMP_STRUCT *ts);
 void GMTimestamp_struct_to_dt (GMTIMESTAMP_STRUCT *ts_in, char *dt);
 void dt_to_timestamp_struct (ccaddr_t dt, TIMESTAMP_STRUCT *ts);

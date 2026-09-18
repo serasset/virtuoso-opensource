@@ -6,7 +6,7 @@
  *  This file is part of the OpenLink Software Virtuoso Open-Source (VOS)
  *  project.
  *
- *  Copyright (C) 1998-2024 OpenLink Software
+ *  Copyright (C) 1998-2026 OpenLink Software
  *
  *  This project is free software; you can redistribute it and/or modify it
  *  under the terms of the GNU General Public License as published by the
@@ -187,7 +187,7 @@ static queue_vtbl_t xa_tp_vtbl = {
 int d_trx_no = 0;
 
 tp_queue_t *
-tp_queue_init ()
+tp_queue_init (void)
 {
   NEW_VARZ (tp_queue_t, mq);
 
@@ -733,7 +733,7 @@ dtrx_dealloc (tp_dtrx_t * dtrx)
 }
 
 tp_dtrx_t *
-virt_trx_allocate ()
+virt_trx_allocate (void)
 {
   static tp_trx_vtbl_t vtbl = {
     tp_trx_enlist,
@@ -1016,44 +1016,56 @@ typedef union trx_uuid_u
 }
 trx_uuid_t;
 
-caddr_t
-tp_get_server_uuid ()
-{
-#if defined (UUID_BY_PORT)
 
-#if defined (_REENTRANT) && (defined (linux) || defined (SOLARIS))
-  char buff[4096];
-  int herrnop;
-  struct hostent ht;
-#endif
-  char host[255];
-  char *ip_addr = 0;
-  struct hostent *local;
-  if (0 != gethostname (host, sizeof (host)))
+
+caddr_t
+tp_get_server_uuid (void)
+{
+  char host[NI_MAXHOST];
+  struct addrinfo hints = {0};
+  struct addrinfo *res = NULL;
+  struct addrinfo *p = NULL;
+  int rc;
+
+  if (gethostname (host, sizeof (host)) != 0)
     strcpy_ck (host, "localhost");
 
-#if defined (_REENTRANT) && defined (linux)
-  gethostbyname_r (host, &ht, buff, sizeof (buff), &local, &herrnop);
-#elif defined (_REENTRANT) && defined (SOLARIS)
-  local = gethostbyname_r (host, &ht, buff, sizeof (buff), &herrnop);
-#else
-  local = gethostbyname (host);
+  /* set lookup hints */
+  hints.ai_family = AF_INET;		/* Allow only IPv4 */
+  hints.ai_socktype = SOCK_STREAM;
+
+#if defined(AI_ADDRCONFIG)
+  hints.ai_flags |= AI_ADDRCONFIG;
 #endif
-  if (local && local->h_addr_list[0] && local->h_addrtype == AF_INET)
+
+  if ((rc = getaddrinfo (host, NULL, &hints, &res)) != 0)
     {
-      caddr_t srv_uuid = dk_alloc_box (sizeof (trx_uuid_t), DV_SHORT_STRING);
-      trx_uuid_t trx_uuid;
-      memset (&trx_uuid, 0, sizeof (trx_uuid_t));
-      memcpy (trx_uuid.p_uuid.addr, (unsigned char *) (local->h_addr_list[0]),
-	  sizeof (trx_uuid.p_uuid.addr));
-      memcpy (srv_uuid, &trx_uuid.raw, sizeof (trx_uuid_t));
-      return srv_uuid;
+      log_debug ("getaddrinfo failed for host \"%s\": %s\n", host, gai_strerror (rc));
+      return NULL;
     }
-  return ip_addr;
-#else
+
+  for (p = res; p != NULL; p = p->ai_next)
+    {
+      if (p->ai_family == AF_INET)
+        {
+          struct sockaddr_in *sin = (struct sockaddr_in *) p->ai_addr;
+          caddr_t srv_uuid = dk_alloc_box (sizeof (trx_uuid_t), DV_SHORT_STRING);
+          trx_uuid_t trx_uuid;
+
+          memset (&trx_uuid, 0, sizeof (trx_uuid_t));
+          memcpy (trx_uuid.p_uuid.addr, &sin->sin_addr.s_addr, sizeof (trx_uuid.p_uuid.addr));
+          memcpy (srv_uuid, &trx_uuid.raw, sizeof (trx_uuid_t));
+
+          freeaddrinfo (res);   /* always free before returning */
+          return srv_uuid;
+        }
+    }
+
+  freeaddrinfo (res);
+
   return NULL;
-#endif
 }
+
 
 static void
 tp_set_trx_id (caddr_t trx_uuid_rw, long trx_id)
@@ -1204,7 +1216,7 @@ virt_tp_recover (box_t recov_data)
 }
 
 static virt_tp_t *
-virt_tp_create ()
+virt_tp_create (void)
 {
   virt_tp_t *virt_tp = (virt_tp_t *) dk_alloc (sizeof (virt_tp_t));
   memset (virt_tp, 0, sizeof (virt_tp_t));
@@ -1283,7 +1295,7 @@ xidhashcmp (caddr_t x1, caddr_t x2)
 char *xa_persistent_file = "test.xa";
 
 static void
-global_xa_init ()
+global_xa_init (void)
 {
   global_xa_map = (virt_xa_map_t *) dk_alloc (sizeof (virt_xa_map_t));
   global_xa_map->xm_xids =
@@ -1661,7 +1673,7 @@ static caddr_t
 bif_txa_get_all_trx (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args);
 
 void
-tp_bif_init ()
+tp_bif_init (void)
 {
   /* compatibility */
   bif_define_ex ("tp_enlist", bif_2pc_enlist, BMD_RET_TYPE, &bt_integer, BMD_DONE);
@@ -1684,7 +1696,7 @@ tp_bif_init ()
 }
 
 void
-tp_main_queue_init ()
+tp_main_queue_init (void)
 {
   _2pc_dtp = virt_tp_create ();
 
@@ -1694,7 +1706,7 @@ tp_main_queue_init ()
 }
 
 tp_queue_t *
-tp_get_main_queue ()
+tp_get_main_queue (void)
 {
   return tp_main_queue;
 }
@@ -1899,7 +1911,7 @@ txa_open (char *file_name)
 }
 
 static int
-txa_write ()
+txa_write (void)
 {
   int fd;
   dk_free_tree ((box_t) txi.txi_info);
@@ -1966,7 +1978,7 @@ bif_txa_get_all_trx (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 
 
 static void
-_txa_test ()
+_txa_test (void)
 {
   int res = txa_open ("trx.xa");
   log_info ("txa_open result = %d", res);

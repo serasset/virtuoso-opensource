@@ -6,7 +6,7 @@
  *  This file is part of the OpenLink Software Virtuoso Open-Source (VOS)
  *  project.
  *
- *  Copyright (C) 1998-2024 OpenLink Software
+ *  Copyright (C) 1998-2026 OpenLink Software
  *
  *  This project is free software; you can redistribute it and/or modify it
  *  under the terms of the GNU General Public License as published by the
@@ -5308,7 +5308,8 @@ void xpf_sql_scalar_select (xp_instance_t * xqi, XT * tree, xml_entity_t * ctx_x
   cli->cli_resultset_max_rows = -1;
   cli->cli_resultset_comp_ptr = (caddr_t *) &proc_comp;
   cli->cli_resultset_data_ptr = &proc_resultset;
-  query_shc = shcompo_get_or_compile (&shcompo_vtable__qr, list (3, query_final_text, qi->qi_u_id, qi->qi_g_id), 0, qi, NULL, &err);
+  query_shc = shcompo_get_or_compile (&shcompo_vtable__qr, query_final_text, list (3, box_md5(query_final_text), qi->qi_u_id, qi->qi_g_id), 0, qi, NULL, &err);
+  dk_free_tree(query_final_text);
   if (NULL == err)
     {
       shcompo_recompile_if_needed (&query_shc);

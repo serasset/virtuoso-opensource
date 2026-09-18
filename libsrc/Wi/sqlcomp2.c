@@ -8,7 +8,7 @@
  *  This file is part of the OpenLink Software Virtuoso Open-Source (VOS)
  *  project.
  *
- *  Copyright (C) 1998-2024 OpenLink Software
+ *  Copyright (C) 1998-2026 OpenLink Software
  *
  *  This project is free software; you can redistribute it and/or modify it
  *  under the terms of the GNU General Public License as published by the
@@ -1065,7 +1065,7 @@ du_thread_t * parse_mtx_owner;
 int enable_parse_mtx = 0;
 
 void
-parse_enter ()
+parse_enter (void)
 {
   if (enable_parse_mtx)
     mutex_enter (parse_mtx);
@@ -1073,7 +1073,7 @@ parse_enter ()
 
 
 void
-parse_leave ()
+parse_leave (void)
 {
   if (enable_parse_mtx)
     mutex_leave (parse_mtx);
@@ -1277,7 +1277,11 @@ sqlc_hook (client_connection_t * cli, caddr_t * real_tree_ret, caddr_t * err_ret
     }
   parse_leave ();
   if (proc->qr_to_recompile)
-    proc = qr_recompile (proc, NULL);
+    {
+      sqlc_hook_enable = 0;
+      proc = qr_recompile (proc, NULL);
+      sqlc_hook_enable = 1;
+    }
   p1 = (state_slot_t *) (proc->qr_parms ? proc->qr_parms->data : NULL);
   if (!p1 || !IS_SSL_REF_PARAMETER (p1->ssl_type))
     {
@@ -2210,6 +2214,7 @@ sqlc_subquery_1 (sql_comp_t * super_sc, predicate_t * super_pred, ST ** ptree, i
   caddr_t volatile err_save = NULL;
   int is_scalar_subq = 0;
   sql_comp_t sc;
+  caddr_t cc_error = NULL;
   NEW_VARZ (query_t, qr);
   if (SCALAR_SUBQ == (ptrlong)params)
     {
@@ -2288,7 +2293,6 @@ sqlc_subquery_1 (sql_comp_t * super_sc, predicate_t * super_pred, ST ** ptree, i
   }
   THROW_CODE
   {
-    caddr_t cc_error = NULL;
     if (qr && qr->qr_proc_name)
       query_free (qr);
     else

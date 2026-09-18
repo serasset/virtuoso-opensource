@@ -4,7 +4,7 @@
 --  This file is part of the OpenLink Software Virtuoso Open-Source (VOS)
 --  project.
 --
---  Copyright (C) 1998-2024 OpenLink Software
+--  Copyright (C) 1998-2026 OpenLink Software
 --
 --  This project is free software; you can redistribute it and/or modify it
 --  under the terms of the GNU General Public License as published by the
@@ -380,7 +380,7 @@ b3s_render_iri_select (inout types_a any,
 
       for (i := 0; i < length(types_a); i := i + 1) 
         { 
-          http (sprintf ('<option value="%s" title="%s" %s>%s</option>', 
+          http (sprintf ('<option value="%V" title="%V" %s>%V</option>',
                          types_a[i][0],
                          types_a[i][0],
                          case when i = sel then 'selected="selected"' else '' end,
@@ -417,11 +417,11 @@ b3s_render_inf_opts ()
     {
       if (RS_NAME = inf)
         {
-          http (sprintf ('<option value="%s" selected="selected">%s</option>', RS_NAME, RS_NAME));
+          http (sprintf ('<option value="%V" selected="selected">%V</option>', RS_NAME, RS_NAME));
           f := 1;
         }
       else
-        http (sprintf ('<option value="%s">%s</option>', RS_NAME, RS_NAME));
+        http (sprintf ('<option value="%V">%V</option>', RS_NAME, RS_NAME));
     }
 
   if (f = 0)
@@ -543,7 +543,7 @@ b3s_render_ses_params (in with_graph int := 1, in with_ses int := 1)
   grs := connection_get ('graphs', null);
 
   if (i is not null) http (sprintf ('&inf=%U', i), ses);
-  if (s is not null) http (sprintf ('&sas=%V', s), ses);
+  if (s is not null) http (sprintf ('&sas=%U', s), ses);
   if (with_ses and sid is not null) http (sprintf ('&sid=%V', sid), ses);
   if (grs is not null and with_graph)
     {
@@ -805,7 +805,7 @@ b3s_http_print_l (in p_text any, inout odd_position int, in r int := 0, in sid v
 
    if (r) http ('is ');
 
-   http (sprintf ('<a class="uri" href="%s" title="%s">%s</a>\n',
+   http (sprintf ('<a class="uri" href="%H" title="%V">%V</a>\n',
                   url,
                   p_prefix,
                   b3s_trunc_uri (p_prefix, 40)));
@@ -825,8 +825,7 @@ create procedure b3s_label (in _S any, in langs any, in lbl_order_pref_id int :=
   stat := '00000';
   --exec (sprintf ('sparql define input:inference "facets" '||
   --'select ?o (lang(?o)) where { <%s> virtrdf:label ?o }', _S), stat, msg, vector (), 0, meta, data);
-  exec (sprintf ('select __ro2sq (O), DB.DBA.RDF_LANGUAGE_OF_OBJ (__ro2sq (O)) , cast (b3s_lbl_order (P, %d) as int) from RDF_QUAD table option (with ''facets'')
-	where S = __i2id (?) and P = __i2id (''http://www.openlinksw.com/schemas/virtrdf#label'', 0) and not is_bnode_iri_id (O) order by 3 option (same_as)', lbl_order_pref_id), 
+  exec (sprintf ('select top 100 __ro2sq (O), DB.DBA.RDF_LANGUAGE_OF_OBJ (__ro2sq (O)) , cast (b3s_lbl_order (P, %d) as int) from RDF_QUAD table option (with ''facets'') where S = __i2id (?) and P = __i2id (''http://www.openlinksw.com/schemas/virtrdf#label'', 0) and not is_bnode_iri_id (O) group by 1,2,3 order by 3', lbl_order_pref_id),
 	stat, msg, vector (_S), 0, meta, data);
   if (stat <> '00000')
     return '';
@@ -859,7 +858,7 @@ create procedure b3s_label (in _S any, in langs any, in lbl_order_pref_id int :=
 
 create procedure b3s_xsd_link (in dt varchar)
 {
-  return sprintf ('<a href="%s">%s</a>', dt, b3s_uri_curie(dt));
+  return sprintf ('<a href="%H">%s</a>', __bft(dt, 2), b3s_uri_curie(dt));
 }
 ;
 
@@ -887,10 +886,11 @@ create procedure b3s_o_is_img (in x any)
 ;
 
 create procedure
-b3s_http_print_r (in _object any, in sid varchar, in prop any, in langs any, in rel int := 1, in acc any := null, in _from varchar := null, in flag int := 0)
+b3s_http_print_r (in _object any, in sid varchar, in prop any, in langs any, in rel any, in acc any, in _from varchar, in flag int, inout js any)
 {
    declare lang, rdfs_type, rdfa, visible any;
    declare robotsrel varchar;
+   declare obj_id int;
 
    if (_object is null)
      return;
@@ -926,9 +926,34 @@ again:
    if (__tag (_object) = 246)
      {
        declare dat any;
+       obj_id := rdf_box_ro_id (_object);
        dat := __rdf_sqlval_of_obj (_object, 1);
        _object := dat;
        goto again;
+     }
+   else if (prop = 'http://www.opengis.net/ont/geosparql#asWKT' and __proc_exists ('GEOS getCentroid',2) is not null)
+     {
+       declare cent varchar;
+       http (sprintf ('<div id="map_%d" class="ol_map"></div>', obj_id));
+       if (js is null)
+         {
+           js := string_output ();
+           http ('var raster = new ol.layer.Tile({ source: new ol.source.OSM() });\n', js);
+           http ('var format = new ol.format.WKT();\n', js);
+
+         }
+       cent := "GEOS getCentroid"(ST_GeomFromEWKT(cast (_object as varchar)));
+       http (sprintf ('var wkt_%d = "', obj_id), js); http_value (_object, null, js); http ('";\n', js);
+       http (sprintf ('var cent_%d = "%s";\n', obj_id, cast (cent as varchar)), js);
+       http (sprintf ('var feature_%d = format.readFeature(wkt_%d);\n', obj_id, obj_id), js);
+       http (sprintf ('feature_%d.getGeometry().transform("EPSG:4326", "EPSG:3857");\n', obj_id), js);
+       http (sprintf ('var centerXY_%d = format.readGeometry(cent_%d).transform("EPSG:4326", "EPSG:3857").getCoordinates();\n', obj_id, obj_id), js);
+       http (sprintf ('var vector_%d = new ol.layer.Vector({ source: new ol.source.Vector({ features: [feature_%d] }) });\n', obj_id, obj_id), js);
+       http (sprintf ('var map_%d = new ol.Map({ layers: [raster, vector_%d],target:"map_%d",view:new ol.View({center: centerXY_%d, zoom: 6 })});\n',
+             obj_id, obj_id, obj_id, obj_id), js);
+       http (sprintf ('<span %s>', rdfa));
+       http_value (_object);
+       http ('</span>');
      }
    else if (__tag (_object) = 243 or (isstring (_object) and (__box_flags (_object)= 1 or _object like 'nodeID://%' or _object like 'http://%' or _object like 'https://%')))
      {
@@ -973,12 +998,12 @@ again:
 		  lbl := ''; -- GS Patch... b3s_label (_url, langs, 1);
 		if ((not isstring(lbl)) or length (lbl) = 0)
 		  lbl := b3s_uri_curie(_url);
-		http (sprintf ('<a %s class="uri" %s href="%s">', robotsrel, rdfa, b3s_http_url (_url, sid, _from)));
+		http (sprintf ('<a %s class="uri" %s href="%H">', robotsrel, rdfa, b3s_http_url (_url, sid, _from)));
 		vlbl := charset_recode (lbl, 'UTF-8', '_WIDE_');
 		http_value (case when vlbl <> 0 then vlbl else lbl end);
 		http (sprintf ('</a>'));
 		if (b3s_o_is_out (prop))
-		  http (sprintf ('&nbsp;<a href="%s"><img src="/fct/images/fct-linkout-16-blk.png" border="0"/></a>', _url));
+		  http (sprintf ('&nbsp;<a href="%H"><img src="/fct/images/fct-linkout-16-blk.png" border="0"/></a>', _url));
                 http(sprintf('<div id="x_content" class="content embedded">%s</div>', cast(abody as varchar)));
              }
            } else {
@@ -995,7 +1020,7 @@ again:
 	     u := _url;
 	   else
 	     u := b3s_http_url (_url, sid, _from);
-	   http (sprintf ('<a class="uri" %s href="%s"><img src="%s" class="external" height="160" style="border-width:0" alt="%s" /></a>', 
+	   http (sprintf ('<a class="uri" %s href="%H"><img src="%H" class="external" height="160" style="border-width:0" alt="%s" /></a>', 
                  rdfa, u, _url, _url));
 	 }
        else
@@ -1008,13 +1033,13 @@ again:
 	   if ((not isstring(lbl)) or length (lbl) = 0)
 	     lbl := b3s_uri_curie(_url);
 	   -- XXX: must encode as wide label to print correctly
-	   --http (sprintf ('<a class="uri" %s href="%s">%V</a>', rdfa, b3s_http_url (_url, sid, _from), lbl));
+	   --http (sprintf ('<a class="uri" %s href="%H">%V</a>', rdfa, b3s_http_url (_url, sid, _from), lbl));
 	   http (sprintf ('<a %s class="uri" %s href="%s">', robotsrel, rdfa, b3s_http_url (_url, sid, _from)));
 	   vlbl := charset_recode (lbl, 'UTF-8', '_WIDE_');
 	   http_value (case when vlbl <> 0 then vlbl else lbl end);
 	   http (sprintf ('</a>'));
 	   if (b3s_o_is_out (prop))
-	     http (sprintf ('&nbsp;<a href="%s"><img src="/fct/images/fct-linkout-16-blk.png" border="0"/></a>', _url));
+	     http (sprintf ('&nbsp;<a href="%H"><img src="/fct/images/fct-linkout-16-blk.png" border="0"/></a>', _url));
 	 }
 
      }
@@ -1186,8 +1211,8 @@ create procedure fct_links_mup (in subj any, in desc_link any)
       links := links || repeat (' ', 5) ||
       sprintf ('<link href="%V&amp;output=%U" rel="alternate" type="%s"  title="Structured Descriptor Document (%s format)" />\n', desc_link, elm[0], elm[0], elm[1]);
     }
-  links := links || repeat (' ', 5) || sprintf ('<link href="%V" rel="http://xmlns.com/foaf/0.1/primaryTopic" />\n', subj);
-  links := links || repeat (' ', 5) || sprintf ('<link href="%V" rev="describedby" />\n', subj);
+  links := links || repeat (' ', 5) || sprintf ('<link href="%H" rel="http://xmlns.com/foaf/0.1/primaryTopic" />\n', subj);
+  links := links || repeat (' ', 5) || sprintf ('<link href="%H" rev="describedby" />\n', subj);
   http (links);
 }
 ;
@@ -1199,14 +1224,14 @@ fct_make_selector (in subj any, in sid integer)
 }
 ;
 
-create procedure fct_make_curie (in url varchar, in lines any)
+create procedure fct_make_curie (in url varchar, in lines any, in triples_found int default 1)
 {
   declare curie, chost, dhost varchar;
   declare len integer;
 
   len := cast (registry_get('c_uri_min_url_len') as integer);
   if (len = 0) len := 255;
-  if (__proc_exists ('WS.CURI.curi_make_curi') is null OR length(url) < len)
+  if (__proc_exists ('WS.CURI.curi_make_curi') is null OR length(url) < len OR 0 = triples_found)
     return url;
 
   curie := WS.CURI.curi_make_curi (url);
@@ -1376,10 +1401,14 @@ where
       rset := null;
       exec (string_output_string (q_txt), stat, msg, vector(), vector ('use_cache', 1, 'max_rows', tot_dict_size), null, rset);
       rset_len := length (rset);
-      --dbg_obj_princ (string_output_string (q_txt));
-      --dbg_obj_princ (stat, msg, rset_len);
-      for (inx := 0; inx < rset_len; inx := inx + 1)
-        dict_inc_or_put (tot_dict, rset[inx][0], rset[inx][1]);
+      ---- dbg_obj_princ (string_output_string (q_txt));
+      ---- dbg_obj_princ (stat, msg, rset_len);
+      for (inx := 0; inx < rset_len; inx := inx + 1) {
+        declare cnt int;
+        cnt := rset[inx][1];
+        if (cnt)
+          dict_inc_or_put (tot_dict, rset[inx][0], cnt);
+      }
     }
 done: ;
   tmp_res := dict_to_vector (tot_dict, 2);
@@ -1591,7 +1620,7 @@ create procedure b3s_uri_percent_decode (in uri any)
     du := sprintf_inverse(uri, '%U', 0);
     uri := case when length(du) > 0 then du[0] else uri end;
   }
-  return uri;
+  return __bft(uri,2);
 }
 ;
 

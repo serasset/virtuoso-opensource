@@ -8,7 +8,7 @@
  *  This file is part of the OpenLink Software Virtuoso Open-Source (VOS)
  *  project.
  *
- *  Copyright (C) 1998-2024 OpenLink Software
+ *  Copyright (C) 1998-2026 OpenLink Software
  *
  *  This project is free software; you can redistribute it and/or modify it
  *  under the terms of the GNU General Public License as published by the
@@ -146,6 +146,8 @@ typedef struct
 
 /* General time for specifying timestamps in msec from EPOCH */
 typedef uint64 time_msec_t;
+/* General time for specifying timestamps in µsec from EPOCH */
+typedef uint64 time_usec_t;
 
 #ifdef FILE64
 

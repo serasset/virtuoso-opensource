@@ -1,4 +1,1570 @@
+2026-05-07  Patrick van Kleef  <pkleef@openlinksw.com>
+
+	Fixed documentation
+
+	Updated NEWS.md and Changelog
+
+	Updated version to 7.2.17 engine 3243
+
+	Merge branch 'feature/20260506-readme-v3' into develop/7
+
+	Updated list of programs required by the test suite
+
+2026-05-07  Tim Haynes  <thaynes@openlinksw.com>
+
+	Added firewall note focussed on macOS
+
+	Added dependencies like tar, unzip, wget and curl for running the tsuite
+
+2026-05-06  Mitko Iliev  <imitko@openlinksw.com>
+
+	Added BIFs using tcp socket to unsafe
+
+	Added support for jsonld formats
+
+2026-05-06  Patrick van Kleef  <pkleef@openlinksw.com>
+
+	Fixed issue with Linked Data | SPARQL page
+
+2026-05-05  Patrick van Kleef  <pkleef@openlinksw.com>
+
+	Updated Conductor VAD version
+
+	Fixed syntax error on page
+
+	Fixed grammar
+
+	Removed bold from first column on Monitor Version and HTTP tabs
+
+	Fixed missing bold tag on table headers
+
+	Fixed clear float on attention_box
+
+	Updated version to 7.2.17-rc1
+
+	Merge branch 'feature/conductor-fixes' into develop/7
+
+	Update Conductor VAD version
+
+	Fixed potential XSS vulnerabilities in conductor
+
+	Fixed format attribute to use %V escape
+
+	Fixed <x>%s</x> to use %V escape
+
+	Fixed value attributes to use %V escape
+
+	Fixed href and src attributes to use %H escape
+
+	Fixed all url parameters to use url encoding
+
+	Fixed readability
+
+	Fixed some grammar and spelling mistakes in conductor
+
+2026-05-01  Patrick van Kleef  <pkleef@openlinksw.com>
+
+	Removed final references to sesame providers
+
+	Merge branch 'feature/20260417-readme-edits' into develop/7
+
+	Fixed issue building .jar files
+
+	Removed deprecated sesame providers
+
+	Removed deprecated build instructions for JDBC 2.x
+
+2026-05-01  Tim Haynes  <thaynes@openlinksw.com>
+
+	Documentation overhaul
+
+	Rewrote README.md as a central information hub, directing developers to
+	resources such as building Virtuoso, reporting issues, obtaining support
+	and disclosing security vulnerabilities.
+
+	Added README.Building.md consolidating build instructions for Linux and
+	macOS into a single document.
+
+	Added README.Docker.md with quickstart instructions for running Virtuoso
+	in a Docker container.
+
+	Fixed Markdown formatting, style, grammar and spelling throughout.
+
+	Removed outdated README.MACOSX.md and README.OpenSSL.md files.
+
+2026-04-29  Mitko Iliev  <imitko@openlinksw.com>
+
+	Fixed issue with CONCAT over RDF string literals containing UTF-8
+
+	Boxed string literals containing UTF-8 should not be cast to default
+
+	Fixes #1414
+
+2026-04-29  Patrick van Kleef  <pkleef@openlinksw.com>
+
+	Changed some VSP escapes for readability
+
+	  '<?=expr?>' to '<?V expr ?>'
+	  '<?/expr?>' to '<?U expr ?>'
+
+2026-04-29  Patrick van Kleef  <pkleef@openlinksw.com>
+
+	Updated FCT vad version
+
+	Fixed encoding issues of URI and labels in usage.vsp
+
+	Fixed potential XSS vulnerabilities in fct
+
+	Fixed some grammar and spelling mistakes in fct
+
+2026-04-23  Patrick van Kleef  <pkleef@openlinksw.com>
+
+	Fixed VSP escapes
+
+	Changed instances of '<?=expr?>' to '<?V expr ?>' for readability
+
+2026-04-23  Patrick van Kleef  <pkleef@openlinksw.com>
+
+	Removed old debug code
+
+2026-04-23  Patrick van Kleef  <pkleef@openlinksw.com>
+
+	Fixed issues with thread_set_priority
+
+	* Fixed logic bug in prio validation
+	* Removed deprecated pthread_setprio code
+
+2026-04-20  Patrick van Kleef  <pkleef@openlinksw.com>
+
+	Merge branch 'feature/asan-fixes' into develop/7
+
+2026-04-20  Mitko Iliev  <imitko@openlinksw.com>
+
+	Fixed issues with transitivity node 2ways
+
+	Fixed issue with spfi (date,'%D') not working
+
+	Fixed RDF view single pk on date not supported
+
+	Fixed input check for prefix in rdf view/maps
+
+	Fixed position() and casemode_strmp() for NULL argments
+
+2026-04-20  Patrick van Kleef  <pkleef@openlinksw.com>
+
+	Fixed /sparql UI to make ?help=topic links relative
+
+	Fixed pointer type mismatch in conditional expression
+
+2026-04-20  Mitko Iliev  <imitko@openlinksw.com>
+
+	Fixed to not reset call ssl ref to table outside of scope
+
+	Fixed missing array index check
+
+2026-04-20  Patrick van Kleef  <pkleef@openlinksw.com>
+
+	Added macros PREDICT_TRUE(x) and PREDICT_FALSE(x)
+
+2026-04-20  Mitko Iliev  <imitko@openlinksw.com>
+
+	Fixed TCN order by server-side QS
+
+2026-04-20  Mitko Iliev  <imitko@openlinksw.com>
+
+	Added support for JSON canonicalization
+
+	* Added JSON canonicalization function for use with JWS and related
+	* Added flag to parse boolean
+	* Added flag to parse unicode escape in lower case
+	* Added flag for numbers to get shortest representation
+	* Added support to allow JSON tree
+	* Added support for json object in connection vars
+	* Fixed obj2json to pass max depth in recursive call, keep default input
+	  null as is the case now
+	* Moved JSON testsuite beside jsonld
+
+2026-04-20  Mitko Iliev  <imitko@openlinksw.com>
+
+	Fixed check for ws_session, can be websocket callback
+
+	Fixed OPTIONS on .well-known should not produce body
+
+	Fixed issue comparing signed and unsigned
+
+	Fixed issue with subq filter and language of literals
+
+	Added more testsuite entries
+
+2026-04-20  Mitko Iliev  <imitko@openlinksw.com>
+
+	Fixed issue with bad constant expression in hash fill
+
+	Fixes #1402
+
+2026-04-20  Mitko Iliev  <imitko@openlinksw.com>
+
+	Fixed issue with aggregate not returning error in UA
+
+	Fixes #1401
+
+2026-04-20  Mitko Iliev  <imitko@openlinksw.com>
+
+	Fixed check for unsupported insert into view via select
+
+	Fixes #1388
+
+2026-04-20  Mitko Iliev  <imitko@openlinksw.com>
+
+	Fixed missing check for right outer-join table
+
+	Fixes #1385
+
+2026-04-16  Mitko Iliev  <imitko@openlinksw.com>
+
+	Fixed to check for column
+
+	Fixed if GEO const use ANY type for result
+
+	Fixed issue where var is used outside of scope
+
+	Added check for deep stack
+
+	Fixed trailing zero shoud be separate
+
+	Fixed missing check for owner list
+
+	Fixed to comment out tracepoint
+
+2026-04-16  Mitko Iliev  <imitko@openlinksw.com>
+
+	Fixed issue when running aggregate on constant
+
+	Fixes #1391
+
+2026-04-15  Mitko Iliev  <imitko@openlinksw.com>
+
+	Fixed missing IS_TS check
+
+	Fixed issue re-compiling module proc
+
+	Fixed ptr of local array out of scope
+
+	Fixed use ptr of local array out of scope
+
+	Fixed issue with buffer read after boundry
+
+	Fixed buffer underflow when col value is empty string
+
+	Fixed issue calculating size of network buffer
+
+	Fixed issue with interpolation function reading after boundary
+
+2026-04-15  Mitko Iliev  <imitko@openlinksw.com>
+
+	Fixed set unparsable numeric to NaN
+
+	Fixes #1394
+
+2026-04-15  Mitko Iliev  <imitko@openlinksw.com>
+
+	Fixed check for bad shortcut in execution plan
+
+	Fixes #1393
+
+2026-04-15  Mitko Iliev  <imitko@openlinksw.com>
+
+	Fixed missing check for star in function call
+
+	Fixes #1391
+
+2026-04-15  Patrick van Kleef  <pkleef@openlinksw.com>
+
+	Fixed wrong struct size
+
+2026-04-15  Mitko Iliev  <imitko@openlinksw.com>
+
+	Fixed issue with variable scope
+
+	Fixed tokens from scanner should be MP box
+
+	Fixed missing IS_TS check
+
+	Fixed do not use box_length on non-box vars
+
+	Fixed off by one error
+
+	Fixed use correct object size for hash
+
+	Fixed use boxed name to find service
+
+	Fixed issue calculating stack size when building with -fsanitize=address
+
+2026-04-15  Patrick van Kleef  <pkleef@openlinksw.com>
+
+	Removed deprecated code
+
+	* Removed support for OLD_PTHREADS
+	* Removed support for HPUX_ITANIUM64
+	* Removed support for SOLARIS
+
+2026-04-14  Patrick van Kleef  <pkleef@openlinksw.com>
+
+	Removed old JSO_NAMESPACE match patterns
+
+	Merge branch 'feature/poll-fixes' into develop/7
+
+	Fixed compiler warnings
+
+2026-04-14  Patrick van Kleef  <pkleef@openlinksw.com>
+
+	Fixes portability issue
+
+	* Removed deprecated DK_NEED_VSNPRINTF code
+	* Make sure str is always '\0' terminated
+
+2026-04-14  Patrick van Kleef  <pkleef@openlinksw.com>
+
+	Fixed typo in variable name
+
+	Fixed possible threading issue when using static buffer
+
+	Added support for IDN lookups on windows, linux and macos
+
+2026-04-14  Patrick van Kleef  <pkleef@openlinksw.com>
+
+	Added settings for getaddrinfo()
+
+	    [FLAGS]
+	    tcp_ai_idn_enable = 0	; default disabled
+	    tcp_ai_ipv4_enable = 1	; default enabled
+	    tcp_ai_ipv6_enable = 0	; default disabled
+
+2026-04-14  Patrick van Kleef  <pkleef@openlinksw.com>
+
+	Added initial support for getaddrinfo() and getnameinfo()
+
+2026-04-14  Patrick van Kleef  <pkleef@openlinksw.com>
+
+	Cleanups for Windows winsock2 support
+
+	* Updated to use winsock2.h everywhere
+	* Updated _WIN32_WINNT to Vista (0x0600) to unlock some of the newer network APIs
+	* Updated WSAStartup to request winsock 2.2 API support
+
+2026-04-14  Patrick van Kleef  <pkleef@openlinksw.com>
+
+	Removed depreated WIN95COMPAT define from code
+
+	Removed depreated UUID_BY_PORT define from code
+
+	Removed deprecated OPL_SOURCE define
+
+2026-04-14  Patrick van Kleef  <pkleef@openlinksw.com>
+
+	Added settings for SO_LINGER and shutdown() on closing socket
+
+	These settings are experimental for now
+
+	    [FLAGS]
+	    tcp_so_linger_enable = 0     ; 1 = enable
+	    tcp_so_linger_timeout = 0    ; 0 = no timeout (seconds)
+	    tcp_shutdown_enable = 0      ; 1 = enable
+
+	NOTE: these settings can have side-effects, so they should not be used
+	without proper understanding of network protocols and as part of a
+	support / professional services case.
+
+2026-04-14  Patrick van Kleef  <pkleef@openlinksw.com>
+
+	Added support for setting keepalive on session
+
+	NOTE: This feature is currently not used in the VOS release
+
+	For most use cases the internal OS defaults are more than sufficient to
+	make sure the remote is still available.
+
+	However in some high availability cases a user might want to tweak the
+	TCP settings by using the following [FLAG] settings in the virtuoso.ini
+	file as part of a support / professional services case:
+
+	    [Flags]
+	    tcp_keepalive_idle   = 600  ; number of seconds the socket can be idle before keepalive packets are sent (default 10 minutes)
+	    tcp_keepalive_intvl  = 30   ; interval between keepalive probes in seconds (default 30 seconds)
+	    tcp_keepalive_probes = 10   ; number of keepalive probes sent before aborting the connection (default 10 probes)
+
+	Note that only on Linux all three the tcp* settings are supported;
+	Windows only supports setting the idle and intvl setting, and macOS only
+	supports the idle setting.
+
+2026-04-14  Patrick van Kleef  <pkleef@openlinksw.com>
+
+	Fixed datatype of read_block_usec and write_block_usec
+
+	Added support for poll to tcpses_select
+
+	Added support for poll to check_inputs_low
+
+	Added support for poll to tcpses_is_read_ready and tcpses_is_write_ready
+
+	Added support for poll to connect_nonblock
+
+	Added initial support to replace select with poll
+
+	Removed old PMN defines as this code is always used
+
+	Renamed define PCTCP to WIN32
+
+2026-04-14  Patrick van Kleef  <pkleef@openlinksw.com>
+
+	Removed deprecated network code
+
+	The following ifdefs are removed from the code base as they have not
+	been used for a long time:
+
+	  * SUNRPC
+	  * FOR_GTK_TESTS
+	  * EXPIRIMENTAL
+	  * COM_UDPIP
+	  * COM_NMPIPE
+	  * USING_TIKS
+	  * NO_COMBINED_SELECT
+
+2026-03-27  Daniel Heward-Mills  <didehen@openlinksw.com>
+	    Mitko Iliev  <imitko@openlinksw.com>
+
+	Added initial wikibase:mwapi SERVICE handler
+
+2026-03-24  Patrick van Kleef  <pkleef@openlinksw.com>
+
+	Merge branch 'feature/fixes' into develop/7
+
+	Fixed missing check for MP in use in sparql bif before MP_START
+
+2026-03-24  Mitko Iliev  <imitko@openlinksw.com>
+
+	Fixed issue where thr tmp pool is not released on time
+
+	Fixed as there is no point to tighten against non-existing
+
+	Fixed to prevent bad eq idx check
+
+	Fixed mutex issue with status('l') and aq on independent branches
+
+	Fixed do not default to IRI if constant of type string is a literal
+
+	Fixed issue missing critical section
+
+	Fixed missing cli enter, assert with mtx_debug
+
+2026-01-19  Patrick van Kleef  <pkleef@openlinksw.com>
+
+	Merge branch 'feature/fixes' into develop/7
+
+2026-01-19  Mitko Iliev  <imitko@openlinksw.com>
+
+	Added more crash tests from vos issues
+
+2026-01-19  Mitko Iliev  <imitko@openlinksw.com>
+
+	Fixed return new error message
+
+	Fixes #1382
+
+2026-01-19  Mitko Iliev  <imitko@openlinksw.com>
+
+	Fixed missing check if column exists
+
+	Fixes #1381
+
+2026-01-19  Mitko Iliev  <imitko@openlinksw.com>
+
+	Fixed missing check for new prefix
+
+	Fixes #1379
+
+2026-01-19  Mitko Iliev  <imitko@openlinksw.com>
+
+	Fixed missing check for DFE_FALSE
+
+	Fixed #1378
+
+2026-01-19  Mitko Iliev  <imitko@openlinksw.com>
+
+	Fixed to export blobs without using blob to string
+
+2026-01-08  Mitko Iliev  <imitko@openlinksw.com>
+
+	Fixed issue with DAV brower in a root dir
+
+2026-01-08  Patrick van Kleef  <pkleef@openlinksw.com>
+
+	Merge branch 'feature/fixes' into develop/7
+
+2026-01-08  Mitko Iliev  <imitko@openlinksw.com>
+
+	Added recent testcases to testsuite
+
+2026-01-08  Mitko Iliev  <imitko@openlinksw.com>
+
+	Fixed issue creating exp subq inside aggregate
+
+	Fixes #1376
+
+2026-01-08  Mitko Iliev  <imitko@openlinksw.com>
+
+	Fixed issue when cursor is not positioned on update
+
+	Fixes #1375
+
+2026-01-08  Mitko Iliev  <imitko@openlinksw.com>
+
+	Fixed issue with numeric dtp if col is bound
+
+	Fixes #1374
+
+2026-01-08  Mitko Iliev  <imitko@openlinksw.com>
+
+	Fixed to return SQL error when sub pred does not exist
+
+	Fixes #1373
+
+2026-01-08  Mitko Iliev  <imitko@openlinksw.com>
+
+	Fixed issue with col cast check on vec params
+
+	Closes #1372
+
+2026-01-06  Patrick van Kleef  <pkleef@openlinksw.com>
+
+	Updated Copyright
+
+2026-01-05  Mitko Iliev  <imitko@openlinksw.com>
+
+	Fixed missing test for star
+
+	Fixes #1371
+
+2026-01-05  Mitko Iliev  <imitko@openlinksw.com>
+
+	Fixed missing test for table exists in drop col
+
+	Fixes #1370
+
+2026-01-05  Mitko Iliev  <imitko@openlinksw.com>
+
+	Fixed use params instead of possibly truncating password
+
+	Fixes #1369
+
+2026-01-05  Patrick van Kleef  <pkleef@openlinksw.com>
+
+	Added support for jemalloc to debug memory consumption
+
+2025-12-19  Mitko Iliev  <imitko@openlinksw.com>
+
+	Fixed to check for overflow before assign
+
+	Fixes #1368
+
+2025-12-19  Patrick van Kleef  <pkleef@openlinksw.com>
+
+	Fixed error codes for COL and VEC
+
+2025-12-12  Patrick van Kleef  <pkleef@openlinksw.com>
+
+	Fixed missing cast for argument 1 of aio_suspend
+
+	Fixes #1367
+
+2025-10-20  Patrick van Kleef  <pkleef@openlinksw.com>
+
+	Updated configure.ac and documentation to include  OpenSSL 3.6.x
+
+	Fixes #1362
+	Closes #1364
+
+2025-10-16  Patrick van Kleef  <pkleef@openlinksw.com>
+
+	Updated version to 7.2.17-dev to mark the start of a new development cycle
+
+2025-10-15  Patrick van Kleef  <pkleef@openlinksw.com>
+
+	Merge tag 'v7.2.16.1' into develop/7
+
+	Tagged for release (hotfix)
+
+2025-10-15  Patrick van Kleef  <pkleef@openlinksw.com>
+
+	Merge branch 'hotfix/7.2.16.1' into stable/7
+
+	Fixed broken artifact after merge
+
+2025-10-14  Patrick van Kleef  <pkleef@openlinksw.com>
+
+	Merge tag 'v7.2.16' into develop/7
+
+	Tagged for release
+
+2025-10-14  Patrick van Kleef  <pkleef@openlinksw.com>
+
+	Merge branch 'release/7.2.16' into stable/7
+
+	Updated NEWS and ChangeLog
+
+	Updated version to 7.2.16 engine 3242
+
+	Fixed issues with SPARQL section in default virtuoso.ini
+
+2025-10-09  Patrick van Kleef  <pkleef@openlinksw.com>
+
+	Updated version to 7.2.16-rc1
+
+2025-10-08  Patrick van Kleef  <pkleef@openlinksw.com>
+
+	Fixed check for upper MP limit increment in optimiser
+
+2025-10-07  Mitko Iliev  <imitko@openlinksw.com>
+
+	Fixed RDF Views total count statistics
+
+	Fixed virtuoso should never exceed the max mp if set
+
+	Fixed issue with max mempool size = 4G
+
+	Fixed issue with JSON parsing unknown bnade with many types
+
+2025-10-07  Patrick van Kleef  <pkleef@openlinksw.com>
+
+	Fixed issue trying to call CXML PL when vad package is not installed
+
+2025-10-07  Mitko Iliev  <imitko@openlinksw.com>
+
+	Fixed issue where virtuoso reports by mistake ID:0 (dba) has no permissions
+
+	Fixed so numbers and dates preserve datatypes in JSON output
+
+	Fixed error reporting on non-compatible db/setup
+
+	Fixed issue with table name qualifiers in case mode 2
+
+	Fixed issue when same-as query without G
+
+	Fixed issues with JSON serializer
+
+	Added a global to stop SSE client from receiving more data
+
+2025-10-07  Mitko Iliev  <imitko@openlinksw.com>
+
+	Fixed issue with broken SSE implementations
+
+	Some SSE implementations may send cr/lf for events delimiter
+
+2025-10-07  Mitko Iliev  <imitko@openlinksw.com>
+
+	Fixed issue comparing dates
+
+	Added support for TLS connection timeout
+
+	Added missing HTTP status codes
+
+2025-10-06  Mitko Iliev  <imitko@openlinksw.com>
+
+	Added soft checkpoint option to delay checkpoint until db is idle
+
+	    [Parameters]
+	    SoftCheckpoint = 1		; Default = 0
+
+2025-10-06  Mitko Iliev  <imitko@openlinksw.com>
+
+	Added disk space monitor
+
+	Added event logger with rate limiting on frequently repeated errors
+
+	Fixed issue compiling uintN_t on windows
+
+2025-10-02  Patrick van Kleef  <pkleef@openlinksw.com>
+
+	Merge branch 'feature/fixes' into develop/7
+
+2025-10-02  Mitko Iliev  <imitko@openlinksw.com>
+
+	Fixed issue with xsd:time conversion
+
+	  cast (THH:mm:SS as time)
+
+2025-10-02  Mitko Iliev  <imitko@openlinksw.com>
+
+	Fixed prevent call to parse if timeout is already reached
+
+	Added assert to check if memorypool is busy
+
+	Fixed preserve datatypes for numbers and dates in JSON output
+
+	Fixed return type of RDF_QM_GC_SUBTREE()
+
+2025-10-02  Mitko Iliev  <imitko@openlinksw.com>
+
+	Fixed issues with sqlc_hook
+
+	* Disable this old feature by default
+	* Keep disabled when underlying PL fails to compile
+
+	To turn it back on, add the following to your virtuoso.ini file:
+
+	    [FLAGS]
+	    sqlc_hook_enabled       = 1
+
+2025-10-02  Mitko Iliev  <imitko@openlinksw.com>
+
+	Fixed issue when unames are repeated
+
+	Added more informative locking info to status() output
+
+2025-10-01  Mitko Iliev  <imitko@openlinksw.com>
+
+	Fixed if cast is unknown, do not point to datatype in JSON output
+
+	Fixed issue hanging in temp table
+
+	Fixed to not re-enter mutex when resetting iterator
+
+	Fixed issues with PAGE_DEBUG
+
+	Fixed to check for DBA group instead of DBA user
+
+	Fixed issue with query without idxs
+
+2025-09-30  Mitko Iliev  <imitko@openlinksw.com>
+
+	Added DAV_QUEUE_MAX_THREADS registry to set upper limit
+
+2025-09-30  Patrick van Kleef  <pkleef@openlinksw.com>
+
+	Updated FCT vad version
+
+2025-09-30  Mitko Iliev  <imitko@openlinksw.com>
+
+	Fixed replace output:valmode "AUTO" with "LONG"
+
+2025-09-30  Patrick van Kleef  <pkleef@openlinksw.com>
+
+	Fixed issue with CXML link at the bottom of the page
+
+2025-09-30  Mitko Iliev  <imitko@openlinksw.com>
+
+	Fixed issue with zero triples on secondary storage
+
+	Added option to prevent bots fromm crawling /fct/rdfdesc/usage.vsp
+
+	Fixed performance using same-as for a label
+
+	Added config UI setting to change the max amount of facets (default 20)
+
+2025-09-30  Patrick van Kleef  <pkleef@openlinksw.com>
+
+	Updated Conductor VAD version
+
+2025-09-30  Mitko Iliev  <imitko@openlinksw.com>
+
+	Fixed issue storing ACME-related keys
+
+	Fixed issue encoding &nbps
+
+	Fixed issue with size of select list on user names
+
+	Added support for DAV content callback function
+
+	Fixed issue with LDP
+
+	Added RDF sink folder validation option
+
+	Fixed save and restore conn vars on vad install
+
+2025-08-08  Patrick van Kleef  <pkleef@openlinksw.com>
+
+	Updated Conductor VAD version
+
+2025-08-08  Mitko Iliev  <imitko@openlinksw.com>
+
+	Fixed print DAV IDs in debug mode
+
+2025-08-08  Mitko Iliev  <imitko@openlinksw.com>
+
+	Fixed issues with DAV folder RSS feeds
+
+	  * Added handle title DAV property as RSS/Atom feed title
+	  * Added missing <guid> to directories/collections
+	  * Fixed RSS feed version
+	  * Fixed feed titles
+	  * Fixed excluding hidden files and folders
+	  * Fixed issue with ATOM and OPML pub
+	  * Fixed issue resolving user names
+	  * Fixed encoding issues
+
+2025-08-08  Tim Haynes  <thaynes@openlinksw.com>
+
+	Added feed-type files in OPML output
+
+2025-08-08  Patrick van Kleef  <pkleef@openlinksw.com>
+
+	Fixed bad character in title
+
+	Fixed issues running DAV rss/aton/opml feeds behind proxy
+
+2025-07-03  Mitko Iliev  <imitko@openlinksw.com>
+
+	Fixed replace typed-literal with literal in JSON output
+
+	Closes #1360
+
+2025-06-10  Ted Thibodeau Jr  <tthibodeau@openlinksw.com>
+
+	Fixed language and markup in NEWS.md
+
+	closes #1355
+
+2025-06-10  Mitko Iliev  <imitko@openlinksw.com>
+
+	Fixed issue trying to perform LDP on /sparql endpoints
+
+	Fixes #1357
+
+2025-05-21  Patrick van Kleef  <pkleef@openlinksw.com>
+
+	Merge tag 'v7.2.15' into develop/7
+
+	Tagged 7.2.15 for release
+
+2025-05-21  Patrick van Kleef  <pkleef@openlinksw.com>
+
+	Merge branch 'release/7.2.15' into stable/7
+
+	Updated version to 7.2.15 engine 3241
+
+	Updated ChangeLog
+
+	Updated NEWS.md
+
+	Added missing files from distribution
+
+	Fixed check for OpenSSL 3.5.x
+
+2025-05-20  Patrick van Kleef  <pkleef@openlinksw.com>
+
+	Updated version to 7.2.15-rc1
+
+	Updated docs
+
+2025-05-20  Mitko Iliev  <imitko@openlinksw.com>
+
+	Fixed issue with empty tgt_graph
+
+	Fixed label to RDF Views
+
+	Fixed issue with DAV RDF docs redirect option settings
+
+	Fixed styling of bot prevention dialog
+
+2025-05-13  Mitko Iliev  <imitko@openlinksw.com>
+
+	Fixed issue with rdfviews and GraphQL
+
+	Make all queries for GraphQL mappings to look at physical store, the
+	views can break whole thing as they compile to enormous huge sql and
+	basically does nothing, we do not claim maps are done in views, if we
+	do we should use different approach not via sparql queries for sure
+
+2025-05-13  Mitko Iliev  <imitko@openlinksw.com>
+
+	Fixed issue with _cvt(vector(219), '1')
+
+2025-05-13  Mitko Iliev  <imitko@openlinksw.com>
+
+	Fixed issue with grants in web services
+
+	The web services should look at direct grants, the inherited should not
+	be a service calls, lookup everything accessible make service unusable
+	if grant a wide access role such as sparql_update etc.
+
+2025-04-28  Sergey Malinin  <smalinin@openlinksw.com>
+
+	Fixed issue in SQLPrepare and SQLPrepareW
+
+	After conversion use cbSqlStr instead of SQL_NTS
+
+2025-04-24  Mitko Iliev  <imitko@openlinksw.com>
+
+	Fixed issues with RDFviews
+
+	  * Fixed bad predicates of '_has_' and '_of_'
+	  * Fixed drop quad map by selection, not by graph
+	  * 'skip' is not used in rml generator
+
+2025-04-24  Patrick van Kleef  <pkleef@openlinksw.com>
+
+	Updated FCT VAD version
+
+2025-04-24  Mitko Iliev  <imitko@openlinksw.com>
+
+	Fixed if get:* and no permissions set, return 401 to redirect to login
+
+	Added option to prevent bots from crawling /describe
+
+2025-04-24  Patrick van Kleef  <pkleef@openlinksw.com>
+
+	Updated Conductor VAD version
+
+2025-04-24  Mitko Iliev  <imitko@openlinksw.com>
+
+	Fixed issues with RDFview
+
+2025-04-15  Patrick van Kleef  <pkleef@openlinksw.com>
+
+	Merge branch 'feature/gcc15-fixes' into develop/7
+
+2025-04-15  Patrick van Kleef  <pkleef@openlinksw.com>
+
+	Fixed macros RES_IF_NN and RES_IF_NN_G
+
+	* Fixed potential bug due to missing curly brace in last if block
+	  of RES_IF_NN_G
+	* Fixed compiler warning on indentation
+	* Use do { ..... } while (0) in case we want to use macro inside
+	  and if or else
+
+2025-04-15  Patrick van Kleef  <pkleef@openlinksw.com>
+
+	Fixed compiler warnings on misleading indentation (-Wmisleading-indentation)
+
+	Fixed compiler warnings for empty body (-Wempty-body)
+
+	Fixed removed semicolon at end of macro definition
+
+2025-04-11  Patrick van Kleef  <pkleef@openlinksw.com>
+
+	Fixed missing cast
+
+	Fixed bad semicolon at end of if()
+
+	Fixed issue that stopped engine from performing graph scoped rules check
+
+2025-04-10  Patrick van Kleef  <pkleef@openlinksw.com>
+
+	Removed unused union
+
+	Removed old prototypes not required for Linux/macOS
+
+	Fixed missing parameter from function prototype
+
+	Removed unexpected parameter from function call
+
+	Fixed missing parameter in definition of signal handler
+
+	Fixed missing argument to _connect function in plugin
+
+2025-04-10  Patrick van Kleef  <pkleef@openlinksw.com>
+
+	Cleanup prototypes and declarations for functions without arguments
+
+	Instead of using:
+
+	   extern int func();
+	   int func () {}
+
+	use:
+
+	   extern int func (void);
+	   int func (void) {}
+
+2025-03-18  Patrick van Kleef  <pkleef@openlinksw.com>
+
+	Merge branch 'feature/2025_03_17_fix_cast_short' into develop/7
+
+	Rebuild RDF4j v5 provider
+
+	Updated RDF4j version
+
+2025-03-17  Sergey Malinin  <smalinin@openlinksw.com>
+
+	Fix castValue() for Short values
+
+2025-03-13  Patrick van Kleef  <pkleef@openlinksw.com>
+
+	Fixed maximum lenght of an long url to 64K
+
+	Some RDF datasets have extreme long URIs that exceed the Virtuoso internal
+	maximum size of 1900 bytes and thus need to be shortened to avoid errors
+	such as:
+
+	    SR133: Can not set NULL to not nullable column 'DB.DBA.RDF_QUAD.S'
+
+	The ShortenLongURIs parameter is a Virtuoso configuration setting which
+	shorten extremely long URIs in datasets when loading with the RDF Bulk
+	Loader. When enabled, Virtuoso will truncate the long url and appends
+	a checksum of the original url to ensure it is still unique.
+
+	Add the following setting to your virtuoso.ini file and restart your
+	Virtuoso instance to enable this feature:
+
+	    [SPARQL]
+	    ShortenLongURIs = 1
+
+2025-03-13  Patrick van Kleef  <pkleef@openlinksw.com>
+
+	Merge branch 'feature/jena5' into develop/7
+
+2025-03-13  Sergey Malinin  <smalinin@openlinksw.com>
+
+	Fixed issue with Jena testsuite
+
+2025-03-13  Patrick van Kleef  <pkleef@openlinksw.com>
+
+	Rebuild Jena 5 provider
+
+	Updated version number of Jena 5 provider
+
+	Fixed issue building/running the testsuite on linux
+
+	Fixed target and CLASSPATH
+
+2025-03-13  Sergey Malinin  <smalinin@openlinksw.com>
+
+	Updated provider to work with Jena 5.3.0
+
+2025-03-13  Patrick van Kleef  <pkleef@openlinksw.com>
+
+	Added initial support for jena5 provider
+
+2025-03-12  Patrick van Kleef  <pkleef@openlinksw.com>
+
+	Rebuild RDF4j v4 and v5 providers
+
+	Updated version of RDFj4 v4 and v5 providers
+
+2025-03-12  Sergey Malinin  <smalinin@openlinksw.com>
+
+	Fixed conversion of Integer values to xsd:integer (fixes #1346)
+
+	Fixed castValue() to handle "true"/"false" (fixes #1337)
+
+2025-03-06  Patrick van Kleef  <pkleef@openlinksw.com>
+
+	Rebuild driver
+
+	Updated driver version
+
+2025-03-06  Martin Ledvinka  <martin.ledvinka@fel.cvut.cz>
+
+	Updated VirtuosoRepositoryConnection to be compatible with RDF4j 5.1
+
+	Closes #1344, #1345
+
+2025-03-06  Martin Ledvinka  <martin.ledvinka@fel.cvut.cz>
+
+	Added version of RDF4J Virtuoso driver compatible with RDF4J 5.1.0.
+
+2025-01-30  Mitko Iliev  <imitko@openlinksw.com>
+
+	Fixed when qlog is enable, print rset should save prot table globals
+
+2025-01-30  Mitko Iliev  <imitko@openlinksw.com>
+
+	Fixed issue with sparql insert <s> <p> 'o'
+
+	sqldf does not make a distinction between uname and pure string as it
+	might need to be, so we introduce new function for literals which
+	do not consider unames as IRIs unless box flags set
+
+2025-01-30  Mitko Iliev  <imitko@openlinksw.com>
+
+	Fixed additional issue for sub properties in inference result
+
+	Fixed issue with filter not working on inference result
+
+	Fixed crash in optimiser when pred is optimised to always be true
+
+2025-01-30  Patrick van Kleef  <pkleef@openlinksw.com>
+
+	Updated FCT VAD version
+
+2025-01-30  Mitko Iliev  <imitko@openlinksw.com>
+
+	Fixed if account does not have read/view permission return empty page as for 404
+
+	Added avif,webp,apng and jpeg media type variants
+
+2025-01-30  Patrick van Kleef  <pkleef@openlinksw.com>
+
+	Updated Conductor VAD version
+
+2025-01-30  Mitko Iliev  <imitko@openlinksw.com>
+
+	Fixed issue with ACME account binding
+
+	Added support for ACME multi domain name orders
+
+	Added ZeroSSL options to ACME UI
+
+	Added ACME EAB support
+
+	Fixed issue with too many users in dropdown list
+
+	Fixed clear graph before RML import in Conductor
+
+2025-01-06  Patrick van Kleef  <pkleef@openlinksw.com>
+
+	Fixed missing check for default LIMIT in SPARQL query (fixes #1336)
+
+2025-01-01  Patrick van Kleef  <pkleef@openlinksw.com>
+
+	Updated Copyright
+
+2024-11-14  Mitko Iliev  <imitko@openlinksw.com>
+
+	Fixed when inserting into RDF_DATATYPE or RDF_LANGUAGE, lock the row exclusive
+
+2024-11-12  Patrick van Kleef  <pkleef@openlinksw.com>
+
+	Updated version to 7.2.15-dev to mark the start of a new development cycle
+
+2024-11-11  Patrick van Kleef  <pkleef@openlinksw.com>
+
+	Merge tag 'v7.2.14' into develop/7
+
+	Tagged 7.2.14 for final release
+
+2024-11-11  Patrick van Kleef  <pkleef@openlinksw.com>
+
+	Merge branch 'release/7.2.14' into stable/7
+
+	Updated ChangeLog
+
+	Updated version to 7.2.14
+
+	Updated ChangeLog
+
+	Updated NEWS.md
+
+	Fixed disable readline/editline for isqlw
+
+2024-11-08  Patrick van Kleef  <pkleef@openlinksw.com>
+
+	Updated version to 7.2.14-rc3
+
+2024-11-08  Patrick van Kleef  <pkleef@openlinksw.com>
+
+	Added notice to isqlw this application has been deprecated (fixes #1322)
+
+	There is no use shipping a broken tool. We have decided to have it return
+	a deprecation notice in case users upgrade an existing installation.
+
+2024-11-08  Mitko Iliev  <imitko@openlinksw.com>
+
+	Fixed int32 overflow when dbs_file_length unknown
+
+2024-11-08  Mitko Iliev  <imitko@openlinksw.com>
+
+	Added optional new algorithm to fix xte_sum64 collisions
+
+	For now we continue to use the old algorithm.
+
+2024-11-08  Patrick van Kleef  <pkleef@openlinksw.com>
+
+	Fixed compiler errors from -Werror=logical-not-parentheses
+
+	Updated FCT vad version
+
+	Removed <base> tag
+
+	Fixed recommendations from Lighthouse accessibility check
+
+	Removed deprecated charset on stylesheet links
+
+	Fixed issue with page selector on mobile devices
+
+	Removed link to W3C XHTML validator
+
+	Moved javascript to the end of the page
+
+	Changed DOCTYPE from XHTML to HTML5
+
+2024-11-08  Patrick van Kleef  <pkleef@openlinksw.com>
+
+	Removed support for AddThis
+
+	This service was terminated on May 31 2023
+
+2024-11-08  Mitko Iliev  <imitko@openlinksw.com>
+
+	Fixed issue generating short url on 404
+
+2024-11-07  Patrick van Kleef  <pkleef@openlinksw.com>
+
+	Updated version to 7.2.14-rc2
+
+2024-11-07  Patrick van Kleef  <pkleef@openlinksw.com>
+
+	Merge branch 'feature/gcc14-fixes' into develop/7
+
+	Fixes #1312
+	Closes #1324
+
+2024-11-07  Patrick van Kleef  <pkleef@openlinksw.com>
+
+	Fixed issue with pointer dereference
+
+	This fixes errors reported by gcc 14 -Derror=incompatible-pointer-types
+
+2024-11-07  Patrick van Kleef  <pkleef@openlinksw.com>
+
+	Fixed issues compiling isqlw
+
+	This fixes errors reported by gcc 14 -Derror=incompatible-pointer-types
+
+2024-11-07  Patrick van Kleef  <pkleef@openlinksw.com>
+
+	Fixed wrong datatype
+
+	This fixes errors reported by gcc 14 -Derror=incompatible-pointer-types
+
+2024-11-07  Patrick van Kleef  <pkleef@openlinksw.com>
+
+	Fixed bad typedef
+
+	This fixes errors reported by gcc 14 -Derror=incompatible-pointer-types
+
+2024-11-07  Patrick van Kleef  <pkleef@openlinksw.com>
+
+	Fixed bad pointer indirection
+
+	This fixes errors reported by gcc 14 -Derror=incompatible-pointer-types
+
+2024-11-07  Patrick van Kleef  <pkleef@openlinksw.com>
+
+	Fixed compiler warnings for misleading indentation
+
+	This fixes errors reported by gcc 14 -Derror=incompatible-pointer-types
+
+2024-11-07  Mitko Iliev  <imitko@openlinksw.com>
+
+	Fixed qi_set_batch_sz() signature
+
+	This fixes errors reported by gcc 14 -Derror=incompatible-pointer-types
+
+2024-11-07  Patrick van Kleef  <pkleef@openlinksw.com>
+
+	Fixed issues with stat_desc_t data
+
+	This fixes errors reported by gcc 14 -Derror=incompatible-pointer-types
+
+2024-11-07  Mitko Iliev  <imitko@openlinksw.com>
+
+	Fixed use separate macro for UST * data
+
+	This fixes errors reported by gcc 14 -Derror=incompatible-pointer-types
+
+2024-11-07  Mitko Iliev  <imitko@openlinksw.com>
+
+	Fixed use separate macro for XT * data
+
+	This fixes errors reported by gcc 14 -Derror=incompatible-pointer-types
+
+2024-11-07  Patrick van Kleef  <pkleef@openlinksw.com>
+
+	Fixed initialization of different pointers
+
+	This fixes errors reported by gcc 14 -Derror=incompatible-pointer-types
+
+2024-11-07  Patrick van Kleef  <pkleef@openlinksw.com>
+
+	Fixed bad pointer type
+
+	This fixes errors reported by gcc 14 -Derror=incompatible-pointer-types
+
+2024-11-07  Patrick van Kleef  <pkleef@openlinksw.com>
+
+	Fixed bad variable declaration
+
+	This fixes errors reported by gcc 14 -Derror=incompatible-pointer-types
+
+2024-11-07  Patrick van Kleef  <pkleef@openlinksw.com>
+
+	Fixed bad cast using thr_get_error_code
+
+	This fixes errors reported by gcc 14 -Derror=incompatible-pointer-types
+
+2024-11-07  Patrick van Kleef  <pkleef@openlinksw.com>
+
+	Fixed issue with function prototype
+
+	This fixes errors reported by gcc 14 -Derror=incompatible-pointer-types
+
+2024-11-07  Patrick van Kleef  <pkleef@openlinksw.com>
+
+	Fixed bad or missing casts
+
+	This fixes errors reported by gcc 14 -Derror=incompatible-pointer-types
+
+2024-11-07  Patrick van Kleef  <pkleef@openlinksw.com>
+
+	Fixed casts on mp_alloc and mp_alloc_box
+
+	This fixes errors reported by gcc 14 -Derror=incompatible-pointer-types
+
+2024-11-07  Patrick van Kleef  <pkleef@openlinksw.com>
+
+	Fixed missing server_func cast
+
+	This fixes errors reported by gcc 14 -Derror=incompatible-pointer-types
+
+2024-11-07  Patrick van Kleef  <pkleef@openlinksw.com>
+
+	Fixed bad argument cast in virt_mbsnrtowcs and virt_wcsnrtombs
+
+	This fixes errors reported by gcc 14 -Derror=incompatible-pointer-types
+
+2024-11-07  Patrick van Kleef  <pkleef@openlinksw.com>
+
+	Fixed wrong ODBC datatype
+
+2024-11-07  Mitko Iliev  <imitko@openlinksw.com>
+
+	Fixed missing DB.DBA.SPARQL_BINDINGS_VIEW_C_0 for empty solution bindings
+
+2024-11-07  Patrick van Kleef  <pkleef@openlinksw.com>
+
+	Fixed compiler warnings from -Wmultistatement-macros
+
+	Renamed last_majflt to swap_guard_last_majflt
+
+	Fixed memory leak in X509 cert chain
+
+	Removed rbuf_test function
+
+2024-10-28  Mitko Iliev  <imitko@openlinksw.com>
+
+	Fixed arbitrary XML with CDATA having html tags has MIME re-placed with text/html
+
+2024-10-28  Patrick van Kleef  <pkleef@openlinksw.com>
+
+	Updated Conductor VAD version
+
+2024-10-28  Mitko Iliev  <imitko@openlinksw.com>
+
+	Fixed issue when filename starts with underscore
+
+	An underscore is a valid start character for visible files
+
+2024-10-28  Patrick van Kleef  <pkleef@openlinksw.com>
+
+	Fixed typo in generation of Transient view urls
+
+2024-10-28  Mitko Iliev  <imitko@openlinksw.com>
+
+	Fixed issue with RSS menu not working on Firefox
+
+	Added support to handle 101 connection upgrade in http_client
+
+	Added flag to see if connection session is server or client
+
+	Fixed missing encode flag
+
+	Added WSOCK.DBA.WEBSOCKET_CONNECT() for client operations
+
+	Added flag to encode if API used as WSock client
+
+2024-10-28  Mitko Iliev  <imitko@openlinksw.com>
+
+	Fixed order of checking options and parameters
+
+	Options must be checked before parameters; params are for
+	execution only
+
+2024-10-28  Patrick van Kleef  <pkleef@openlinksw.com>
+
+	Fixed allow soap_boolean to accept null for nullable arguments
+
+2024-10-28  Mitko Iliev  <imitko@openlinksw.com>
+
+	Fixed errror state
+
+	A missing procedure should return 'not found' instead of 'internal error'
+
+2024-10-28  Mitko Iliev  <imitko@openlinksw.com>
+
+	Fixed check which options are handled by endpoint
+
+	Check defines on rest method for additional http methods allowed
+
+2024-10-28  Mitko Iliev  <imitko@openlinksw.com>
+
+	Fixed issue with JSON registered REST services
+
+	JSON services should return JSON formatted error, not HTML body
+
+2024-10-28  Mitko Iliev  <imitko@openlinksw.com>
+
+	Fixed issue with generated names longer than 100 characters
+
+	The GraphQL query generator may compose name over 100 chars, leading to
+	truncated and bad sql. Fixed by making part after 80 chars a sha256 sum.
+
+2024-09-23  Patrick van Kleef  <pkleef@openlinksw.com>
+
+	Updated version to 7.2.14-rc1
+
+2024-09-23  Mitko Iliev  <imitko@openlinksw.com>
+
+	Fixed DAV escape href should escape apos
+
+	Fixed issue when there are no more inits to skip
+
+2024-09-04  Patrick van Kleef  <pkleef@openlinksw.com>
+
+	Merge branch 'feature/backport' into develop/7
+
+	Updated FCT vad version
+
+2024-09-04  Mitko Iliev  <imitko@openlinksw.com>
+
+	Fixed make 'x_content > iframe' content resizable
+
+	Added support for WKT rendition
+
+2024-09-04  Patrick van Kleef  <pkleef@openlinksw.com>
+
+	Added new MaxTempDBPages setting to virtuoso.ini
+
+	This setting limits the maximum size of the TempDatabase file on disk to a
+	fixed amount of used pages. If the engine detects this limit has been
+	exceeded, the query that was filling up the TempDatabase will return an
+	error and its transaction is killed.
+
+	  [TempDatabase]
+	  MaxTempDBPages = 50G  ; Limit size of the TempDatabase to 50GB on disk
+
+	Values ending in B, K, M, G will be converted to number of pages that
+	can fit into that size. Plain values are interpreted as number of pages.
+
+	For example 50G = (50 * 1024 * 1024 * 1024) / 8192 = 6553600 pages
+
+	The default value is 0 which means that the TempDatabase file can fill
+	up the whole disk partition it is located on.
+
+2024-09-04  Mitko Iliev  <imitko@openlinksw.com>
+
+	Added support for restricting the size of the tempdb
+
+2024-09-04  Patrick van Kleef  <pkleef@openlinksw.com>
+
+	Added temp space usage in db activity
+
+	Fixed distribution of vadpacker
+
+2024-09-03  Patrick van Kleef  <pkleef@openlinksw.com>
+
+	Fixed issue re-initializing the pconfig struct
+
+2024-09-03  Mitko Iliev  <imitko@openlinksw.com>
+
+	Added put/delete http methods
+
+	Fixed key estimate on single only
+
+2024-09-03  Patrick van Kleef  <pkleef@openlinksw.com>
+
+	 Added support for custom %T and %D http log format
+
+	The following format codes are added:
+
+	  %T            time to serve the request in seconds
+	  %D            time to serve the request in microseconds
+
+	  %{s}T         time to serve the request in seconds (same as %T)
+	  %{ms}T        time to serve the request in milliseconds
+	  %{us}T        time to serve the request in microseconds (same as %D)
+	  %{rt}T        time to serve the request using CPU timestamp counter
+
+2024-09-03  Patrick van Kleef  <pkleef@openlinksw.com>
+
+	Fixed use get_usec_real_time() for rate limiting
+
+	Fixed use usec for cli_start_time for custom %T and %D http log format
+
+	Added new function get_usec_real_time
+
+2024-08-30  Patrick van Kleef  <pkleef@openlinksw.com>
+
+	Updated Vadpacker to v1.10
+
+2024-08-09  Mitko Iliev  <imitko@openlinksw.com>
+
+	Fixed inc. estimate on transitive with unbound input
+
+	Fixed memory leak and error when service sets error status code
+
+	Fixed issue with user defined types (UDT)
+
+	Fixed issue with SN DETs errors
+
+2024-08-09  Mitko Iliev  <imitko@openlinksw.com>
+
+	Fixed issue with {col}
+
+	When a single column is specified as IRI then do not escape,
+	e.g. {col} means an IRI string
+
+2024-08-08  Mitko Iliev  <imitko@openlinksw.com>
+
+	Fixed issue with "Content-Encoding: gzip" (fixes #1308)
+
+2024-06-26  Mitko Iliev  <imitko@openlinksw.com>
+
+	Fixed issue when there are no parts to split
+
+	Fixed issue with GROUP BY/ORDER BY on LEFT OUTER JOIN
+
+2024-06-24  Patrick van Kleef  <pkleef@openlinksw.com>
+
+	Fixed tested building against openssl 3.3.x
+
+2024-06-21  Ivan Mikhailov  <imikhailov@openlinksw.com>
+
+	Added support for (a relatively small amount of) blank nodes in SPARQL INSERT DATA
+
+	Fixes #126
+
+2024-06-18  Mitko Iliev  <imitko@openlinksw.com>
+
+	Fixed issue calling concat(wide, utf8) (fixes 944)
+
+	A missing check for box_flags caused the result to be a broken wide
+	string.
+
+2024-06-18  Mitko Iliev  <imitko@openlinksw.com>
+
+	Fixed issue with lenght calculation in rdf_encode_for_uri()
+
+2024-06-18  Ted Thibodeau Jr  <tthibodeau@openlinksw.com>
+
+	Fixed NEWS.md
+
+2024-06-18  Patrick van Kleef  <pkleef@openlinksw.com>
+
+	Updated version to 7.2.14-dev to mark the start of a new development cycle
+
 2024-06-10  Patrick van Kleef  <pkleef@openlinksw.com>
+
+	Merge tag 'v7.2.13' into develop/7
+
+	Tagged for release
+
+2024-06-10  Patrick van Kleef  <pkleef@openlinksw.com>
+
+	Merge branch 'release/7.2.13' into stable/7
+
+	Updated NEWS.md and Changelog
 
 	Updated version to 7.2.13
 

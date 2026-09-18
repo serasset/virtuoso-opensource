@@ -8,7 +8,7 @@
  *  This file is part of the OpenLink Software Virtuoso Open-Source (VOS)
  *  project.
  *
- *  Copyright (C) 1998-2024 OpenLink Software
+ *  Copyright (C) 1998-2026 OpenLink Software
  *
  *  This project is free software; you can redistribute it and/or modify it
  *  under the terms of the GNU General Public License as published by the
@@ -588,17 +588,17 @@ artm_print:
 	    stmt_printf (("declare handler end at %d", in->_.handler.label));
 	  else
 	    stmt_printf (("declare DEFAULT handler "));
-	    {
-	      int inx;
-	      DO_BOX (caddr_t *, state, inx, in->_.handler.states)
-		{
-		  if (IS_BOX_POINTER (state))
-		    stmt_printf ((" state %s, ", state[0]));
-		  else
-		    stmt_printf ((" NO DATA_FOUND, "));
-		}
-	      END_DO_BOX;
-	    }
+	  {
+	    int inx;
+	    DO_BOX (caddr_t *, state, inx, in->_.handler.states)
+	      {
+		if (IS_BOX_POINTER (state))
+		  stmt_printf ((" state %s, ", state[0]));
+		else
+		  stmt_printf ((" NO DATA_FOUND, "));
+	      }
+	    END_DO_BOX;
+	  }
 	  break;
 
 	case INS_HANDLER_END:
@@ -1168,6 +1168,19 @@ qn_print_reuse (data_source_t * qn)
 
 	  inx += reuse[inx + 1] + 2;
 	}
+    }
+}
+
+const char *
+tn_direction_string(int dir)
+{
+  switch (dir)
+    {
+      case TRANS_ANY: return "any";
+      case TRANS_LR: return "LR";
+      case TRANS_RL: return "RL";
+      case TRANS_LRRL: return "LRRL";
+      default: return "???";
     }
 }
 
@@ -2246,14 +2259,14 @@ node_print (data_source_t * node)
 	  stmt_printf  ((" %s\n", tn->tn_lowest_sas ? "min same-as id" : ""));
 	  if (tn->tn_sas_g)
 	    {
-	      stmt_printf (("g = "));
+              stmt_printf (("G = "));
 	      ssl_array_print (tn->tn_sas_g);
 	      stmt_printf (("\n"));
 	    }
 	}
       else
 	{
-	  stmt_printf (("Transitive dt dir %d, input: ", tn->tn_direction));
+          stmt_printf (("Transitive DT dir %s(%d), input: ", tn_direction_string(tn->tn_direction), tn->tn_direction));
 	  ssl_array_print (tn->tn_input);
 	  stmt_printf (("\n  input shadow: "));
 	  ssl_array_print (tn->tn_input_ref);
@@ -4308,7 +4321,7 @@ qi_log_stats_1 (query_instance_t * qi, caddr_t err, caddr_t ext_text)
   client_connection_t * cli = qi->qi_client;
   dk_session_t * ses;
   uint64 rt;
-  time_msec_t now;
+  time_usec_t now;
   /* milos: allocate memory for the comment structure */
   qr_comment_t comm;
 
@@ -4319,7 +4332,7 @@ qi_log_stats_1 (query_instance_t * qi, caddr_t err, caddr_t ext_text)
   if (!qi->qi_log_stats)
     return;
 
-  now = get_msec_real_time ();
+  now = get_usec_real_time ();
   CLI_THREAD_TIME (cli);
   rt = rdtsc ();
   if (!(ses = cli->cli_ql_strses))
@@ -4331,7 +4344,7 @@ qi_log_stats_1 (query_instance_t * qi, caddr_t err, caddr_t ext_text)
   session_buffered_write_char (DV_DATETIME, ses);
   session_buffered_write (ses, (char*)cli->cli_start_dt, DT_LENGTH);
   /*1*/
-  print_int ((boxint) (now - cli->cli_start_time), ses);
+  print_int ((boxint) ((now - cli->cli_start_time_usec) / 1000UL), ses); /* value in msec */
   /*2*/
   print_int (cli->cli_run_clocks, ses);
   /*3*/
@@ -4445,7 +4458,9 @@ qi_log_stats_1 (query_instance_t * qi, caddr_t err, caddr_t ext_text)
   /*40*/
   if (!ext_text)
     {
+      PROC_SAVE_VARS;
       qr_comment_t * comm;
+      PROC_SAVE_PARENT;
       cli->cli_resultset_max_rows = -1;
       cli->cli_resultset_comp_ptr = (caddr_t *) &rs_comp;
       cli->cli_resultset_data_ptr = &res;
@@ -4460,6 +4475,7 @@ qi_log_stats_1 (query_instance_t * qi, caddr_t err, caddr_t ext_text)
 	}
       END_QR_RESET;
       trset_end ();
+      PROC_RESTORE_SAVED;
       SET_THR_ATTR (self, TA_STAT_INST, NULL);
 	  res = dk_set_nreverse (res);
 	  /* milos: Get the list of warnings from the TA_STAT_COMM and print it */

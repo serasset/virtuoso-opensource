@@ -4,7 +4,7 @@
  *  This file is part of the OpenLink Software Virtuoso Open-Source (VOS)
  *  project.
  *
- *  Copyright (C) 1998-2024 OpenLink Software
+ *  Copyright (C) 1998-2026 OpenLink Software
  *
  *  This project is free software; you can redistribute it and/or modify it
  *  under the terms of the GNU General Public License as published by the
@@ -84,6 +84,19 @@
  *  OpenSSL 1.1 simple function name remap
  */
 #define OPENSSL_malloc_init	CRYPTO_malloc_init
+
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+# define TLS_client_method() SSLv23_client_method()
+# define TLS_server_method() SSLv23_server_method()
+#endif
+
+
+/*
+ *  OpenSSL 1.0.2 and LibreSSL do not have this function
+ */
+#if defined (LIBRESSL_VERSION_NUMBER) || OPENSSL_VERSION_NUMBER < 0x10100000L
+#define SSL_CTX_set_security_level(x,y)		((void)0)
+#endif
 
 
 /*
@@ -672,6 +685,14 @@ void X509_get0_signature(ASN1_BIT_STRING **psig, X509_ALGOR **palg, const X509 *
  * ASN1
  * ----------------------------------------------------------------------
  */
+
+SSL_COMPAT_INLINE const unsigned char *
+ASN1_STRING_get0_data (const ASN1_STRING *x)
+{
+  return ASN1_STRING_data ((ASN1_STRING *) x);
+}
+
+
 #if 0
 SSL_COMPAT_INLINE
 int ASN1_TIME_to_tm (const ASN1_TIME * s, struct tm *tm)

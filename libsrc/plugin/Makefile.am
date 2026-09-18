@@ -2,7 +2,7 @@
 #  This file is part of the OpenLink Software Virtuoso Open-Source (VOS)
 #  project.
 #  
-#  Copyright (C) 1998-2024 OpenLink Software
+#  Copyright (C) 1998-2026 OpenLink Software
 #  
 #  This project is free software; you can redistribute it and/or modify it
 #  under the terms of the GNU General Public License as published by the
@@ -110,12 +110,12 @@ FORCE:
 #
 # ----------------------------------------------------------------------
 EXTRA_DIST = \
-	export_plugin_lang25.c \
-	export_plugin_msdtc.c \
-	gen_all_gates.sh \
-	gen_gate.sh \
-	import_plugin_lang25.c \
-	import_plugin_msdtc.c \
-	msdtc_plugin.c \
-	msdtc_sample.def \
-	plugin_win32.c
+	$(srcdir)/export_plugin_lang25.c \
+	$(srcdir)/export_plugin_msdtc.c \
+	$(srcdir)/gen_all_gates.sh \
+	$(srcdir)/gen_gate.sh \
+	$(srcdir)/import_plugin_lang25.c \
+	$(srcdir)/import_plugin_msdtc.c \
+	$(srcdir)/msdtc_plugin.c \
+	$(srcdir)/msdtc_sample.def \
+	$(srcdir)/plugin_win32.c

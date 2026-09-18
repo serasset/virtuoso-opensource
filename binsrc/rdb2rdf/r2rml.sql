@@ -6,7 +6,7 @@
 --  This file is part of the OpenLink Software Virtuoso Open-Source (VOS)
 --  project.
 --  
---  Copyright (C) 1998-2024 OpenLink Software
+--  Copyright (C) 1998-2026 OpenLink Software
 --  
 --  This project is free software; you can redistribute it and/or modify it
 --  under the terms of the GNU General Public License as published by the
@@ -267,8 +267,15 @@ create method R2RML_FILL_TRIPLESMAP_METAS_CACHE () returns integer for DB.DBA.R2
                declare exit handler for sqlstate '*' {
                  signal ('R2RML', 'Invalid tableName');
                };
-               tree := sql_parse (sprintf ('%s ()', "tn"));
-               tbname := complete_table_name (tree[1], 1);
+               if (table_exists("tn"))
+                 {
+                   tbname := complete_table_name("tn", 1);
+                 }
+               else
+                 {
+                   tree := sql_parse (sprintf ('%s ()', "tn"));
+                   tbname := complete_table_name (tree[1], 1);
+                 }
                qual := name_part (tbname, 0); owner := name_part (tbname, 1); tbname := name_part (tbname, 2);
                all_metas[0] := vector ('TABLE', qual, owner, tbname);
             }
@@ -467,6 +474,7 @@ create function DB.DBA.R2RML_XSD_TYPE_OF_DTP (in dtp integer)
   if (__tag of double precision = dtp) return 'http://www.w3.org/2001/XMLSchema#double';
   if (__tag of numeric = dtp) return 'http://www.w3.org/2001/XMLSchema#double';
   if (__tag of real = dtp) return 'http://www.w3.org/2001/XMLSchema#float';
+  if (__tag of float = dtp) return 'http://www.w3.org/2001/XMLSchema#float';
   if (__tag of XML) return 'http://www.w3.org/2001/XMLSchema#XMLLiteral';
   if (238) return default_geo_type();
   return 'http://www.w3.org/2001/XMLSchema#any';
@@ -505,7 +513,7 @@ create method R2RML_GEN_CREATE_IOL_CLASS_OR_REF (in fld_idx integer, in mode int
 {
   declare format_string, class_iri varchar;
   declare format_ses, format_parts, col_descs, argtypes, class_digest any;
-  declare argctr, argcount integer;
+  declare argctr, argcount, raw_string integer;
   -- dbg_obj_princ ('R2RML_GEN_CREATE_IOL_CLASS_OR_REF (', fld_idx, mode, triplesmap_iid, src_template, termtype, dt, lang, ')');
   if (termtype = 'http://www.w3.org/ns/r2rml#BlankNode')
     {
@@ -513,6 +521,10 @@ create method R2RML_GEN_CREATE_IOL_CLASS_OR_REF (in fld_idx integer, in mode int
       termtype := 'http://www.w3.org/ns/r2rml#IRI';
     }
   format_parts := DB.DBA.R2RML_SPLIT_TEMPLATE (src_template);
+  -- Pure {col} case, should not escape
+  raw_string := 0;
+  if (termtype = 'http://www.w3.org/ns/r2rml#IRI' and length(format_parts) = 3 and aref(format_parts,0) = '' and aref(format_parts,2) = '')
+    raw_string := 1;
   argcount := (length (format_parts) - 1) / 2;
   if (0 = argcount) -- constant written as a template for some reason.
     {
@@ -527,24 +539,28 @@ create method R2RML_GEN_CREATE_IOL_CLASS_OR_REF (in fld_idx integer, in mode int
     {
       declare col_name, coltype, col_fmt varchar;
       declare col_desc any;
+      declare col_dtp int;
       col_name := format_parts[argctr * 2 + 1];
       col_desc := self.R2RML_GET_COL_DESC (triplesmap_iid, col_name);
       col_descs[argctr] := col_desc;
       if (col_desc is null)
         signal ('R2RML', sprintf ('The column "%s" is used in template "%s" but not in result set of <%s>', col_name, src_template, id_to_iri (triplesmap_iid)));
       coltype := col_desc[2];
+      col_dtp := coltype[1];
+      if (termtype = 'http://www.w3.org/ns/r2rml#IRI' and argcount = 1 and col_dtp in (__tag of date, __tag of datetime, __tag of datetime))
+        col_dtp := __tag of varchar;
       argtypes[argctr] := vector (coltype[1], coltype[4]);
       col_fmt := case
-        when (coltype[1] in (__tag of date, __tag of datetime, __tag of datetime)) then '%D'
-        when (coltype[1] in (__tag of integer, __tag of smallint)) then '%d'
-        when (coltype[1] in (__tag of bigint)) then '%ld'
-        when (coltype[1] in (__tag of real, __tag of double precision, __tag of numeric)) then '%g'
-        when (coltype[1] in (__tag of varchar, __tag of nvarchar, __tag of long varchar, __tag of long nvarchar)) then
-          case (termtype) when 'http://www.w3.org/ns/r2rml#Literal' then '%s' else '%U' end
+        when (col_dtp in (__tag of date, __tag of datetime, __tag of datetime)) then '%D'
+        when (col_dtp in (__tag of integer, __tag of smallint)) then '%d'
+        when (col_dtp in (__tag of bigint)) then '%ld'
+        when (col_dtp in (__tag of real, __tag of double precision, __tag of numeric)) then '%g'
+        when (col_dtp in (__tag of varchar, __tag of nvarchar, __tag of long varchar, __tag of long nvarchar)) then
+          case when termtype = 'http://www.w3.org/ns/r2rml#Literal' or raw_string then '%s' else '%U' end
         else
           signal ('R2RML',
             sprintf ('Unsupported column type %d, column %s of %s',
-              coltype[1], col_desc[2][0], self.R2RML_TRIPLESMAP_TABLE_REPORT_NAME (triplesmap_iid) ) )
+              col_dtp, col_desc[2][0], self.R2RML_TRIPLESMAP_TABLE_REPORT_NAME (triplesmap_iid) ) )
         end;
       http_escape (replace (format_parts[argctr * 2], '%', '%%'), 11, format_ses);
       http (col_fmt, format_ses);
@@ -567,13 +583,15 @@ create_iol_class:
           declare argdtp integer;
           declare raw_argname, argname varchar;
           argdtp := argtypes[argctr][0];
+          if (termtype = 'http://www.w3.org/ns/r2rml#IRI' and argcount = 1 and argdtp in (__tag of date, __tag of time, __tag of datetime))
+            argdtp := __tag of varchar;
           raw_argname := format_parts[argctr * 2 + 1];
           argname := replace (replace (replace (replace (sprintf ('%U', raw_argname), '-', '_'), '@', '_'), '`', '_'), '~', '_');
           if (raw_argname <> argname)
             argname := sprintf ('%s_n%d', replace (replace (argname, '+', '_'), '%', '__'), argctr);
           if (argctr > 0)
             http (', ', self.codegen_ses);
-          http ('in ' || argname || ' ' ||
+          http ('in _' || argname || ' ' ||
             case (argdtp)
               when __tag of date then 'date'
               when __tag of time then 'time'
@@ -581,7 +599,8 @@ create_iol_class:
               when __tag of integer then 'integer'
               when __tag of smallint then 'integer'
               when __tag of bigint then 'integer'
-              when __tag of real then 'real'
+              when __tag of real then 'double precision'
+              when __tag of float then 'double precision'
               when __tag of double precision then 'double precision'
               when __tag of numeric then 'numeric'
               when __tag of varchar then 'varchar'
@@ -862,7 +881,8 @@ create method R2RML_MAKE_QM_IMPL_PLAIN_PO (in tmap IRI_ID, in pofld IRI_ID, in p
       term_type := __rdf_strsqlval ("ott");
       if (term_type is null)
         {
-          if ("ocol" is null and "odatatype" is null and "olang" is null)
+          if ("ocol" is null and "odatatype" is null and "olang" is null and (isiri_id ("consto") or
+                ((isstring ("consto") or isuname("consto")) and bit_and (__box_flags ("consto"), 1)) ))
             term_type := 'http://www.w3.org/ns/r2rml#IRI';
           else
             term_type := 'http://www.w3.org/ns/r2rml#Literal';
@@ -1187,7 +1207,7 @@ create method R2RML_MAKE_QM (in storage_iid IRI_ID := null, in rdfview_iid IRI_I
           constg := (sparql define input:storage "" define output:valmode "LONG"
           SELECT  ?constg WHERE
           { GRAPH `iri(?:self.graph_iid)`
-              { ?tmap  a  rr:TriplesMap
+              { ?tmap  a  rr:TriplesMap .
                   { ?tmap  rr:subjectMap [ rr:graph  ?constg ] . }
                   UNION
                   { ?tmap  rr:predicateObjectMap [ rr:graph  ?constg ] . }
@@ -1236,7 +1256,7 @@ create function R2RML_MAKE_QM_FROM_G (in g varchar, in tgt_graph varchar := null
   declare qm_iid IRI_ID;
   qm_iid := null;
   m := DB.DBA.R2RML_MAP (iri_to_id (g));
-  if (tgt_graph is not null)
+  if (length(tgt_graph))
     m.default_constg := iri_to_id (tgt_graph);
   if (qm_uri is null)
     qm_uri := concat ('urn:qm:', bin2hex(xenc_digest(coalesce(tgt_graph,g),'sha1')));

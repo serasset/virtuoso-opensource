@@ -8,7 +8,7 @@
  *  This file is part of the OpenLink Software Virtuoso Open-Source (VOS)
  *  project.
  *
- *  Copyright (C) 1998-2024 OpenLink Software
+ *  Copyright (C) 1998-2026 OpenLink Software
  *
  *  This project is free software; you can redistribute it and/or modify it
  *  under the terms of the GNU General Public License as published by the
@@ -2220,7 +2220,7 @@ time_msec_t checkpointed_last_time = 0;
 #include <sys/resource.h>
 #endif
 
-long last_majflt = 0;
+long swap_guard_last_majflt = 0;
 long swap_guard_threshold = 300;
 int32 swap_guard_on = 0;
 int process_is_swapping = 0;
@@ -2234,7 +2234,7 @@ extern int www_maintenance;
 void http_kill_all ();
 
 void
-the_grim_mem_guard ()
+the_grim_mem_guard (void)
 {
   if (max_proc_vm_size > 0 && max_proc_vm_size < curr_vm_size) 
     {   /* don't check if already stopped, kill ws cli until enough free ram, see below */
@@ -2258,15 +2258,15 @@ the_grim_mem_guard ()
   return;
   getrusage (RUSAGE_SELF, &ru);
 #ifdef GPF_ON_SWAPPING
-  if (ru.ru_majflt - last_majflt > swap_guard_threshold)
+  if (ru.ru_majflt - swap_guard_last_majflt > swap_guard_threshold)
     GPF_T1 ("started swapping");
 #endif
   if (swap_guard_on & 0x10)
     {
-      if ((ru.ru_majflt - last_majflt > swap_guard_threshold) && !wi_inst.wi_is_checkpoint_pending)
+      if ((ru.ru_majflt - swap_guard_last_majflt > swap_guard_threshold) && !wi_inst.wi_is_checkpoint_pending)
         GPF_T1 ("The process started swapping and SwapGuard parameter has bit 0x10 set on, forcing immediate kill. ");
     }
-  if (virtuoso_server_initialized && ru.ru_majflt - last_majflt > swap_guard_threshold)
+  if (virtuoso_server_initialized && ru.ru_majflt - swap_guard_last_majflt > swap_guard_threshold)
     {
       if (!process_is_swapping)
 	log_error ("The process started swapping, all pending transactions will be killed");
@@ -2276,7 +2276,7 @@ the_grim_mem_guard ()
     {
       if (process_is_swapping)
 	process_is_swapping = 0;
-  last_majflt = ru.ru_majflt;
+      swap_guard_last_majflt = ru.ru_majflt;
     }
 #endif
 }
@@ -2289,7 +2289,7 @@ time_msec_t prev_reaper_time;
 char srv_approx_dt[DT_LENGTH];
 
 void
-clear_old_root_images ()
+clear_old_root_images (void)
 {
   time_msec_t now = approx_msec_real_time ();
   mutex_enter (old_roots_mtx);
@@ -2398,20 +2398,28 @@ the_grim_lock_reaper (void)
       mt_write_start (auto_f_count % 10 ? OLD_DIRTY : ALL_DIRTY);
     }
 
-
   failed_login_purge ();
 
   if (cfg_autocheckpoint > 0)	/* Autocheckpointing wanted? */
     {
       if (0 != checkpointed_last_time)	/* Not the first time here? */
 	{
-	  if (main_thread_ready && (now - checkpointed_last_time) >= cfg_autocheckpoint)
+	  if (main_thread_ready &&
+              (now - checkpointed_last_time) >= cfg_autocheckpoint)
 	    {
-	      /* Okay do it. I.e. let the loop in main in chil.c to do it. */
-	      main_continuation_reason = MAIN_CONTINUE_ON_CHECKPOINT;
-	      checkpointed_last_time = now;
-	      main_thread_ready = 0;
-	      semaphore_leave (background_sem);
+              if (!c_soft_checkpoint || server_is_idle)
+		{
+		  /* Okay do it. I.e. let the loop in main in chil.c to do it. */
+		  main_continuation_reason = MAIN_CONTINUE_ON_CHECKPOINT;
+		  checkpointed_last_time = now;
+		  main_thread_ready = 0;
+		  semaphore_leave (background_sem);
+		}
+              else
+                {
+                  if (mon_log_error_event (EES_CPT, checkpointed_last_time, "The same error has been reported too many times, log of it stopped", 5, 0))
+                    log_info ("Checkpoint postponed until process is idle");
+                }
 	    }
 	}
       else
@@ -2516,7 +2524,7 @@ lt_timestamp_box (lock_trx_t * lt)
 }
 
 void
-dbg_flush ()
+dbg_flush (void)
 {
   fflush (stdout);
   fflush (stderr);
@@ -2529,7 +2537,7 @@ int ltbing (int s)
 
 #ifdef MALLOC_DEBUG
 #undef lt_start
-lock_trx_t * lt_start ()
+lock_trx_t * lt_start (void)
 {
   return dbg_lt_start (__FILE__, __LINE__);
 }

@@ -6,7 +6,7 @@
  *  This file is part of the OpenLink Software Virtuoso Open-Source (VOS)
  *  project.
  *
- *  Copyright (C) 1998-2024 OpenLink Software
+ *  Copyright (C) 1998-2026 OpenLink Software
  *
  *  This project is free software; you can redistribute it and/or modify it
  *  under the terms of the GNU General Public License as published by the
@@ -250,7 +250,7 @@ str_delta (db_buf_t str1, db_buf_t str2, int len1, int len2, row_size_t * prefix
 resource_t * pfh_rc;
 
 pf_hash_t *
-pfh_allocate ()
+pfh_allocate (void)
 {
   return (pf_hash_t *) dk_alloc (sizeof (pf_hash_t));
 }
@@ -935,7 +935,7 @@ buf_order_ck (buffer_desc_t * buf)
 
 
 #ifndef PAGE_CHECK
-#define buf_order_ck(b)
+#define buf_order_ck(b)		((void)0)
 #endif
 
 
@@ -1916,6 +1916,12 @@ pf_rd_append (page_fill_t * pf, row_delta_t * rd, row_size_t * split_after)
 	{
 	  extend = it_new_page (pf->pf_itc->itc_tree,
 				pf->pf_org->bd_page, DPF_INDEX, 0, pf->pf_itc);
+          if (!extend && DBS_TEMP == pf->pf_itc->itc_tree->it_storage->dbs_type)
+            {
+              log_error ("Out of disk space for temp table");
+              pf->pf_itc->itc_ltrx->lt_error = LTE_NO_DISK;
+              itc_bust_this_trx (pf->pf_itc, &extend, ITC_BUST_THROW);
+            }
 	  if (!extend)
 	    GPF_T1("Can't get page buffer from it_new_page");
 	  if (pf->pf_itc->itc_is_ac)

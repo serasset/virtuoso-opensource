@@ -8,7 +8,7 @@
  *  This file is part of the OpenLink Software Virtuoso Open-Source (VOS)
  *  project.
  *
- *  Copyright (C) 1998-2024 OpenLink Software
+ *  Copyright (C) 1998-2026 OpenLink Software
  *
  *  This project is free software; you can redistribute it and/or modify it
  *  under the terms of the GNU General Public License as published by the
@@ -651,13 +651,15 @@ ts_add (TIMESTAMP_STRUCT * ts, boxint n, const char *unit)
 }
 
 int
-dt_compare (caddr_t dt1, caddr_t dt2, int cmp_is_safe)
+dt_compare (ccaddr_t dt1, ccaddr_t dt2, int cmp_is_safe)
 {
   int day1, day2;
   int minm1, maxm1, minm2, maxm2;
   DT_AUDIT_FIELDS (dt1);
   DT_AUDIT_FIELDS (dt2);
-  if (DT_TZL (dt1) == DT_TZL (dt2))
+  day1 = DT_DAY (dt1);
+  day2 = DT_DAY (dt2);
+  if (day1 >= 0 && day2 >= 0 && DT_TZL (dt1) == DT_TZL (dt2))
     {
       int cmp = memcmp (dt1, dt2, DT_COMPARE_LENGTH);
       if (cmp > 0)
@@ -666,8 +668,6 @@ dt_compare (caddr_t dt1, caddr_t dt2, int cmp_is_safe)
         return DVC_LESS;
       return DVC_MATCH;
     }
-  day1 = DT_DAY (dt1);
-  day2 = DT_DAY (dt2);
   if (day1 > day2+2)
     return DVC_GREATER;
   if (day1 < day2+2)
@@ -902,7 +902,7 @@ snprintf_generic_duration (char *buf, size_t buf_size, ccaddr_t duration)
 int isdts_mode = 1;
 
 void
-dt_init ()
+dt_init (void)
 {
   time_t lt, gt;
   struct tm ltm;
@@ -1384,6 +1384,11 @@ iso8601_or_odbc_string_to_dt_1 (const char *str, char *dt, int dtflags, int dt_t
           if ('-' == tail[-1])
             tzsign = 1;
         }
+      if ((DTFLAG_HH == fld_flag) && (tail == str) && ('T' == tail[0]) && (dtflags & DTFLAG_T_FORMAT_SETS_TZL) && (DT_TYPE_TIME == dt_type))
+        {
+          t_before_hh = 1;
+          tail += 1;
+        }
       for (group_end = tail; isdigit (group_end[0]); group_end++) /*no body*/;
       fldlen = group_end - tail;
       fld_maxlen = fld_max_lengths[fld_idx];
@@ -1446,6 +1451,16 @@ iso8601_or_odbc_string_to_dt_1 (const char *str, char *dt, int dtflags, int dt_t
             }
           continue;
         }
+      if ((DTFLAG_ZH == fld_flag) && (4 == fldlen))
+        { /* ISO 8601 basic TZ format +hhmm / -hhmm (no colon separator) */
+          fld_values[fld_idx] = ((tail[0]-'0') * 10) + (tail[1]-'0');
+          fld_values[fld_idx+1] = ((tail[2]-'0') * 10) + (tail[3]-'0');
+          tzmin = 0;
+          res_flags |= DTFLAG_ZH | DTFLAG_ZM;
+          tail = group_end;
+          fld_idx++;
+          continue;
+        }
       if ((DTFLAG_ALLOW_JAVA_SYNTAX & dtflags) && (DTFLAG_ZH == fld_flag))
         {
           switch (fldlen)
@@ -1468,14 +1483,8 @@ iso8601_or_odbc_string_to_dt_1 (const char *str, char *dt, int dtflags, int dt_t
               tail = group_end;
               fld_idx++;
               continue;
-            case 4: /* Java format +hhmm */
-              fld_values[fld_idx] = ((tail[0]-'0') * 10) + (tail[1]-'0');
-              fld_values[fld_idx+1] = ((tail[2]-'0') * 10) + (tail[3]-'0');
-              tzmin = 0;
-              res_flags |= DTFLAG_ZH | DTFLAG_ZM;
-              tail = group_end;
-              fld_idx++;
-              continue;
+            case 4: /* handled above */
+              break;
             }
         }
       err_msg_ret[0] = box_sprintf (500, "Incorrect %s field length", names[fld_idx]);

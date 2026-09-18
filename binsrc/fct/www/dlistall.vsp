@@ -1,5 +1,5 @@
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
-<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<!DOCTYPE html>
+<html lang="en">
 <?vsp
 --
 --  $Id$
@@ -7,7 +7,7 @@
 --  This file is part of the OpenLink Software Virtuoso Open-Source (VOS)
 --  project.
 --
---  Copyright (C) 1998-2024 OpenLink Software
+--  Copyright (C) 1998-2026 OpenLink Software
 --
 --  This project is free software; you can redistribute it and/or modify it
 --  under the terms of the GNU General Public License as published by the
@@ -29,13 +29,15 @@
   puri := replace (puri, '\'', '%27');
 ?>
   <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
     <link rel="stylesheet" type="text/css" href="style.css">
-    <title><?=label?></title>
+    <title><?V label ?></title>
   </head>
   <body>
     <div id="header">
       <div id="hd_l">
-	  <h1 id="title"><?vsp http (sprintf ('%s', label)); ?> for
+	  <h1 id="title"><?V label ?> for
 	      <a href="/describe?url=<?U puri ?>"><?V puri ?></a>
 	  </h1>
       </div> <!-- hd_l -->
@@ -56,7 +58,7 @@
 
           for(i:=100;i<104;i:=i+1)
           {
-            http (sprintf ('<tr><td><a class="homelinks" href="search.vsp?q=%s&sc=%U">%s</a></td></tr>',cast(i as varchar), puri, label_get(cast(i as varchar))));
+            http (sprintf ('<tr><td><a class="homelinks" href="search.vsp?q=%U&sc=%U">%V</a></td></tr>',cast(i as varchar), puri, label_get(cast(i as varchar))));
           };
         ?>
       </table>
@@ -86,11 +88,10 @@
                     http('<tr>');
                     for(j:=0;j<length(rs);j:=j+1)
                     {
-                      tmp := rs[j];
-                      if ( isstring(tmp ) and (strstr(tmp,'http://') = 0 or strstr(tmp,'nodeID://')=0))
+                      tmp := __bft (rs[j], 2);
+                      if (isstring(tmp) and (strstr(tmp,'http://') = 0 or strstr(tmp,'https://') = 0 or strstr(tmp,'nodeID://')=0))
                       {
-		        http (sprintf ('<td><a class="uri" href="%s">%s</a>', concat('/describe/?url=', sprintf ('%U',tmp)), tmp));
-                        http ('</td>');
+		        http (sprintf ('<td><a class="uri" href="/describe/?url=%U">%V</a></td>', tmp, tmp));
                       }
                       else
                       {

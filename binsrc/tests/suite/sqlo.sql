@@ -8,7 +8,7 @@
 --  This file is part of the OpenLink Software Virtuoso Open-Source (VOS)
 --  project.
 --
---  Copyright (C) 1998-2024 OpenLink Software
+--  Copyright (C) 1998-2026 OpenLink Software
 --
 --  This project is free software; you can redistribute it and/or modify it
 --  under the terms of the GNU General Public License as published by the
@@ -544,7 +544,760 @@ use DB;
 --SET ARGV[$LIF] $+ $ARGV[$LIF] 1;
 --ECHO BOTH ": BUG1286: contains on a non-driving table\n";
 
+-- Case 1
 
+drop table SQLSMITH.orders if exists;
+
+CREATE TABLE SQLSMITH.orders (
+    id          INTEGER,
+    user_id     INTEGER,
+    amount      DOUBLE PRECISION,
+    status      VARCHAR(20),
+    created_at  TIMESTAMP
+);
+
+INSERT INTO SQLSMITH.orders VALUES (1, 1, 100.00, 'paid',    '2022-02-01 09:00:00');
+INSERT INTO SQLSMITH.orders VALUES (2, 1, 200.50, 'shipped', '2022-02-02 10:00:00');
+INSERT INTO SQLSMITH.orders VALUES (3, 2, NULL,   'failed',  '2022-02-03 11:00:00');
+INSERT INTO SQLSMITH.orders VALUES (4, 3, 50.00,  'paid',    '2022-02-04 12:00:00');
+INSERT INTO SQLSMITH.orders VALUES (5, 5, 999.99, 'paid',    '2022-02-05 13:00:00');
+
+SELECT COUNT(*)
+FROM SQLSMITH.orders AS ref_0
+WHERE LOG10(79.28)
+    <= CASE
+        WHEN CEILING(LOG10(76.78)) < EXP(74.48)
+        THEN SQRT(7.94)
+        ELSE 65.63
+    END;
+ECHO BOTH $IF $EQU $LAST[1] 5 "PASSED" "***FAILED";
+SET ARGV[$LIF] $+ $ARGV[$LIF] 1;
+ECHO BOTH ": constant predicate count from SQLSMITH.orders returned " $LAST[1] "\n";
+
+-- Case 2
+
+drop table SQLSMITH.comments if exists;
+
+CREATE TABLE SQLSMITH.comments (
+    id          INTEGER,
+    post_id     INTEGER,
+    user_id     INTEGER,
+    content     VARCHAR(1000),
+    is_spam     INTEGER,
+    created_at  DATETIME
+);
+
+INSERT INTO SQLSMITH.comments VALUES (1, 1, 2, 'Nice post', 0, CAST('2022-01-20 10:00:00' AS DATETIME));
+INSERT INTO SQLSMITH.comments VALUES (2, 1, 3, 'Spam here', 1, CAST('2022-01-21 11:00:00' AS DATETIME));
+INSERT INTO SQLSMITH.comments VALUES (3, 2, 1, 'Thanks', 0, CAST('2022-01-22 12:00:00' AS DATETIME));
+INSERT INTO SQLSMITH.comments VALUES (4, 4, 5, NULL, 0, CAST('2022-01-23 13:00:00' AS DATETIME));
+
+SELECT
+    ref_0.id AS c0,
+    ref_0.is_spam AS c1,
+    ref_0.created_at AS c2
+FROM SQLSMITH.comments AS ref_0
+WHERE EXISTS (
+    SELECT 1
+    FROM SQLSMITH.comments AS ref_1
+    WHERE ref_0.id <> ref_1.id
+);
+ECHO BOTH $IF $EQU $ROWCNT 4 "PASSED" "***FAILED";
+SET ARGV[$LIF] $+ $ARGV[$LIF] 1;
+ECHO BOTH ": EXISTS self-check on SQLSMITH.comments returned " $ROWCNT " rows\n";
+
+-- Case 3
+
+drop table SQLSMITH.users if exists;
+drop table SQLSMITH.orders if exists;
+
+CREATE TABLE SQLSMITH.users (
+    id           INTEGER,
+    username     VARCHAR(100),
+    email        VARCHAR(255),
+    age          INTEGER,
+    status       VARCHAR(20),
+    created_at   DATETIME,
+    score        DOUBLE PRECISION
+);
+
+CREATE TABLE SQLSMITH.orders (
+    id          INTEGER,
+    user_id     INTEGER,
+    amount      DOUBLE PRECISION,
+    status      VARCHAR(20),
+    created_at  DATETIME
+);
+
+INSERT INTO SQLSMITH.users VALUES (1, 'alice', 'alice@test.com', 20, 'active', CAST('2022-01-01 10:00:00' AS DATETIME), 88.5);
+INSERT INTO SQLSMITH.users VALUES (2, 'bob', 'bob@test.com', 30, 'active', CAST('2022-01-02 11:00:00' AS DATETIME), 92.3);
+INSERT INTO SQLSMITH.users VALUES (3, 'carol', NULL, NULL, 'banned', CAST('2022-01-03 12:00:00' AS DATETIME), NULL);
+INSERT INTO SQLSMITH.users VALUES (4, 'dave', 'dave@test.com', 45, 'active', CAST('2022-01-04 13:00:00' AS DATETIME), 65.2);
+INSERT INTO SQLSMITH.users VALUES (5, NULL, 'null@test.com', 18, 'inactive', CAST('2022-01-05 14:00:00' AS DATETIME), 70.0);
+
+INSERT INTO SQLSMITH.orders VALUES (1, 1, 100.00, 'paid', CAST('2022-02-01 09:00:00' AS DATETIME));
+INSERT INTO SQLSMITH.orders VALUES (2, 1, 200.50, 'shipped', CAST('2022-02-02 10:00:00' AS DATETIME));
+INSERT INTO SQLSMITH.orders VALUES (3, 2, NULL, 'failed', CAST('2022-02-03 11:00:00' AS DATETIME));
+INSERT INTO SQLSMITH.orders VALUES (4, 3, 50.00, 'paid', CAST('2022-02-04 12:00:00' AS DATETIME));
+INSERT INTO SQLSMITH.orders VALUES (5, 5, 999.99, 'paid', CAST('2022-02-05 13:00:00' AS DATETIME));
+
+SELECT COUNT(*)
+FROM SQLSMITH.users AS ref_0
+RIGHT JOIN SQLSMITH.users AS ref_1
+    ON ref_0.age = ref_1.id
+INNER JOIN (
+    SELECT
+        ref_2.status AS c7
+    FROM SQLSMITH.orders AS ref_2
+    WHERE ref_2.id < 64
+) AS subq_0
+    ON ref_0.username = subq_0.c7
+WHERE ref_1.score IS NULL;
+ECHO BOTH $IF $EQU $LAST[1] 0 "PASSED" "***FAILED";
+SET ARGV[$LIF] $+ $ARGV[$LIF] 1;
+ECHO BOTH ": RIGHT JOIN/derived table count returned " $LAST[1] "\n";
+
+-- Case 4
+
+drop table SQLSMITH.users if exists;
+
+CREATE TABLE SQLSMITH.users (
+    id           INTEGER,
+    username     VARCHAR(100),
+    email        VARCHAR(255),
+    age          INTEGER,
+    status       VARCHAR(20),
+    created_at   DATETIME,
+    score        DOUBLE PRECISION
+);
+
+INSERT INTO SQLSMITH.users VALUES (1, 'alice', 'alice@test.com', 20, 'active', CAST('2022-01-01 10:00:00' AS DATETIME), 88.5);
+INSERT INTO SQLSMITH.users VALUES (2, 'bob', 'bob@test.com', 30, 'active', CAST('2022-01-02 11:00:00' AS DATETIME), 92.3);
+INSERT INTO SQLSMITH.users VALUES (3, 'carol', NULL, NULL, 'banned', CAST('2022-01-03 12:00:00' AS DATETIME), NULL);
+INSERT INTO SQLSMITH.users VALUES (4, 'dave', 'dave@test.com', 45, 'active', CAST('2022-01-04 13:00:00' AS DATETIME), 65.2);
+INSERT INTO SQLSMITH.users VALUES (5, NULL, 'null@test.com', 18, 'inactive', CAST('2022-01-05 14:00:00' AS DATETIME), 70.0);
+
+SELECT COUNT(*)
+FROM SQLSMITH.users AS ref_0
+WHERE (ref_0.id >= ref_0.id)
+   OR (
+        (ref_0.age <> ref_0.id)
+        AND (ref_0.username IS NOT NULL)
+        AND (ref_0.id >= ref_0.id)
+      );
+ECHO BOTH $IF $EQU $LAST[1] 5 "PASSED" "***FAILED";
+SET ARGV[$LIF] $+ $ARGV[$LIF] 1;
+ECHO BOTH ": tautology/or predicate count returned " $LAST[1] "\n";
+
+-- Case 5
+
+drop table SQLSMITH.posts if exists;
+
+CREATE TABLE SQLSMITH.posts (
+    id          INTEGER,
+    user_id     INTEGER,
+    title       VARCHAR(255),
+    content     VARCHAR(1000),
+    views       INTEGER,
+    likes       INTEGER,
+    created_at  DATETIME,
+    rating      DOUBLE PRECISION
+);
+
+INSERT INTO SQLSMITH.posts VALUES (1, 1, 'Hello World', 'First post', 100, 10, CAST('2022-01-10 10:00:00' AS DATETIME), 4.5);
+INSERT INTO SQLSMITH.posts VALUES (2, 1, 'Another Post', NULL, 150, 20, CAST('2022-01-11 11:00:00' AS DATETIME), 3.0);
+INSERT INTO SQLSMITH.posts VALUES (3, 2, 'Bob Post', 'Content', NULL, 5, CAST('2022-01-12 12:00:00' AS DATETIME), NULL);
+INSERT INTO SQLSMITH.posts VALUES (4, 3, NULL, 'Empty', 50, 2, CAST('2022-01-13 13:00:00' AS DATETIME), 5.0);
+INSERT INTO SQLSMITH.posts VALUES (5, 4, 'Last Post', 'Last', 300, 30, CAST('2022-01-14 14:00:00' AS DATETIME), 4.9);
+
+SELECT
+  CASE WHEN 58.63 <> CASE WHEN (46 <= ref_0.views) AND (ref_0.likes <> ref_0.likes) THEN 44.48 ELSE 79.87 END THEN 75 ELSE ref_0.user_id END AS c0,
+  ABS(21.22) AS c1
+FROM SQLSMITH.posts AS ref_0
+WHERE ref_0.likes >= ref_0.user_id
+UNION
+SELECT
+  CASE WHEN 58.63 <> CASE WHEN (46 <= ref_0.views) AND (ref_0.likes <> ref_0.likes) THEN 44.48 ELSE 79.87 END THEN 75 ELSE ref_0.user_id END AS c0,
+  ABS(21.22) AS c1
+FROM SQLSMITH.posts AS ref_0
+WHERE ref_0.views <= ref_0.likes;
+ECHO BOTH $IF $EQU $ROWCNT 1 "PASSED" "***FAILED";
+SET ARGV[$LIF] $+ $ARGV[$LIF] 1;
+ECHO BOTH ": UNION variant returned " $ROWCNT " rows\n";
+
+SELECT
+  CASE WHEN 58.63 <> CASE WHEN (46 <= ref_0.views) AND (ref_0.likes <> ref_0.likes) THEN 44.48 ELSE 79.87 END THEN 75 ELSE ref_0.user_id END AS c0,
+  ABS(21.22) AS c1
+FROM SQLSMITH.posts AS ref_0
+WHERE ref_0.likes >= ref_0.user_id
+INTERSECT
+SELECT
+  CASE WHEN 58.63 <> CASE WHEN (46 <= ref_0.views) AND (ref_0.likes <> ref_0.likes) THEN 44.48 ELSE 79.87 END THEN 75 ELSE ref_0.user_id END AS c0,
+  ABS(21.22) AS c1
+FROM SQLSMITH.posts AS ref_0
+WHERE ref_0.views <= ref_0.likes;
+ECHO BOTH $IF $EQU $ROWCNT 0 "PASSED" "***FAILED";
+SET ARGV[$LIF] $+ $ARGV[$LIF] 1;
+ECHO BOTH ": INTERSECT variant returned " $ROWCNT " rows\n";
+
+-- Case 6
+
+drop table SQLSMITH.users if exists;
+
+CREATE TABLE SQLSMITH.users (
+    id           INTEGER,
+    username     VARCHAR(100),
+    email        VARCHAR(255),
+    age          INTEGER,
+    status       VARCHAR(20),
+    created_at   DATETIME,
+    score        DOUBLE PRECISION
+);
+
+INSERT INTO SQLSMITH.users VALUES (1, 'alice', 'alice@test.com', 20, 'active', CAST('2022-01-01 10:00:00' AS DATETIME), 88.5);
+INSERT INTO SQLSMITH.users VALUES (2, 'bob', 'bob@test.com', 30, 'active', CAST('2022-01-02 11:00:00' AS DATETIME), 92.3);
+INSERT INTO SQLSMITH.users VALUES (3, 'carol', NULL, NULL, 'banned', CAST('2022-01-03 12:00:00' AS DATETIME), NULL);
+INSERT INTO SQLSMITH.users VALUES (4, 'dave', 'dave@test.com', 45, 'active', CAST('2022-01-04 13:00:00' AS DATETIME), 65.2);
+INSERT INTO SQLSMITH.users VALUES (5, NULL, 'null@test.com', 18, 'inactive', CAST('2022-01-05 14:00:00' AS DATETIME), 70.0);
+
+-- original query
+SELECT COUNT(*)
+FROM SQLSMITH.users AS ref_0
+WHERE (
+    (ref_0.id >= ref_0.id)
+    OR (
+        ((ref_0.age <> ref_0.id)
+        AND (ref_0.username IS NOT NULL))
+        AND (ref_0.id >= ref_0.id)
+    )
+);
+ECHO BOTH $IF $EQU $LAST[1] 5 "PASSED" "***FAILED";
+SET ARGV[$LIF] $+ $ARGV[$LIF] 1;
+ECHO BOTH ": NOREC original query count returned " $LAST[1] "\n";
+
+-- transformed query (Norec reference construction)
+SELECT SUM(
+    CASE
+        WHEN (
+            (ref_0.id >= ref_0.id)
+            OR (
+                ((ref_0.age <> ref_0.id)
+                AND (ref_0.username IS NOT NULL))
+                AND (ref_0.id >= ref_0.id)
+            )
+        )
+        THEN 1
+        ELSE 0
+    END + 0
+)
+FROM SQLSMITH.users AS ref_0;
+ECHO BOTH $IF $EQU $LAST[1] 5 "PASSED" "***FAILED";
+SET ARGV[$LIF] $+ $ARGV[$LIF] 1;
+ECHO BOTH ": NOREC transformed query count returned " $LAST[1] "\n";
+
+-- Case 1
+
+drop table SQLSMITH.posts if exists;
+
+CREATE TABLE SQLSMITH.posts (
+    id          INTEGER,
+    user_id     INTEGER,
+    title       VARCHAR(255),
+    content     VARCHAR(1000),
+    views       INTEGER,
+    likes       INTEGER,
+    created_at  DATETIME,
+    rating      DOUBLE PRECISION
+);
+
+INSERT INTO SQLSMITH.posts VALUES (1, 1, 'Hello World', 'First post', 100, 10, CAST('2022-01-10 10:00:00' AS DATETIME), 4.5);
+INSERT INTO SQLSMITH.posts VALUES (2, 1, 'Another Post', NULL, 150, 20, CAST('2022-01-11 11:00:00' AS DATETIME), 3.0);
+INSERT INTO SQLSMITH.posts VALUES (3, 2, 'Bob Post', 'Content', NULL, 5, CAST('2022-01-12 12:00:00' AS DATETIME), NULL);
+INSERT INTO SQLSMITH.posts VALUES (4, 3, NULL, 'Empty', 50, 2, CAST('2022-01-13 13:00:00' AS DATETIME), 5.0);
+INSERT INTO SQLSMITH.posts VALUES (5, 4, 'Last Post', 'Last', 300, 30, CAST('2022-01-14 14:00:00' AS DATETIME), 4.9);
+
+SELECT COUNT(*)
+FROM SQLSMITH.posts AS ref_0;
+ECHO BOTH $IF $EQU $LAST[1] 5 "PASSED" "***FAILED";
+SET ARGV[$LIF] $+ $ARGV[$LIF] 1;
+ECHO BOTH ": Case 1 source count returned " $LAST[1] "\n";
+
+SELECT SUM(sub_cnt) FROM (
+  SELECT COUNT(*) AS sub_cnt
+  FROM SQLSMITH.posts AS ref_0
+  WHERE (ref_0.views <> ref_0.views)
+  UNION ALL
+  SELECT COUNT(*) AS sub_cnt
+  FROM SQLSMITH.posts AS ref_0
+  WHERE (NOT (ref_0.views <> ref_0.views))
+  UNION ALL
+  SELECT COUNT(*) AS sub_cnt
+  FROM SQLSMITH.posts AS ref_0
+  WHERE (CASE WHEN (ref_0.views <> ref_0.views) THEN 0 WHEN NOT (ref_0.views <> ref_0.views) THEN 0 ELSE 1 END = 1)
+) AS tlp_parts;
+ECHO BOTH $IF $EQU $LAST[1] 5 "PASSED" "***FAILED";
+SET ARGV[$LIF] $+ $ARGV[$LIF] 1;
+ECHO BOTH ": Case 1 TLP count returned " $LAST[1] "\n";
+
+-- Case 2
+
+drop table SQLSMITH.users if exists;
+
+CREATE TABLE SQLSMITH.users (
+    id           INTEGER,
+    username     VARCHAR(100),
+    email        VARCHAR(255),
+    age          INTEGER,
+    status       VARCHAR(20),
+    created_at   DATETIME,
+    score        DOUBLE PRECISION
+);
+
+INSERT INTO SQLSMITH.users VALUES (1, 'alice', 'alice@test.com', 20, 'active', CAST('2022-01-01 10:00:00' AS DATETIME), 88.5);
+INSERT INTO SQLSMITH.users VALUES (2, 'bob', 'bob@test.com', 30, 'active', CAST('2022-01-02 11:00:00' AS DATETIME), 92.3);
+INSERT INTO SQLSMITH.users VALUES (3, 'carol', NULL, NULL, 'banned', CAST('2022-01-03 12:00:00' AS DATETIME), NULL);
+INSERT INTO SQLSMITH.users VALUES (4, 'dave', 'dave@test.com', 45, 'active', CAST('2022-01-04 13:00:00' AS DATETIME), 65.2);
+INSERT INTO SQLSMITH.users VALUES (5, NULL, 'null@test.com', 18, 'inactive', CAST('2022-01-05 14:00:00' AS DATETIME), 70.0);
+
+SELECT COUNT(*) FROM SQLSMITH.users;
+ECHO BOTH $IF $EQU $LAST[1] 5 "PASSED" "***FAILED";
+SET ARGV[$LIF] $+ $ARGV[$LIF] 1;
+ECHO BOTH ": Case 2 source count returned " $LAST[1] "\n";
+
+SELECT SUM(sub_cnt) FROM (
+    SELECT COUNT(*) AS sub_cnt
+    FROM SQLSMITH.users
+    WHERE (id < age OR score IS NOT NULL)
+
+    UNION ALL
+
+    SELECT COUNT(*) AS sub_cnt
+    FROM SQLSMITH.users
+    WHERE NOT (id < age OR score IS NOT NULL)
+
+    UNION ALL
+
+    SELECT COUNT(*) AS sub_cnt
+    FROM SQLSMITH.users
+    WHERE CASE
+            WHEN (id < age OR score IS NOT NULL) THEN 0
+            WHEN NOT (id < age OR score IS NOT NULL) THEN 0
+            ELSE 1
+          END = 1
+) AS tlp_parts;
+ECHO BOTH $IF $EQU $LAST[1] 5 "PASSED" "***FAILED";
+SET ARGV[$LIF] $+ $ARGV[$LIF] 1;
+ECHO BOTH ": Case 2 TLP count returned " $LAST[1] "\n";
+
+-- Case 3
+
+drop table SQLSMITH.comments if exists;
+drop table SQLSMITH.orders if exists;
+
+CREATE TABLE SQLSMITH.comments (
+    id          INTEGER,
+    post_id     INTEGER,
+    user_id     INTEGER,
+    content     VARCHAR(1000),
+    is_spam     INTEGER,
+    created_at  DATETIME
+);
+
+CREATE TABLE SQLSMITH.orders (
+    id          INTEGER,
+    user_id     INTEGER,
+    amount      DOUBLE PRECISION,
+    status      VARCHAR(20),
+    created_at  DATETIME
+);
+
+INSERT INTO SQLSMITH.comments VALUES (1, 1, 2, 'Nice post', 0, CAST('2022-01-20 10:00:00' AS DATETIME));
+INSERT INTO SQLSMITH.comments VALUES (2, 1, 3, 'Spam here', 1, CAST('2022-01-21 11:00:00' AS DATETIME));
+INSERT INTO SQLSMITH.comments VALUES (3, 2, 1, 'Thanks', 0, CAST('2022-01-22 12:00:00' AS DATETIME));
+INSERT INTO SQLSMITH.comments VALUES (4, 4, 5, NULL, 0, CAST('2022-01-23 13:00:00' AS DATETIME));
+
+INSERT INTO SQLSMITH.orders VALUES (1, 1, 100.00, 'paid', CAST('2022-02-01 09:00:00' AS DATETIME));
+INSERT INTO SQLSMITH.orders VALUES (2, 1, 200.50, 'shipped', CAST('2022-02-02 10:00:00' AS DATETIME));
+INSERT INTO SQLSMITH.orders VALUES (3, 2, NULL, 'failed', CAST('2022-02-03 11:00:00' AS DATETIME));
+INSERT INTO SQLSMITH.orders VALUES (4, 3, 50.00, 'paid', CAST('2022-02-04 12:00:00' AS DATETIME));
+INSERT INTO SQLSMITH.orders VALUES (5, 5, 999.99, 'paid', CAST('2022-02-05 13:00:00' AS DATETIME));
+
+SELECT COUNT(*)
+FROM (
+    SELECT ref_1.user_id AS c0
+    FROM SQLSMITH.comments AS ref_0
+    LEFT JOIN SQLSMITH.orders AS ref_1
+      ON (ref_0.is_spam = ref_1.id)
+    WHERE ref_1.id IS NULL
+      AND ref_1.user_id IS NULL
+) AS subq_0;
+ECHO BOTH $IF $EQU $LAST[1] 3 "PASSED" "***FAILED";
+SET ARGV[$LIF] $+ $ARGV[$LIF] 1;
+ECHO BOTH ": Case 3 source count returned " $LAST[1] "\n";
+
+SELECT SUM(sub_cnt) FROM (
+    SELECT COUNT(*) AS sub_cnt
+    FROM (
+        SELECT ref_1.user_id AS c0
+        FROM SQLSMITH.comments AS ref_0
+        LEFT JOIN SQLSMITH.orders AS ref_1
+          ON (ref_0.is_spam = ref_1.id)
+        WHERE ref_1.id IS NULL
+          AND ref_1.user_id IS NULL
+    ) AS subq_0
+    WHERE subq_0.c0 <> subq_0.c0
+
+    UNION ALL
+
+    SELECT COUNT(*) AS sub_cnt
+    FROM (
+        SELECT ref_1.user_id AS c0
+        FROM SQLSMITH.comments AS ref_0
+        LEFT JOIN SQLSMITH.orders AS ref_1
+          ON (ref_0.is_spam = ref_1.id)
+        WHERE ref_1.id IS NULL
+          AND ref_1.user_id IS NULL
+    ) AS subq_0
+    WHERE NOT (subq_0.c0 <> subq_0.c0)
+
+    UNION ALL
+
+    SELECT COUNT(*) AS sub_cnt
+    FROM (
+        SELECT ref_1.user_id AS c0
+        FROM SQLSMITH.comments AS ref_0
+        LEFT JOIN SQLSMITH.orders AS ref_1
+          ON (ref_0.is_spam = ref_1.id)
+        WHERE ref_1.id IS NULL
+          AND ref_1.user_id IS NULL
+    ) AS subq_0
+    WHERE CASE
+            WHEN subq_0.c0 <> subq_0.c0 THEN 0
+            WHEN NOT (subq_0.c0 <> subq_0.c0) THEN 0
+            ELSE 1
+          END = 1
+) AS tlp_parts;
+ECHO BOTH $IF $EQU $LAST[1] 3 "PASSED" "***FAILED";
+SET ARGV[$LIF] $+ $ARGV[$LIF] 1;
+ECHO BOTH ": Case 3 TLP count returned " $LAST[1] "\n";
+
+-- Case 4
+
+drop table SQLSMITH.posts if exists;
+drop table SQLSMITH.comments if exists;
+
+CREATE TABLE SQLSMITH.posts (
+    id          INTEGER,
+    user_id     INTEGER,
+    title       VARCHAR(255),
+    content     VARCHAR(1000),
+    views       INTEGER,
+    likes       INTEGER,
+    created_at  DATETIME,
+    rating      DOUBLE PRECISION
+);
+
+CREATE TABLE SQLSMITH.comments (
+    id          INTEGER,
+    post_id     INTEGER,
+    user_id     INTEGER,
+    content     VARCHAR(1000),
+    is_spam     INTEGER,
+    created_at  DATETIME
+);
+
+INSERT INTO SQLSMITH.posts VALUES (1, 1, 'Hello World', 'First post', 100, 10, CAST('2022-01-10 10:00:00' AS DATETIME), 4.5);
+INSERT INTO SQLSMITH.posts VALUES (2, 1, 'Another Post', NULL, 150, 20, CAST('2022-01-11 11:00:00' AS DATETIME), 3.0);
+INSERT INTO SQLSMITH.posts VALUES (3, 2, 'Bob Post', 'Content', NULL, 5, CAST('2022-01-12 12:00:00' AS DATETIME), NULL);
+INSERT INTO SQLSMITH.posts VALUES (4, 3, NULL, 'Empty', 50, 2, CAST('2022-01-13 13:00:00' AS DATETIME), 5.0);
+INSERT INTO SQLSMITH.posts VALUES (5, 4, 'Last Post', 'Last', 300, 30, CAST('2022-01-14 14:00:00' AS DATETIME), 4.9);
+
+INSERT INTO SQLSMITH.comments VALUES (1, 1, 2, 'Nice post', 0, CAST('2022-01-20 10:00:00' AS DATETIME));
+INSERT INTO SQLSMITH.comments VALUES (2, 1, 3, 'Spam here', 1, CAST('2022-01-21 11:00:00' AS DATETIME));
+INSERT INTO SQLSMITH.comments VALUES (3, 2, 1, 'Thanks', 0, CAST('2022-01-22 12:00:00' AS DATETIME));
+INSERT INTO SQLSMITH.comments VALUES (4, 4, 5, NULL, 0, CAST('2022-01-23 13:00:00' AS DATETIME));
+
+SELECT COUNT(*)
+FROM (
+    SELECT
+        ref_0.id AS c2,
+        ref_0.id AS c3
+    FROM SQLSMITH.comments AS ref_0
+    WHERE EXISTS (
+        SELECT 1
+        FROM SQLSMITH.posts AS ref_1
+        WHERE ref_0.is_spam <> ref_1.views
+    )
+) AS subq_0;
+ECHO BOTH $IF $EQU $LAST[1] 4 "PASSED" "***FAILED";
+SET ARGV[$LIF] $+ $ARGV[$LIF] 1;
+ECHO BOTH ": Case 4 source count returned " $LAST[1] "\n";
+
+SELECT SUM(sub_cnt)
+FROM (
+    SELECT COUNT(*) AS sub_cnt
+    FROM (
+        SELECT
+            CASE
+                WHEN ref_0.id >= ref_0.post_id THEN ref_0.is_spam
+                ELSE ref_0.is_spam
+            END AS c0,
+            ref_0.id AS c1,
+            ref_0.id AS c2,
+            ref_0.id AS c3,
+            ref_0.is_spam AS c4
+        FROM SQLSMITH.comments AS ref_0
+        WHERE EXISTS (
+            SELECT 1
+            FROM SQLSMITH.posts AS ref_1
+            WHERE ref_0.is_spam <> ref_1.views
+        )
+    ) AS subq_0
+    WHERE (subq_0.c2 >= subq_0.c3)
+
+    UNION ALL
+
+    SELECT COUNT(*) AS sub_cnt
+    FROM (
+        SELECT
+            CASE
+                WHEN ref_0.id >= ref_0.post_id THEN ref_0.is_spam
+                ELSE ref_0.is_spam
+            END AS c0,
+            ref_0.id AS c1,
+            ref_0.id AS c2,
+            ref_0.id AS c3,
+            ref_0.is_spam AS c4
+        FROM SQLSMITH.comments AS ref_0
+        WHERE EXISTS (
+            SELECT 1
+            FROM SQLSMITH.posts AS ref_1
+            WHERE ref_0.is_spam <> ref_1.views
+        )
+    ) AS subq_0
+    WHERE NOT (subq_0.c2 >= subq_0.c3)
+
+    UNION ALL
+
+    SELECT COUNT(*) AS sub_cnt
+    FROM (
+        SELECT
+            CASE
+                WHEN ref_0.id >= ref_0.post_id THEN ref_0.is_spam
+                ELSE ref_0.is_spam
+            END AS c0,
+            ref_0.id AS c1,
+            ref_0.id AS c2,
+            ref_0.id AS c3,
+            ref_0.is_spam AS c4
+        FROM SQLSMITH.comments AS ref_0
+        WHERE EXISTS (
+            SELECT 1
+            FROM SQLSMITH.posts AS ref_1
+            WHERE ref_0.is_spam <> ref_1.views
+        )
+    ) AS subq_0
+    WHERE (
+        CASE
+            WHEN (subq_0.c2 >= subq_0.c3) THEN 0
+            WHEN NOT (subq_0.c2 >= subq_0.c3) THEN 0
+            ELSE 1
+        END = 1
+    )
+) AS tlp_parts;
+ECHO BOTH $IF $EQU $LAST[1] 4 "PASSED" "***FAILED";
+SET ARGV[$LIF] $+ $ARGV[$LIF] 1;
+ECHO BOTH ": Case 4 TLP count returned " $LAST[1] "\n";
+
+-- Case 5
+
+drop table SQLSMITH.posts if exists;
+
+CREATE TABLE SQLSMITH.posts (
+    id          INTEGER,
+    user_id     INTEGER,
+    title       VARCHAR(255),
+    content     VARCHAR(1000),
+    views       INTEGER,
+    likes       INTEGER,
+    created_at  DATETIME,
+    rating      DOUBLE PRECISION
+);
+
+INSERT INTO SQLSMITH.posts VALUES (1, 1, 'Hello World', 'First post', 100, 10, CAST('2022-01-10 10:00:00' AS DATETIME), 4.5);
+INSERT INTO SQLSMITH.posts VALUES (2, 1, 'Another Post', NULL, 150, 20, CAST('2022-01-11 11:00:00' AS DATETIME), 3.0);
+INSERT INTO SQLSMITH.posts VALUES (3, 2, 'Bob Post', 'Content', NULL, 5, CAST('2022-01-12 12:00:00' AS DATETIME), NULL);
+INSERT INTO SQLSMITH.posts VALUES (4, 3, NULL, 'Empty', 50, 2, CAST('2022-01-13 13:00:00' AS DATETIME), 5.0);
+INSERT INTO SQLSMITH.posts VALUES (5, 4, 'Last Post', 'Last', 300, 30, CAST('2022-01-14 14:00:00' AS DATETIME), 4.9);
+
+SELECT COUNT(*)
+FROM (
+    SELECT ref_0.likes AS c0,
+           ref_0.views AS c3
+    FROM SQLSMITH.posts AS ref_0
+    WHERE ref_0.views IS NULL
+) AS subq_0;
+ECHO BOTH $IF $EQU $LAST[1] 1 "PASSED" "***FAILED";
+SET ARGV[$LIF] $+ $ARGV[$LIF] 1;
+ECHO BOTH ": Case 5 source count returned " $LAST[1] "\n";
+
+SELECT SUM(sub_cnt)
+FROM (
+    SELECT COUNT(*) AS sub_cnt
+    FROM (
+        SELECT ref_0.likes AS c0,
+               ref_0.views AS c3
+        FROM SQLSMITH.posts AS ref_0
+        WHERE ref_0.views IS NULL
+    ) AS subq_0
+    WHERE (
+        (CASE
+            WHEN subq_0.c3 <> 64 THEN
+                CASE
+                    WHEN subq_0.c0 <> subq_0.c3 THEN 23.86
+                    ELSE 44.76
+                END
+            ELSE 34.84
+        END > 98.31)
+        OR (subq_0.c0 > subq_0.c3)
+    )
+
+    UNION ALL
+
+    SELECT COUNT(*) AS sub_cnt
+    FROM (
+        SELECT ref_0.likes AS c0,
+               ref_0.views AS c3
+        FROM SQLSMITH.posts AS ref_0
+        WHERE ref_0.views IS NULL
+    ) AS subq_0
+    WHERE NOT (
+        (CASE
+            WHEN subq_0.c3 <> 64 THEN
+                CASE
+                    WHEN subq_0.c0 <> subq_0.c3 THEN 23.86
+                    ELSE 44.76
+                END
+            ELSE 34.84
+        END > 98.31)
+        OR (subq_0.c0 > subq_0.c3)
+    )
+
+    UNION ALL
+
+    SELECT COUNT(*) AS sub_cnt
+    FROM (
+        SELECT ref_0.likes AS c0,
+               ref_0.views AS c3
+        FROM SQLSMITH.posts AS ref_0
+        WHERE ref_0.views IS NULL
+    ) AS subq_0
+    WHERE CASE
+        WHEN (
+            (CASE
+                WHEN subq_0.c3 <> 64 THEN
+                    CASE
+                        WHEN subq_0.c0 <> subq_0.c3 THEN 23.86
+                        ELSE 44.76
+                    END
+                ELSE 34.84
+            END > 98.31)
+            OR (subq_0.c0 > subq_0.c3)
+        ) THEN 0
+        WHEN NOT (
+            (CASE
+                WHEN subq_0.c3 <> 64 THEN
+                    CASE
+                        WHEN subq_0.c0 <> subq_0.c3 THEN 23.86
+                        ELSE 44.76
+                    END
+                ELSE 34.84
+            END > 98.31)
+            OR (subq_0.c0 > subq_0.c3)
+        ) THEN 0
+        ELSE 1
+    END = 1
+) AS tlp_parts;
+ECHO BOTH $IF $EQU $LAST[1] 1 "PASSED" "***FAILED";
+SET ARGV[$LIF] $+ $ARGV[$LIF] 1;
+ECHO BOTH ": Case 5 TLP count returned " $LAST[1] "\n";
+
+-- Case 6
+
+drop table SQLSMITH.users if exists;
+
+CREATE TABLE SQLSMITH.users (
+    id           INTEGER,
+    username     VARCHAR(100),
+    email        VARCHAR(255),
+    age          INTEGER,
+    status       VARCHAR(20),
+    created_at   DATETIME,
+    score        DOUBLE PRECISION
+);
+
+INSERT INTO SQLSMITH.users VALUES (1, 'alice', 'alice@test.com', 20, 'active', CAST('2022-01-01 10:00:00' AS DATETIME), 88.5);
+INSERT INTO SQLSMITH.users VALUES (2, 'bob', 'bob@test.com', 30, 'active', CAST('2022-01-02 11:00:00' AS DATETIME), 92.3);
+INSERT INTO SQLSMITH.users VALUES (3, 'carol', NULL, NULL, 'banned', CAST('2022-01-03 12:00:00' AS DATETIME), NULL);
+INSERT INTO SQLSMITH.users VALUES (4, 'dave', 'dave@test.com', 45, 'active', CAST('2022-01-04 13:00:00' AS DATETIME), 65.2);
+INSERT INTO SQLSMITH.users VALUES (5, NULL, 'null@test.com', 18, 'inactive', CAST('2022-01-05 14:00:00' AS DATETIME), 70.0);
+
+SELECT COUNT(*) FROM SQLSMITH.users;
+ECHO BOTH $IF $EQU $LAST[1] 5 "PASSED" "***FAILED";
+SET ARGV[$LIF] $+ $ARGV[$LIF] 1;
+ECHO BOTH ": Case 6 source count returned " $LAST[1] "\n";
+
+SELECT SUM(sub_cnt)
+FROM (
+    SELECT COUNT(*) AS sub_cnt
+    FROM SQLSMITH.users AS ref_0
+    WHERE (
+        (ref_0.id >= ref_0.id)
+        OR (
+            ((ref_0.age <> ref_0.id)
+            AND (ref_0.username IS NOT NULL))
+            AND (ref_0.id >= ref_0.id)
+        )
+    )
+
+    UNION ALL
+
+    SELECT COUNT(*) AS sub_cnt
+    FROM SQLSMITH.users AS ref_0
+    WHERE NOT (
+        (ref_0.id >= ref_0.id)
+        OR (
+            ((ref_0.age <> ref_0.id)
+            AND (ref_0.username IS NOT NULL))
+            AND (ref_0.id >= ref_0.id)
+        )
+    )
+
+    UNION ALL
+
+    SELECT COUNT(*) AS sub_cnt
+    FROM SQLSMITH.users AS ref_0
+    WHERE CASE
+        WHEN (
+            (ref_0.id >= ref_0.id)
+            OR (
+                ((ref_0.age <> ref_0.id)
+                AND (ref_0.username IS NOT NULL))
+                AND (ref_0.id >= ref_0.id))
+        ) THEN 0
+        WHEN NOT (
+            (ref_0.id >= ref_0.id)
+            OR (
+                ((ref_0.age <> ref_0.id)
+                AND (ref_0.username IS NOT NULL))
+                AND (ref_0.id >= ref_0.id))
+        ) THEN 0
+        ELSE 1
+    END = 1
+) AS tlp_parts;
+ECHO BOTH $IF $EQU $LAST[1] 5 "PASSED" "***FAILED";
+SET ARGV[$LIF] $+ $ARGV[$LIF] 1;
+ECHO BOTH ": Case 6 TLP count returned " $LAST[1] "\n";
 
 SELECT COUNT ( 1) FROM DBA.T1 t1 , (SELECT t3.ROW_NO AS ROW_NO, COUNT ( 1) AS CT FROM DBA.T1 t3  GROUP BY t3.ROW_NO) dt2  where 1 + t1.ROW_NO = dt2.ROW_NO;
 ECHO BOTH $IF $EQU $LAST[1] 999 "PASSED" "***FAILED";
@@ -2016,7 +2769,7 @@ ECHO BOTH ": " $U{caseno} " STATE=" $STATE " MESSAGE=" $MESSAGE "\n";
 
 set U{caseno} case1270;
 SELECT x FROM ( SELECT ( log ( 0 ) ) x FROM ( SELECT 0 x ) x GROUP BY rollup ( x , 1 ) ) x ORDER BY ( FLOOR ( x ) / ( -100 / ( 60 ) ) ) , MIN ( 'MULTIPOINT((3 10))' );
-ECHO BOTH $IF $NEQ $STATE OK "PASSED" "***FAILED";
+ECHO BOTH $IF $EQU $STATE OK "PASSED" "***FAILED";
 SET ARGV[$LIF] $+ $ARGV[$LIF] 1;
 ECHO BOTH ": " $U{caseno} " STATE=" $STATE " MESSAGE=" $MESSAGE "\n";
 
@@ -2092,5 +2845,725 @@ ECHO BOTH $IF $EQU $LAST[1] 1 "PASSED" "***FAILED";
 SET ARGV[$LIF] $+ $ARGV[$LIF] 1;
 ECHO BOTH ": " $U{caseno} " STATE=" $STATE " MESSAGE=" $MESSAGE "\n";
 
+create table TBUDTSTR (id0 varchar, id1 varchar, primary key(id0,id1)) if not exists;
+create unique index TBUDTSTR_i0 on TBUDTSTR(id0) if not exists;
+drop type UDT2STR if exists;
+create type UDT2STR as (id varchar, u utr0)
+constructor method UDT2STR(id varchar);
+
+create constructor method UDT2STR(in id varchar) for UDT2STR { self.id := id; };
+
+insert soft TBUDTSTR values ('1','1');
+insert soft TBUDTSTR values ('2','1');
+insert soft TBUDTSTR values ('3','1');
+
+select * from TBUDTSTR where id0 = UDT2STR(1).id;
+ECHO BOTH $IF $EQU $STATE OK "PASSED" "***FAILED";
+SET ARGV[$LIF] $+ $ARGV[$LIF] 1;
+ECHO BOTH ": member observer any type STATE=" $STATE " MESSAGE=" $MESSAGE "\n";
+
+drop table v0;
+CREATE TABLE v0 ( v1 INT PRIMARY KEY , v2 long TEXT ) ;
+ INSERT INTO v0 ( v1 , v1 ) VALUES ( 0 , 'x' ) ;
+ INSERT INTO v0 ( v1 , v2 ) VALUES ( 56 , ( SELECT 16 FROM v0 e LEFT JOIN v0 USING ( v2 , v2 , v1 , v1 , v1 , v2 , v2 , v2 , v2 , v1 , v1 , v2 , v1 , v1 , v1 , v2 , v1 , v1 , v2 , v2 , v1 ) ) ) ;
+ SELECT * FROM v0 WHERE v2 = ( SELECT BIT_XOR ( v2 ) FROM v0 AS v5 , v0 AS v3 NATURAL JOIN v0 AS v4 NATURAL JOIN v0 USING ( v2 ) NATURAL JOIN v0 ts2 ) ;
+echo both $if $neq $state OK "PASSED" "***FAILED";
+set argv[$lif] $+ $argv[$lif] 1;
+echo both ": case 1372 STATE=" $state " MESSAGE=" $message "\n" ;
+
+drop table v0;
+CREATE TABLE v0 ( v1 REAL UNIQUE PRIMARY KEY , v2 NUMERIC NOT NULL CHECK ( v1 = -128 ) ) ;
+INSERT INTO v0 VALUES ( -128 , 49 ) ;
+drop table v5;
+CREATE TABLE v5 ( v6 INT , v7 INT NOT NULL CHECK ( v7 IN ( SELECT v2 FROM v0 WHERE v2 = 0 ) ) ) ;
+INSERT INTO v5 VALUES ( 0 , 8 ) ;
+
+echo both $if $neq $state OK "PASSED" "***FAILED";
+set argv[$lif] $+ $argv[$lif] 1;
+echo both ": case 1373 STATE=" $state " MESSAGE=" $message "\n" ;
+
+drop table v0;
+CREATE TABLE v0 ( v1 NUMERIC UNIQUE PRIMARY KEY CHECK ( v1 / 70249102.000000 < 98 AND v1 <= 8 ) ) ;
+ INSERT INTO v0 VALUES ( 43938596.000000 ) , ( 87654080.000000 ) , ( 83504924.000000 ) , ( 39788480.000000 ) , ( 85377868.000000 ) , ( NULL ) ;
+ SELECT v0 . v1 , ( v0 . v1 ) AS v2 GROUP BY 16 , -32768 ;
+drop table v3;
+ CREATE TABLE v3 ( v4 FLOAT ) ;
+ INSERT INTO v0 VALUES ( 99634861.000000 ) , ( 70609933.000000 ) , ( 79634166.000000 ) , ( 37598120.000000 ) ;
+ INSERT INTO v0 VALUES ( 30 ) ;
+ INSERT INTO v0 VALUES ( -1 ) ;
+ SELECT v1 , v1 , LEAD ( ) OVER ( PARTITION BY v1 ORDER BY v1 ) AS v5 FROM v0 USING ( v1 ) FROM x WHERE v1 >= 77134685.000000 ;
+drop table v6;
+ CREATE TABLE v6 ( v7 INTEGER ) ;
+ INSERT INTO v3 VALUES ( 55 ) , ( 127 ) , ( -128 ) ;
+ SELECT v3 . v4 , AVG ( v0 . v1 ) AS v8 FROM v0 JOIN v3 ON v4 = v0 . v1 ;
+ SELECT v4 , SUM ( * ) FROM v3 GROUP BY STDDEV_POP ( v4 ) ;
+ SELECT VARIANCE ( VAR_SAMP ( v4 ) ) , STDDEV ( STD ( v4 ) ) FROM v3 ON v7 x = v6 . v7 ;
+
+echo both $if $neq $state OK "PASSED" "***FAILED";
+set argv[$lif] $+ $argv[$lif] 1;
+echo both ": case 1374 STATE=" $state " MESSAGE=" $message "\n" ;
+SELECT v3 . v4 , AVG ( v0 . v1 ) AS v8 FROM v3 join v0 table option (index primary key)  ON v4 = v0 . v1 option (order,hash);
+echo both $if $equ $state OK "PASSED" "***FAILED";
+set argv[$lif] $+ $argv[$lif] 1;
+echo both ": case 1374 STATE=" $state " MESSAGE=" $message "\n" ;
+
+drop table v0;
+CREATE TABLE v0 ( v1 INT , v2 VARCHAR ( 13 ) ) ;
+ INSERT INTO v0 ( v1 , v1 ) VALUES ( 38 , 'x' ) ;
+ INSERT INTO v0 ( v2 , v1 ) VALUES ( 20 , 'x' ) ;
+ INSERT INTO v0 ( v1 , v1 ) VALUES ( 61 , 'x' ) ;
+UPDATE v0 SET v1 = COUNT ( v2 ) WHERE v1 IS NOT NULL ;
+
+echo both $if $neq $state OK "PASSED" "***FAILED";
+echo both ": case 1375 STATE=" $state " MESSAGE=" $message "\n" ;
+
+drop table v0;
+CREATE TABLE v0 ( v1 INT , v2 VARCHAR ) ;
+ INSERT INTO v0 VALUES ( 127 , 'x' ) ;
+ INSERT INTO v0 VALUES ( 69 , 'x' ) ;
+ INSERT INTO v0 VALUES ( 0 , 'x' ) ;
+ INSERT INTO v0 VALUES ( 63 , 'x' ) ;
+ INSERT INTO v0 VALUES ( -1 , 'x' ) ;
+ INSERT INTO v0 VALUES ( 72 , 'x' ) ;
+ INSERT INTO v0 VALUES ( -2147483648 , 'x' ) ;
+ SELECT v2 , CASE WHEN MAX ( 57 * -1 + ( SELECT v2 FROM v0 AS v13 WHERE v2 = 'x' OR v1 = ( CASE WHEN v2 > 82 THEN 'x' ELSE 'x' END ) OR v2 = 'x' GROUP BY v2 ) + 30 ) = 'x' THEN 'x' ELSE 'x' END AS v12 FROM v0 ;
+
+
+echo both $if $neq $state OK "PASSED" "***FAILED";
+set argv[$lif] $+ $argv[$lif] 1;
+echo both ": case 1376 STATE=" $state " MESSAGE=" $message "\n" ;
+
+drop table v0;
+
+CREATE TABLE v0 ( v1 INT NOT NULL UNIQUE CHECK ( v1 = 1 ) , v2 VARCHAR UNIQUE , v3 INT UNIQUE NOT NULL NOT NULL NOT NULL ) ;
+SELECT ( ( SELECT LAG ( v3 ) FROM v0 t1 LEFT JOIN v0 s USING ( v1 , v3 , v3 , v1 , v3 , v1 , v2 , v1 , v3 , v1 , v2 , v2 ) NATURAL JOIN v0 WHERE v3 IS NOT NULL ) , 'x' ) AS v14 ;
+ECHO BOTH $IF $EQU $STATE OK "PASSED" "***FAILED";
+SET ARGV[$LIF] $+ $ARGV[$LIF] 1;
+ECHO BOTH ": case1378 STATE=" $STATE " MESSAGE=" $MESSAGE "\n";
+
+
+drop table v0;
+CREATE TABLE v0 ( v1 TIMESTAMP PRIMARY KEY CHECK ( v1 ) ) ;
+ INSERT INTO v0 VALUES ( 'x' ) ;
+ INSERT INTO v0 VALUES ( 'x' ) ;
+ INSERT INTO v0 VALUES ( 'x' ) ;
+ INSERT INTO v0 VALUES ( NULL ) ;
+ SELECT ( v1 ) FROM v0 ;
+ SELECT ( PERCENT_RANK ( v1 , 'x' ) ) FROM v0 ;
+ SELECT ( STD ( v1 , 'x' ) ) FROM v0 ;
+ UPDATE v0 SET v1 = ( SELECT 26 FROM v0 ORDER BY DENSE_RANK ( v1 ) ) ;
+ SELECT DISTINCT RANK ( v1 ) AS v2 FROM v0 WHERE v1 IS NOT NULL ;
+ SELECT DISTINCT NTH_VALUE ( v1 ) AS v3 , NTH_VALUE ( AVG ( v1 ) ) AS v4 FROM v0 ;
+ SELECT STDDEV_SAMP ( * ) AS v6 , COUNT ( v1 ) AS v5 FROM v0 GROUP BY VAR_SAMP ( v1 ) ;
+ SELECT CASE WHEN VAR_POP ( v1 ) = 34 THEN 'x' ELSE 'x' END AS v8 FROM ( SELECT v1 FROM v0 AS v10 NATURAL JOIN v0 AS v9 NATURAL JOIN v0 AS v11 NATURAL JOIN v0 WHERE v1 = -32768 AND v1 <= v1 ) AS v7 ;
+ECHO BOTH $IF $EQU $STATE OK "PASSED" "***FAILED";
+SET ARGV[$LIF] $+ $ARGV[$LIF] 1;
+ECHO BOTH ": case 1379 STATE=" $STATE " MESSAGE=" $MESSAGE "\n";
+
+drop table DB.DBA.TB1_CASE1381;
+
+CREATE TABLE DB.DBA.TB1_CASE1381 (id INT, name VARCHAR(100), age INT, city VARCHAR(100));
+CREATE INDEX STR1_CASE1381_IDX ON DB.DBA.TB1_case1381 (name);
+INSERT INTO DB.DBA.TB1_CASE1381 (id, name, age, city) VALUES (1, 'Alice', 30, 'New York');
+INSERT INTO DB.DBA.TB1_CASE1381 (id, name, age, city) VALUES (2, 'Bob', 25, 'Los Angeles');
+INSERT INTO DB.DBA.TB1_CASE1381 (id, name, age, city) VALUES (3, 'Charlie', 35, 'Chicago');
+SELECT key_estimate('DB.DBA.TB1_CASE1381', 'STR1_CASE1381_IDX');
+SELECT key_estimate('DB.DBA.TB1_CASE1381', 'STR1_CASE1381_IDX', 'Alice');
+SELECT key_estimate('DB.DBA.TB1_CASE1381', 'STR1_CASE1381_IDX', 'Bob', 25);
+SELECT key_estimate('DB.DBA.TB1_CASE1381', 'STR1_CASE1381_IDX', 'Charlie', 35);
+SELECT key_estimate('DB.DBA.TB1_CASE1381', 'STR1_CASE1381_IDX', 'NotExist');
+SELECT key_estimate('DB.DBA.TB1_CASE1381', 'STR1_CASE1381_IDX', NULL);
+SELECT key_estimate('DB.DBA.TB1_CASE1381', 'STR1_CASE1381_IDX', 'Alice', 'New York');
+SELECT key_estimate('DB.DBA.TB1_CASE1381', 'STR1_CASE1381_IDX', 'Alice', 'New York', 'Unknown');
+SELECT key_estimate('DB.DBA.TB1_CASE1381', 'STR1_CASE1381_IDX', 'Alice', 'New York', 'Unknown');
+SELECT key_estimate('DB.DBA.TB1_CASE1381', 'STR1_CASE1381_IDX', 1234);
+SELECT key_estimate('DB.DBA.TB1_CASE1381', 'STR1_CASE1381_IDX', 'Alice', 123, 'Bob');
+SELECT key_estimate('DB.DBA.TB1_CASE1381', 'STR1_CASE1381_IDX', 'Alice', 'Multi', (SELECT MAX(age) FROM DB.DBA.TB1_case1381));
+SELECT key_estimate('DB.DBA.TB1_CASE1381', 'STR1_CASE1381_IDX', (SELECT name FROM DB.DBA.TB1_case1381 WHERE id = 1));
+ECHO BOTH $IF $EQU $STATE OK "PASSED" "***FAILED";
+SET ARGV[$LIF] $+ $ARGV[$LIF] 1;
+ECHO BOTH ": key_estimate, various arg combinations STATE=" $STATE " MESSAGE=" $MESSAGE "\n";
+
+drop table DigitalSignatures;
+
+CREATE TABLE DigitalSignatures (id INT PRIMARY KEY, body VARCHAR, key_name VARCHAR);
+INSERT INTO DigitalSignatures (id, body, key_name) VALUES (1, '<SampleXML></SampleXML>', 'key1');
+INSERT INTO DigitalSignatures (id, body, key_name) VALUES (2, '<SampleXML></SampleXML>', 'key2');
+INSERT INTO DigitalSignatures (id, body, key_name) VALUES (3, '<SampleXML></SampleXML>', NULL);
+SELECT dsig_template_ext(xtree_doc(body), '<?xml version="1.0" encoding="UTF-8"?><Signature xmlns="http://www.w3.org/2000/09/xmldsig#" ><SignedInfo><CanonicalizationMethod Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#" /><SignatureMethod Algorithm="%s" /></SignedInfo><SignatureValue></SignatureValue><KeyInfo><KeyName>%s</KeyName></KeyInfo></Signature>', vector('wsse', 'http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd', 'wsu', 'http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd'), 'http://schemas.xmlsoap.org/soap/envelope/', 'Body', 'http://schemas.xmlsoap.org/ws/2004/03/addressing', 'Action', 'http://schemas.xmlsoap.org/ws/2004/03/addressing', 'From', 'http://schemas.xmlsoap.org/ws/2004/03/addressing', 'To', 'http://schemas.xmlsoap.org/ws/2004/03/addressing', 'MessageID', 'http://schemas.xmlsoap.org/ws/2004/03/addressing', 'ReplyTo', 'http://schemas.xmlsoap.org/ws/2004/03/addressing', 'FaultTo', 'http://schemas.xmlsoap.org/ws/2004/03/addressing', 'RelatesTo') FROM DigitalSignatures WHERE id = 1;
+
+ECHO BOTH $IF $NEQ $STATE OK "PASSED" "***FAILED";
+SET ARGV[$LIF] $+ $ARGV[$LIF] 1;
+ECHO BOTH ": dsig_template_ext with bad algo `%s` STATE=" $STATE " MESSAGE=" $MESSAGE "\n";
+
+
+-- drop table v0;
+
+-- CREATE TABLE v0 ( v1 TIMESTAMP PRIMARY KEY UNIQUE , v2 NVARCHAR ) ;
+-- INSERT INTO v0 ( v1 , v1 ) VALUES ( + 0 , 0 ) ;
+-- UPDATE v0 SET v2 = 91121358.000000 WHERE v2 IN ( SELECT 255 x00000000 , NTILE ( STD ( ) ) AS v4 FROM v0 AS v5 NATURAL JOIN v0 GROUP BY v1 HAVING ( SELECT NTILE ( v2 ) FROM v0 t1 LEFT JOIN v0 r ON v0 . v1 = v0 . v2 NATURAL JOIN v0 WHERE v2 > -128 ) NOT BETWEEN 16 AND -1 ) ;
+-- 
+-- ECHO BOTH $IF $EQU $STATE OK "PASSED" "***FAILED";
+-- SET ARGV[$LIF] $+ $ARGV[$LIF] 1;
+-- ECHO BOTH ": case 1390 STATE=" $STATE " MESSAGE=" $MESSAGE "\n";
+
+
+DROP TABLE V0;
+DROP VIEW V4;
+CREATE TABLE V0 ( V1 INT , V2 DATETIME ) ;
+CREATE VIEW V4 AS SELECT V1 , STDDEV ( BIT_XOR ( V2 ) ) AS V3 FROM V0 GROUP BY 'X' , 'X' , NULL HAVING ( SELECT LAST_VALUE ( V2 ) FROM V0 T1 LEFT JOIN V0 R ON V0 . V1 = V0 . V1 NATURAL JOIN V0 WHERE V2 > 67 ) NOT BETWEEN 22 AND 71 ;
+SELECT CASE WHEN MAX ( 'x' ) = -128 THEN 'x' ELSE 'x' END AS V5 FROM V4 ;
+
+ECHO BOTH $IF $EQU $STATE OK "PASSED" "***FAILED";
+SET ARGV[$LIF] $+ $ARGV[$LIF] 1;
+ECHO BOTH ": case 1391 STATE=" $STATE " MESSAGE=" $MESSAGE "\n";
+
+
+DROP TABLE V0;
+DROP TABLE V3;
+DROP VIEW V3;
+DROP TABLE V5;
+DROP VIEW V5;
+CREATE TABLE V0 ( V1 INT UNIQUE NOT NULL PRIMARY KEY , V2 LONG NVARCHAR ) ;
+CREATE VIEW V3 AS SELECT * FROM V0 X WHERE NOT ( EXISTS ( SELECT 91 FROM V0 WHERE V1 = 'x' ) ) ;
+ECHO BOTH $IF $EQU $STATE OK "PASSED" "***FAILED";
+SET ARGV[$LIF] $+ $ARGV[$LIF] 1;
+ECHO BOTH ": case 1392 STATE=" $STATE " MESSAGE=" $MESSAGE "\n";
+CREATE VIEW V5 AS SELECT CASE WHEN ( V1 , V1 / ( SELECT ( V2 ) FROM V0 WHERE V1 IS NOT NULL ORDER BY V1 ) ) THEN 'x' ELSE 'x' END AS V4 FROM V3 ;
+
+ECHO BOTH $IF $EQU $STATE OK "PASSED" "***FAILED";
+SET ARGV[$LIF] $+ $ARGV[$LIF] 1;
+ECHO BOTH ": case 1392 STATE=" $STATE " MESSAGE=" $MESSAGE "\n";
+
+
+drop table v0;
+drop view v3;
+CREATE TABLE v0 ( v1 INT , v2 TIMESTAMP NOT NULL CHECK ( v2 = 127 ) ) ;
+CREATE VIEW v3 AS SELECT * FROM v0 WHERE v2 IN ( SELECT ( v1 ) FROM v0 GROUP BY v1 HAVING v0 . v2 . SYS_DAV_RES__ NOT BETWEEN 72 AND 78 ) AND v1 < 2 ;
+DROP TABLE v0 ;
+UPDATE v3 SET v1 = 'x' WHERE v1 + 127 = v1 OR PERCENT_RANK ( * ) >= ( SELECT LAST_VALUE ( * ) FROM v3 WHERE v1 IS NOT NULL ) ;
+
+ECHO BOTH $IF $NEQ $STATE OK "PASSED" "***FAILED";
+SET ARGV[$LIF] $+ $ARGV[$LIF] 1;
+ECHO BOTH ": case 1393 STATE=" $STATE " MESSAGE=" $MESSAGE "\n";
+
+drop table v0;
+CREATE TABLE v0 ( v1 DECIMAL UNIQUE PRIMARY KEY CHECK ( ( v1 , ( CASE WHEN v2 IS NULL THEN 97 ELSE v1 END ) ) + 255 ) , v2 NVARCHAR ) ;
+CREATE TRIGGER v4 BEFORE INSERT ON v0 R FOR EACH ROW INSERT INTO v0 VALUES ( 76 , AS DECIMAL( 39 , 64 ) ) , ( 'x' , 'x' , 49 , 0 , 'x' , 0 x1234567890abcdef ) ;
+INSERT INTO v0 VALUES ( 17323404.000000 * 2147483647 + 0 , 80 ) ;
+UPDATE v0 SET v1 = 'x' ;
+
+ECHO BOTH $IF $EQU $STATE OK "PASSED" "***FAILED";
+SET ARGV[$LIF] $+ $ARGV[$LIF] 1;
+ECHO BOTH ": case 1394 STATE=" $STATE " MESSAGE=" $MESSAGE "\n";
+
+SELECT DISTINCT ST_GeomFromText('MULTILINESTRING((1 1, 2 2, 3 3), (4 4, 5 5, 6 6))') FROM DB.DBA.RDF_QUAD;
+ECHO BOTH $IF $EQU $STATE OK "PASSED" "***FAILED";
+SET ARGV[$LIF] $+ $ARGV[$LIF] 1;
+ECHO BOTH ": case 1398 STATE=" $STATE " MESSAGE=" $MESSAGE "\n";
+
+SELECT GROUPING ( x ) , COUNT ( CASE WHEN x IS NULL THEN 1 WHEN x >= 1024 THEN CONCAT ( ROUND ( x / 1024 , 2 ) , ' KB' ) END ) , ( 'swarm' , 1 , 0 ) AS x FROM ( SELECT 1 AS x ) AS x GROUP BY CUBE ( x , x , 92 + 1 );
+ECHO BOTH $IF $EQU $STATE OK "PASSED" "***FAILED";
+SET ARGV[$LIF] $+ $ARGV[$LIF] 1;
+ECHO BOTH ": case 1399 STATE=" $STATE " MESSAGE=" $MESSAGE "\n";
+
+SELECT CASE WHEN id_to_iri ( iri_to_id ( ' 龔龖龗龞龡 ' ) , '\$[0].a' ) >= st_geomfromtext ( 'POLYGON((30 30,40 40,50 50,30 50,30 40,30 30))' ) THEN CONCAT ( ROUND ( x / 0 , 2 ) , ' TB' ) WHEN x >= 1073741824 THEN CONCAT ( ROUND ( x / 1073741824 , 2 ) , ' GB' ) ELSE CONCAT ( repeat ( '[' , 10000 ) , ' bytes' ) END AS x FROM ( SELECT POWER ( -123456789 , 1 ) AS x ) AS x GROUP BY x , x HAVING COUNT ( * ) = 9;
+ECHO BOTH $IF $NEQ $STATE OK "PASSED" "***FAILED";
+SET ARGV[$LIF] $+ $ARGV[$LIF] 1;
+ECHO BOTH ": case 1400 STATE=" $STATE " MESSAGE=" $MESSAGE "\n";
+
+SELECT DISTINCT XMLAGG ( REPEAT ( 'a' , 64 * 128302 ) , 'value' , 1 ) , CASE WHEN x IS NULL THEN 1 WHEN x >= 1024 THEN STRTOJSON ( ROUND ( x / 1024 , 2 ) , ' KB' ) END / ( 0 , 91 ) FROM ( SELECT 1 AS x ) AS x GROUP BY CUBE ( x , x , 92 + 1 );
+ECHO BOTH $IF $NEQ $STATE OK "PASSED" "***FAILED";
+SET ARGV[$LIF] $+ $ARGV[$LIF] 1;
+ECHO BOTH ": case 1401 STATE=" $STATE " MESSAGE=" $MESSAGE "\n";
+
+-- SELECT DISTINCT
+--     xmlagg ( x ) ,
+--     x + 15 + ( 0 , (
+--         SELECT CASE
+--             WHEN NULLIF ( SUM ( CAST( 0.059872 AS VARCHAR ( 39 ) ) ) , 'rank' ) THEN 8.000000
+--             WHEN 'x' THEN 'x'
+--             ELSE ( -123456789 , count ( DISTINCT CASE WHEN x < ( x ) THEN 1 END ) )
+--         END AS x
+--         FROM ( SELECT 1 AS x
+--                FROM ( SELECT 'e' AS x
+--                       FROM ( SELECT 1 + 1 AS x , 2 AS x , 'abc' AS x ) AS x
+--                     ) AS x
+--                GROUP BY x HAVING COUNT ( * ) = 9
+--              ) AS x
+--     ) ) + ( 0 , 91 ) AS x
+-- FROM ( SELECT 1 AS x ) AS x
+-- WHERE x IS NULL OR ( 1 = x )
+-- GROUP BY CUBE ( x , x , 92 + 1 )
+-- ORDER BY SUM ( DISTINCT 0 ) , x , x;
+-- ECHO BOTH $IF $NEQ $STATE OK "PASSED" "***FAILED";
+-- SET ARGV[$LIF] $+ $ARGV[$LIF] 1;
+-- -- ECHO BOTH ": case 1402 STATE=" $STATE " MESSAGE=" $MESSAGE "\n";
+
+SELECT DISTINCT ST_GeomFromText ( 'MULTILINESTRING((1 1, 2 2, 3 3), (4 4, 5 5, 6 6))' ) FROM DB.DBA.SYS_USERS;
+ECHO BOTH $IF $EQU $STATE OK "PASSED" "***FAILED";
+SET ARGV[$LIF] $+ $ARGV[$LIF] 1;
+ECHO BOTH ": case 1403 STATE=" $STATE " MESSAGE=" $MESSAGE "\n";
+
+
+SELECT COUNT(*) FROM DB.DBA.SYS_USERS WHERE CEILING(65.77) >= FLOOR (EXP(45.7));
+ECHO BOTH $IF $EQU $LAST[1] 0 "PASSED" "***FAILED";
+SET ARGV[$LIF] $+ $ARGV[$LIF] 1;
+ECHO BOTH ": case 1418 STATE=" $STATE " MESSAGE=" $MESSAGE "\n";
+
+
 ECHO BOTH "COMPLETED: SQL Optimizer tests (sqlo.sql) WITH " $ARGV[0] " FAILED, " $ARGV[1] " PASSED\n\n";
 
+--
+-- vos_cases.sql
+-- Regression tests for openlink/virtuoso-opensource issues #1452 onward.
+--
+
+ECHO BOTH "\nSTARTED: optimizer regression cases #1452 onward (vos_cases.sql)\n";
+SET ARGV[0] 0;
+SET ARGV[1] 0;
+
+-- --------------------------------------------------------------------------
+-- Case #1452: SQ155 optimized compiler error with JOIN and nested IN subquery
+-- --------------------------------------------------------------------------
+DROP TABLE c1452_t3 IF EXISTS;
+DROP TABLE c1452_t2 IF EXISTS;
+DROP TABLE c1452_t1 IF EXISTS;
+
+CREATE TABLE c1452_t1 (
+    c1 INT NOT NULL, c2 VARCHAR(255) NOT NULL, c3 VARCHAR(255) NULL,
+    c4 INT NULL, c5 DATE NOT NULL, c6 VARCHAR(10) NOT NULL,
+    PRIMARY KEY (c1)
+);
+
+CREATE TABLE c1452_t2 (
+    c1 INT NOT NULL, c2 INT NOT NULL, c3 DECIMAL(10,2) NOT NULL,
+    c4 VARCHAR(50) NOT NULL, c5 DATE NOT NULL, c6 VARCHAR(4000) NULL,
+    c7 VARCHAR(4000) NULL, c8 VARBINARY(4000) NULL,
+    c9 VARBINARY(4000) NULL, c10 VARCHAR(4000) NULL,
+    c11 VARCHAR(4000) NULL, c12 INTEGER NULL, c13 DATETIME NULL,
+    c14 FLOAT NULL, c15 DOUBLE PRECISION NULL, c16 VARCHAR(4000) NULL,
+    PRIMARY KEY (c1)
+);
+
+CREATE TABLE c1452_t3 (
+    c1 INT NOT NULL, c2 INT NOT NULL, c3 INT NOT NULL, c4 INT NOT NULL,
+    c5 DATETIME NULL, c6 SMALLINT NULL, c7 SMALLINT NULL, c8 INTEGER NULL,
+    c9 BIGINT NULL, c10 VARCHAR(4000) NULL, c11 VARCHAR(255) NULL,
+    c12 VARCHAR(4000) NULL, c13 VARBINARY(4000) NULL,
+    c14 VARCHAR(4000) NULL, c15 SMALLINT NULL,
+    PRIMARY KEY (c1)
+);
+
+SELECT TOP 29 c1452_t2.c11 AS q3_col_1, LOWER(c1452_t1.c7) AS q3_col_2, c1452_t2.c5 AS q3_col_3 FROM c1452_t2 AS c1452_t1 JOIN c1452_t3 AS c1452_t2 ON ((c1452_t1.c1 < c1452_t2.c2 OR c1452_t1.c2 <> 71) AND c1452_t2.c14 IN ((SELECT (sq3.q2_col_3 - 59) AS subq_col_1 FROM (SELECT DISTINCT sq4.q1_col_1 AS q2_col_1, sq4.q1_col_3 AS q2_col_2, sq4.q1_col_4 AS q2_col_3, sq4.q1_col_3 AS q2_col_4 FROM (SELECT t5.c11 AS q1_col_1, DAYOFYEAR(t5.c5) AS q1_col_2, COUNT(DISTINCT t5.c5) AS q1_col_3, t5.c3 AS q1_col_4, t5.c1 AS q1_col_5 FROM c1452_t3 AS t5 WHERE NOT t5.c9 NOT BETWEEN 1 AND 27 GROUP BY t5.c11, DAYOFYEAR(t5.c5), t5.c5, t5.c3, t5.c1) AS sq4 WHERE (sq4.q1_col_3 <= 74)) AS sq3 WHERE (sq3.q2_col_4 IN ((SELECT t7.c4 AS subq_col_1 FROM c1452_t2 AS t6 RIGHT JOIN c1452_t3 AS t7 ON t6.c2 > t7.c2)))))) OR c1452_t2.c9 IS NOT NULL CROSS JOIN c1452_t1 AS t8 ON c1452_t2.c12 <> t8.c6 WHERE (c1452_t2.c12 <> 'sample_64' AND c1452_t1.c5 <> '2023-01-01' AND c1452_t2.c1 IS NOT NULL);
+ECHO BOTH $IF $EQU $STATE OK $IF $EQU $ROWCNT 0 "PASSED" "***FAILED" "***FAILED";
+SET ARGV[$LIF] $+ $ARGV[$LIF] 1;
+ECHO BOTH ": case #1452 - SQ155 optimized compiler error with JOIN and nested IN subquery; expected 0 row(s), returned " $ROWCNT " STATE=" $STATE " MESSAGE=" $MESSAGE "\n";
+
+-- --------------------------------------------------------------------------
+-- Case #1453: SQI01 compiler loop with DISTINCT aggregate and scalar subquery
+-- --------------------------------------------------------------------------
+DROP TABLE c1453_t3 IF EXISTS;
+DROP TABLE c1453_t2 IF EXISTS;
+DROP TABLE c1453_t1 IF EXISTS;
+
+CREATE TABLE c1453_t1 (
+    c1 INT NOT NULL, c2 VARCHAR(255) NOT NULL, c3 VARCHAR(255) NULL,
+    c4 INT NULL, c5 DATE NOT NULL, c6 VARCHAR(10) NOT NULL,
+    PRIMARY KEY (c1)
+);
+
+CREATE TABLE c1453_t2 (
+    c1 INT NOT NULL, c2 INT NOT NULL, c3 DECIMAL(10,2) NOT NULL,
+    c4 VARCHAR(50) NOT NULL, c5 DATE NOT NULL, c6 VARCHAR(4000) NULL,
+    c7 VARCHAR(4000) NULL, c8 VARBINARY(4000) NULL,
+    c9 VARBINARY(4000) NULL, c10 VARCHAR(4000) NULL,
+    c11 VARCHAR(4000) NULL, c12 INTEGER NULL, c13 DATETIME NULL,
+    c14 FLOAT NULL, c15 DOUBLE PRECISION NULL, c16 VARCHAR(4000) NULL,
+    PRIMARY KEY (c1)
+);
+
+CREATE TABLE c1453_t3 (
+    c1 INT NOT NULL, c2 INT NOT NULL, c3 INT NOT NULL, c4 INT NOT NULL,
+    c5 DATETIME NULL, c6 SMALLINT NULL, c7 SMALLINT NULL, c8 INTEGER NULL,
+    c9 BIGINT NULL, c10 VARCHAR(4000) NULL, c11 VARCHAR(255) NULL,
+    c12 VARCHAR(4000) NULL, c13 VARBINARY(4000) NULL,
+    c14 VARCHAR(4000) NULL, c15 SMALLINT NULL,
+    PRIMARY KEY (c1)
+);
+
+SET MACRO_SUBSTITUTION OFF;
+SELECT DISTINCT SUM(sq1.q1_col_4) AS q3_col_1, (sq1.q1_col_4 - sq1.q1_col_4) AS q3_col_2, sq1.q1_col_4 AS q3_col_3, (SELECT TOP 1 t6.c3 AS subq_col_1 FROM c1453_t2 AS t6 CROSS JOIN (SELECT MOD(t8.c2, t8.c2) AS q4_col_1, t8.c2 AS q4_col_2, REVERSE(t8.c10) AS q4_col_3, VAR_SAMP(t8.c1) AS q4_col_4 FROM c1453_t2 AS t8 WHERE (t8.c6 NOT IN ((SELECT t9.c14 AS subq_col_1 FROM c1453_t3 AS t9 WHERE (t9.c11 NOT LIKE '^sample_[0-9]+$'))) AND t8.c2 BETWEEN 12 AND 30 AND EXISTS(SELECT t10.c3 AS subq_col_1 FROM c1453_t1 AS t10 ORDER BY t10.c2 DESC) AND t8.c6 NOT LIKE '%sample_98' AND t8.c4 LIKE '^sample_[0-9]+$') GROUP BY MOD(t8.c2, t8.c2), t8.c2, REVERSE(t8.c10), t8.c10 HAVING NOT EXISTS(SELECT t11.c5 AS subq_col_1 FROM c1453_t2 AS t11)) AS sq7 ON sq7.q4_col_1 <= 84 AND sq7.q4_col_3 LIKE '%sample_29%' ORDER BY sq7.q4_col_4 ASC) AS q3_col_4, SUM(sq1.q1_col_4) AS q3_col_5 FROM (SELECT TOP 48 c1453_t2.c6 AS q1_col_1, c1453_t2.c5 AS q1_col_2, (SELECT TOP 1 (sq3.q2_col_2 / NULLIF(sq3.q2_col_4, 0)) AS subq_col_1 FROM (SELECT (t4.c3 + t4.c1) AS q2_col_1, t4.c1 AS q2_col_2, CASE WHEN (t4.c14 < 6) THEN 1 ELSE 0 END AS q2_col_3, VAR_SAMP(t4.c1) AS q2_col_4 FROM c1453_t2 AS t4 WHERE (t4.c6 <> 'sample_29') GROUP BY (t4.c3 + t4.c1), t4.c3, t4.c1, CASE WHEN (t4.c14 < 6) THEN 1 ELSE 0 END, t4.c14 HAVING (VAR_SAMP(t4.c1) < 49)) AS sq3 WHERE (NOT sq3.q2_col_1 NOT BETWEEN 29 AND 60 AND sq3.q2_col_1 BETWEEN 31 AND 45)) AS q1_col_3, AVG(c1453_t2.c1) AS q1_col_4, c1453_t2.c3 AS q1_col_5 FROM c1453_t1 AS c1453_t2 WHERE EXISTS(SELECT t5.c5 AS subq_col_1 FROM c1453_t2 AS t5) GROUP BY c1453_t2.c6, c1453_t2.c5, c1453_t2.c3 HAVING (AVG(c1453_t2.c1) <> 82)) AS sq1 GROUP BY (sq1.q1_col_4 - sq1.q1_col_4), sq1.q1_col_4;
+SET MACRO_SUBSTITUTION ON;
+ECHO BOTH $IF $EQU $STATE OK $IF $EQU $ROWCNT 0 "PASSED" "***FAILED" "***FAILED";
+SET ARGV[$LIF] $+ $ARGV[$LIF] 1;
+ECHO BOTH ": case #1453 - SQI01 compiler loop with DISTINCT aggregate and scalar subquery; expected 0 row(s), returned " $ROWCNT " STATE=" $STATE " MESSAGE=" $MESSAGE "\n";
+
+-- --------------------------------------------------------------------------
+-- Case #1454: SQI01 compiler loop in mixed set-operation query
+-- --------------------------------------------------------------------------
+DROP TABLE c1454_t3 IF EXISTS;
+DROP TABLE c1454_t2 IF EXISTS;
+DROP TABLE c1454_t1 IF EXISTS;
+
+CREATE TABLE c1454_t1 (
+    c1 INT NOT NULL, c2 VARCHAR(255) NOT NULL, c3 VARCHAR(255) NULL,
+    c4 INT NULL, c5 DATE NOT NULL, c6 VARCHAR(10) NOT NULL,
+    PRIMARY KEY (c1)
+);
+
+CREATE TABLE c1454_t2 (
+    c1 INT NOT NULL, c2 INT NOT NULL, c3 DECIMAL(10,2) NOT NULL,
+    c4 VARCHAR(50) NOT NULL, c5 DATE NOT NULL, c6 VARCHAR(4000) NULL,
+    c7 VARCHAR(4000) NULL, c8 VARBINARY(4000) NULL,
+    c9 VARBINARY(4000) NULL, c10 VARCHAR(4000) NULL,
+    c11 VARCHAR(4000) NULL, c12 INTEGER NULL, c13 DATETIME NULL,
+    c14 FLOAT NULL, c15 DOUBLE PRECISION NULL, c16 VARCHAR(4000) NULL,
+    PRIMARY KEY (c1)
+);
+
+CREATE TABLE c1454_t3 (
+    c1 INT NOT NULL, c2 INT NOT NULL, c3 INT NOT NULL, c4 INT NOT NULL,
+    c5 DATETIME NULL, c6 SMALLINT NULL, c7 SMALLINT NULL, c8 INTEGER NULL,
+    c9 BIGINT NULL, c10 VARCHAR(4000) NULL, c11 VARCHAR(255) NULL,
+    c12 VARCHAR(4000) NULL, c13 VARBINARY(4000) NULL,
+    c14 VARCHAR(4000) NULL, c15 SMALLINT NULL,
+    PRIMARY KEY (c1)
+);
+
+SELECT c1454_t2.c4 AS q1_col_1, c1454_t2.c5 AS q1_col_2 FROM c1454_t1 AS c1454_t1 JOIN c1454_t3 AS c1454_t2 ON c1454_t1.c3 NOT LIKE '%sample_76' WHERE (c1454_t1.c4 <> 69) UNION ALL (SELECT (t10.c2 * t10.c15) AS q3_col_1, STR_TO_DATE(t10.c14, t10.c12) AS q3_col_2 FROM c1454_t3 AS t10 WHERE (EXISTS(SELECT t11.c11 AS subq_col_1 FROM c1454_t3 AS t11 LEFT JOIN (SELECT sq13.q4_col_4 AS q5_col_1, CASE WHEN (sq13.q4_col_4 <> ALL (SELECT t15.c8 AS subq_col_1 FROM c1454_t3 AS t15 WHERE ((t15.c2 > 69 OR t15.c6 >= 22) AND t15.c12 <> 'sample_14'))) THEN 1 ELSE 0 END AS q5_col_2, SUM(sq13.q4_col_3) AS q5_col_3 FROM (SELECT MIN(t14.c6) AS q4_col_1, t14.c3 AS q4_col_2, STDDEV(t14.c4) AS q4_col_3, t14.c4 AS q4_col_4 FROM c1454_t1 AS t14 WHERE (t14.c4 <= 3 OR t14.c2 <> 'sample_100') GROUP BY t14.c3, t14.c4) AS sq13 WHERE (sq13.q4_col_4 >= 99 AND sq13.q4_col_3 IN ((SELECT t16.c9 AS subq_col_1 FROM c1454_t3 AS t16 WHERE (t16.c5 BETWEEN '2023-01-01 00:00:00' AND '2023-12-31 23:59:59')))) GROUP BY sq13.q4_col_4, CASE WHEN (sq13.q4_col_4 <> ALL (SELECT t15.c8 AS subq_col_1 FROM c1454_t3 AS t15 WHERE ((t15.c2 > 69 OR t15.c6 >= 22) AND t15.c12 <> 'sample_14'))) THEN 1 ELSE 0 END HAVING NOT SUM(sq13.q4_col_3) <= 43) AS sq12 ON t11.c1 >= sq12.q5_col_1 WHERE (t11.c10 <> 'sample_54' AND t11.c2 BETWEEN 42 AND 65 AND t11.c3 BETWEEN 24 AND 69)) AND t10.c11 NOT IN ((SELECT sq17.q7_col_1 AS subq_col_1 FROM (SELECT sq18.q6_col_3 AS q7_col_1, MOD(sq18.q6_col_2, NULLIF(sq18.q6_col_2, 0)) AS q7_col_2, AVG(sq18.q6_col_2) AS q7_col_3, sq18.q6_col_1 AS q7_col_4, DEGREES(sq18.q6_col_2) AS q7_col_5 FROM (SELECT t19.c5 AS q6_col_1, VAR_SAMP(t19.c2) AS q6_col_2, t19.c6 AS q6_col_3 FROM c1454_t2 AS t19 WHERE (t19.c4 <> 'sample_7' AND t19.c4 <> 'sample_31' AND t19.c13 <> '2023-01-01') GROUP BY t19.c5, t19.c6 HAVING (VAR_SAMP(t19.c2) >= 19 OR VAR_SAMP(t19.c2) <= 2)) AS sq18 WHERE (sq18.q6_col_1 NOT IN ((SELECT t22.c13 AS subq_col_1 FROM c1454_t1 AS t20 RIGHT JOIN c1454_t3 AS t21 ON t20.c6 = t21.c11 AND t20.c2 = t21.c12 AND t21.c5 NOT BETWEEN '2023-01-01 00:00:00' AND '2023-12-31 23:59:59' AND t21.c15 IS NOT NULL RIGHT JOIN c1454_t2 AS t22 ON t22.c6 IS NULL AND t22.c5 BETWEEN '2023-01-01 00:00:00' AND '2023-12-31 23:59:59' WHERE ((t21.c1 BETWEEN 33 AND 81 AND t20.c6 <> 'sample_61') OR t22.c2 > 16) ORDER BY t20.c5 ASC))) GROUP BY sq18.q6_col_3, MOD(sq18.q6_col_2, NULLIF(sq18.q6_col_2, 0)), sq18.q6_col_2, sq18.q6_col_1, DEGREES(sq18.q6_col_2) HAVING ((AVG(sq18.q6_col_2) <= 75 OR AVG(sq18.q6_col_2) <> 41) AND AVG(sq18.q6_col_2) >= 19) ORDER BY q7_col_2 ASC) AS sq17 WHERE (sq17.q7_col_2 < 33 AND sq17.q7_col_2 = 51 AND sq17.q7_col_5 = 64)))));
+ECHO BOTH $IF $EQU $STATE OK $IF $EQU $ROWCNT 0 "PASSED" "***FAILED" "***FAILED";
+SET ARGV[$LIF] $+ $ARGV[$LIF] 1;
+ECHO BOTH ": case #1454 - SQI01 compiler loop in mixed set-operation query; expected 0 row(s), returned " $ROWCNT " STATE=" $STATE " MESSAGE=" $MESSAGE "\n";
+
+-- --------------------------------------------------------------------------
+-- Case #1455: SQL compiler stack overflow on nested subqueries
+-- --------------------------------------------------------------------------
+DROP TABLE c1455_t3 IF EXISTS;
+DROP TABLE c1455_t2 IF EXISTS;
+DROP TABLE c1455_t1 IF EXISTS;
+
+CREATE TABLE c1455_t1 (
+    c1 INT NOT NULL, c2 VARCHAR(255) NOT NULL, c3 VARCHAR(255) NULL,
+    c4 INT NULL, c5 DATE NOT NULL, c6 VARCHAR(10) NOT NULL,
+    PRIMARY KEY (c1)
+);
+
+CREATE TABLE c1455_t2 (
+    c1 INT NOT NULL, c2 INT NOT NULL, c3 DECIMAL(10,2) NOT NULL,
+    c4 VARCHAR(50) NOT NULL, c5 DATE NOT NULL, c6 VARCHAR(4000) NULL,
+    c7 VARCHAR(4000) NULL, c8 VARBINARY(4000) NULL,
+    c9 VARBINARY(4000) NULL, c10 VARCHAR(4000) NULL,
+    c11 VARCHAR(4000) NULL, c12 INTEGER NULL, c13 DATETIME NULL,
+    c14 FLOAT NULL, c15 DOUBLE PRECISION NULL, c16 VARCHAR(4000) NULL,
+    PRIMARY KEY (c1)
+);
+
+CREATE TABLE c1455_t3 (
+    c1 INT NOT NULL, c2 INT NOT NULL, c3 INT NOT NULL, c4 INT NOT NULL,
+    c5 DATETIME NULL, c6 SMALLINT NULL, c7 SMALLINT NULL, c8 INTEGER NULL,
+    c9 BIGINT NULL, c10 VARCHAR(4000) NULL, c11 VARCHAR(255) NULL,
+    c12 VARCHAR(4000) NULL, c13 VARBINARY(4000) NULL,
+    c14 VARCHAR(4000) NULL, c15 SMALLINT NULL,
+    PRIMARY KEY (c1)
+);
+
+SET MACRO_SUBSTITUTION OFF;
+SELECT TOP 2 (SELECT TOP 1 c1455_t2.c5 AS subq_col_1 FROM c1455_t3 AS c1455_t2 WHERE (c1455_t2.c6 IS NOT NULL)) AS q1_col_1, CASE WHEN (c1455_t1.c3 NOT IN ((SELECT t4.c3 AS subq_col_1 FROM c1455_t1 AS c1455_t3 JOIN c1455_t3 AS t4 ON (c1455_t3.c4 NOT BETWEEN 19 AND 40 OR t4.c15 <= 82 OR c1455_t3.c4 > t4.c4) AND t4.c12 IN ((SELECT t5.c3 AS subq_col_1 FROM c1455_t1 AS t5)) WHERE ((t4.c14 NOT LIKE '.*[0-9]{2}.*' OR t4.c3 BETWEEN 39 AND 77) AND c1455_t3.c6 = 'sample_19')))) THEN 1 ELSE 0 END AS q1_col_2, (SELECT TOP 1 t6.c12 AS subq_col_1 FROM c1455_t3 AS t6 JOIN c1455_t1 AS t7 ON t7.c6 IN ((SELECT t9.c10 AS subq_col_1 FROM c1455_t1 AS t8 RIGHT JOIN c1455_t2 AS t9 ON t9.c4 LIKE 'sample_4%' CROSS JOIN c1455_t3 AS t10 ON (t9.c1 > t10.c4 AND t10.c4 >= 31) OR t9.c3 <= t10.c9 WHERE (t10.c14 LIKE '^sample_[0-9]+$'))) JOIN c1455_t2 AS t11 ON t11.c7 <> 'sample_61' OR t7.c5 = '2023-01-01' OR t7.c2 <> t11.c6 ORDER BY t11.c13 ASC) AS q1_col_3, c1455_t1.c2 AS q1_col_4 FROM c1455_t2 AS c1455_t1 WHERE (c1455_t1.c1 <= 74);
+SET MACRO_SUBSTITUTION ON;
+ECHO BOTH $IF $EQU $STATE OK $IF $EQU $ROWCNT 0 "PASSED" "***FAILED" "***FAILED";
+SET ARGV[$LIF] $+ $ARGV[$LIF] 1;
+ECHO BOTH ": case #1455 - SQL compiler stack overflow on nested subqueries; expected 0 row(s), returned " $ROWCNT " STATE=" $STATE " MESSAGE=" $MESSAGE "\n";
+
+-- --------------------------------------------------------------------------
+-- Case #1456: Clarification request: ORDER BY scope in a parenthesized EXCEPT operand
+-- --------------------------------------------------------------------------
+DROP TABLE c1456_t3 IF EXISTS;
+DROP TABLE c1456_t2 IF EXISTS;
+DROP TABLE c1456_t1 IF EXISTS;
+
+CREATE TABLE c1456_t1 (
+    c1 INT NOT NULL, c2 VARCHAR(255) NOT NULL, c3 VARCHAR(255) NULL,
+    c4 INT NULL, c5 DATE NOT NULL, c6 VARCHAR(10) NOT NULL,
+    PRIMARY KEY (c1)
+);
+
+CREATE TABLE c1456_t2 (
+    c1 INT NOT NULL, c2 INT NOT NULL, c3 DECIMAL(10,2) NOT NULL,
+    c4 VARCHAR(50) NOT NULL, c5 DATE NOT NULL, c6 VARCHAR(4000) NULL,
+    c7 VARCHAR(4000) NULL, c8 VARBINARY(4000) NULL,
+    c9 VARBINARY(4000) NULL, c10 VARCHAR(4000) NULL,
+    c11 VARCHAR(4000) NULL, c12 INTEGER NULL, c13 DATETIME NULL,
+    c14 FLOAT NULL, c15 DOUBLE PRECISION NULL, c16 VARCHAR(4000) NULL,
+    PRIMARY KEY (c1)
+);
+
+CREATE TABLE c1456_t3 (
+    c1 INT NOT NULL, c2 INT NOT NULL, c3 INT NOT NULL, c4 INT NOT NULL,
+    c5 DATETIME NULL, c6 SMALLINT NULL, c7 SMALLINT NULL, c8 INTEGER NULL,
+    c9 BIGINT NULL, c10 VARCHAR(4000) NULL, c11 VARCHAR(255) NULL,
+    c12 VARCHAR(4000) NULL, c13 VARBINARY(4000) NULL,
+    c14 VARCHAR(4000) NULL, c15 SMALLINT NULL,
+    PRIMARY KEY (c1)
+);
+
+SELECT c5, c5 FROM c1456_t1 EXCEPT (SELECT (SELECT TOP 1 c5 FROM c1456_t1) AS x, t4.c5 FROM c1456_t1 AS t4 ORDER BY t4.c5);
+ECHO BOTH $IF $NEQ $STATE OK "PASSED" "***FAILED";
+SET ARGV[$LIF] $+ $ARGV[$LIF] 1;
+ECHO BOTH ": case #1456 - Clarification request: ORDER BY scope in a parenthesized EXCEPT operand; expected compilation failure, STATE=" $STATE " MESSAGE=" $MESSAGE "\n";
+
+-- --------------------------------------------------------------------------
+-- Case #1458: INTERSECT incorrectly preserves duplicate NULL rows
+-- --------------------------------------------------------------------------
+DROP TABLE rift_intersect_a IF EXISTS;
+DROP TABLE rift_intersect_b IF EXISTS;
+
+CREATE TABLE rift_intersect_a (x INT);
+
+CREATE TABLE rift_intersect_b (x INT);
+
+INSERT INTO rift_intersect_a VALUES (NULL);
+
+INSERT INTO rift_intersect_a VALUES (NULL);
+
+INSERT INTO rift_intersect_a VALUES (NULL);
+
+INSERT INTO rift_intersect_b VALUES (NULL);
+
+-- Incorrectly returns three NULL rows.
+SELECT x FROM rift_intersect_a
+INTERSECT
+SELECT x FROM rift_intersect_b;
+ECHO BOTH $IF $EQU $STATE OK $IF $EQU $ROWCNT 1 "PASSED" "***FAILED" "***FAILED";
+SET ARGV[$LIF] $+ $ARGV[$LIF] 1;
+ECHO BOTH ": case #1458 (variant 1) - INTERSECT incorrectly preserves duplicate NULL rows; expected 1 row(s), returned " $ROWCNT " STATE=" $STATE " MESSAGE=" $MESSAGE "\n";
+
+-- Returns one NULL row.
+SELECT DISTINCT *
+FROM (
+    SELECT x FROM rift_intersect_a
+    INTERSECT
+    SELECT x FROM rift_intersect_b
+) AS intersect_result;
+ECHO BOTH $IF $EQU $STATE OK $IF $EQU $ROWCNT 1 "PASSED" "***FAILED" "***FAILED";
+SET ARGV[$LIF] $+ $ARGV[$LIF] 1;
+ECHO BOTH ": case #1458 (variant 2) - INTERSECT incorrectly preserves duplicate NULL rows; expected 1 row(s), returned " $ROWCNT " STATE=" $STATE " MESSAGE=" $MESSAGE "\n";
+
+-- --------------------------------------------------------------------------
+-- Case #1459: INTERSECT returns duplicate NULL rows that do not occur in the right input
+-- --------------------------------------------------------------------------
+DROP TABLE rift_intersect_left IF EXISTS;
+DROP TABLE rift_intersect_right IF EXISTS;
+
+CREATE TABLE rift_intersect_left (x INT, y INT);
+
+CREATE TABLE rift_intersect_right (x INT, y INT);
+
+INSERT INTO rift_intersect_left VALUES (NULL, NULL);
+
+INSERT INTO rift_intersect_left VALUES (NULL, NULL);
+
+INSERT INTO rift_intersect_left VALUES (NULL, NULL);
+
+INSERT INTO rift_intersect_right VALUES (1, 1);
+
+-- Incorrectly returns duplicate (NULL, NULL) rows.
+SELECT x, y FROM rift_intersect_left
+INTERSECT
+SELECT x, y FROM rift_intersect_right;
+ECHO BOTH $IF $EQU $STATE OK $IF $EQU $ROWCNT 0 "PASSED" "***FAILED" "***FAILED";
+SET ARGV[$LIF] $+ $ARGV[$LIF] 1;
+ECHO BOTH ": case #1459 (variant 1) - INTERSECT returns duplicate NULL rows that do not occur in the right input; expected 0 row(s), returned " $ROWCNT " STATE=" $STATE " MESSAGE=" $MESSAGE "\n";
+
+-- Correctly returns no rows.
+SELECT DISTINCT x, y FROM rift_intersect_left
+INTERSECT
+SELECT x, y FROM rift_intersect_right;
+ECHO BOTH $IF $EQU $STATE OK $IF $EQU $ROWCNT 0 "PASSED" "***FAILED" "***FAILED";
+SET ARGV[$LIF] $+ $ARGV[$LIF] 1;
+ECHO BOTH ": case #1459 (variant 2) - INTERSECT returns duplicate NULL rows that do not occur in the right input; expected 0 row(s), returned " $ROWCNT " STATE=" $STATE " MESSAGE=" $MESSAGE "\n";
+
+-- --------------------------------------------------------------------------
+-- Case #1460: AND TRUE removes a row produced by nested derived aggregates
+-- --------------------------------------------------------------------------
+DROP TABLE rift_identity_logic IF EXISTS;
+DROP TABLE rift_digit_identity IF EXISTS;
+
+CREATE TABLE rift_digit_identity (n INT);
+
+INSERT INTO rift_digit_identity VALUES (0);
+
+INSERT INTO rift_digit_identity VALUES (1);
+
+INSERT INTO rift_digit_identity VALUES (2);
+
+INSERT INTO rift_digit_identity VALUES (3);
+
+INSERT INTO rift_digit_identity VALUES (4);
+
+INSERT INTO rift_digit_identity VALUES (5);
+
+INSERT INTO rift_digit_identity VALUES (6);
+
+INSERT INTO rift_digit_identity VALUES (7);
+
+INSERT INTO rift_digit_identity VALUES (8);
+
+INSERT INTO rift_digit_identity VALUES (9);
+
+CREATE TABLE rift_identity_logic (c1 INT PRIMARY KEY, c4 INT, c5 DATE NOT NULL);
+
+INSERT INTO rift_identity_logic
+SELECT a.n * 100 + b.n * 10 + d.n + 1,
+       MOD(a.n * 100 + b.n * 10 + d.n, 100),
+       DATEADD('day', MOD(a.n * 100 + b.n * 10 + d.n, 366),
+               {d '2025-08-15'})
+FROM rift_digit_identity AS a
+CROSS JOIN rift_digit_identity AS b
+CROSS JOIN rift_digit_identity AS d;
+
+-- Original query: should return no rows.
+SELECT m.x - m.x, m.z, MOD(m.y, NULLIF(21, 0))
+FROM (
+    SELECT DISTINCT q.a AS x, q.b AS y, MOD(q.a, NULLIF(14, 0)) AS z
+    FROM (
+        SELECT (SELECT TOP 1 SUM(s.c4) FROM rift_identity_logic AS s) AS unused,
+               SUM(t.c1) AS a, COUNT(DISTINCT t.c5) AS b
+        FROM rift_identity_logic AS t
+        WHERE t.c5 <> {d '2023-01-01'}
+    ) AS q
+    WHERE q.a > 11
+) AS m
+WHERE (((m.z IS NOT NULL OR m.z NOT BETWEEN 19 AND 50) AND m.z >= 21)
+       OR m.y < 91);
+ECHO BOTH $IF $EQU $STATE OK $IF $EQU $ROWCNT 0 "PASSED" "***FAILED" "***FAILED";
+SET ARGV[$LIF] $+ $ARGV[$LIF] 1;
+ECHO BOTH ": case #1460 (variant 1) - AND TRUE removes a row produced by nested derived aggregates; expected 0 row(s), returned " $ROWCNT " STATE=" $STATE " MESSAGE=" $MESSAGE "\n";
+
+-- Query with the Boolean identity: should also return no rows.
+SELECT m.x - m.x, m.z, MOD(m.y, NULLIF(21, 0))
+FROM (
+    SELECT DISTINCT q.a AS x, q.b AS y, MOD(q.a, NULLIF(14, 0)) AS z
+    FROM (
+        SELECT (SELECT TOP 1 SUM(s.c4) FROM rift_identity_logic AS s) AS unused,
+               SUM(t.c1) AS a, COUNT(DISTINCT t.c5) AS b
+        FROM rift_identity_logic AS t
+        WHERE t.c5 <> {d '2023-01-01'}
+    ) AS q
+    WHERE q.a > 11
+) AS m
+WHERE (((m.z IS NOT NULL OR m.z NOT BETWEEN 19 AND 50) AND m.z >= 21)
+       OR m.y < 91)
+  AND 1 = 1;
+ECHO BOTH $IF $EQU $STATE OK $IF $EQU $ROWCNT 0 "PASSED" "***FAILED" "***FAILED";
+SET ARGV[$LIF] $+ $ARGV[$LIF] 1;
+ECHO BOTH ": case #1460 (variant 2) - AND TRUE removes a row produced by nested derived aggregates; expected 0 row(s), returned " $ROWCNT " STATE=" $STATE " MESSAGE=" $MESSAGE "\n";
+
+-- --------------------------------------------------------------------------
+-- Case #1463: SQ156 optimized compiler error for a grouped CASE containing double-parenthesized NOT IN
+-- --------------------------------------------------------------------------
+DROP TABLE rift_sq156_outer IF EXISTS;
+DROP TABLE rift_sq156_inner IF EXISTS;
+
+CREATE TABLE rift_sq156_outer (
+    a VARCHAR(10),
+    b INT
+) if not exists;
+
+CREATE TABLE rift_sq156_inner (
+    x INT
+) if not exists;
+
+SELECT CASE
+         WHEN (o.a IS NOT NULL
+               AND o.b NOT IN ((SELECT i.x
+                                FROM rift_sq156_inner AS i)))
+         THEN 1
+         ELSE 0
+       END AS flag
+FROM rift_sq156_outer AS o
+GROUP BY CASE
+           WHEN (o.a IS NOT NULL
+                 AND o.b NOT IN ((SELECT i.x
+                                  FROM rift_sq156_inner AS i)))
+           THEN 1
+           ELSE 0
+         END,
+         o.a,
+         o.b;
+ECHO BOTH $IF $EQU $STATE OK $IF $EQU $ROWCNT 0 "PASSED" "***FAILED" "***FAILED";
+SET ARGV[$LIF] $+ $ARGV[$LIF] 1;
+ECHO BOTH ": case #1463 - SQ156 optimized compiler error for a grouped CASE containing double-parenthesized NOT IN; expected 0 row(s), returned " $ROWCNT " STATE=" $STATE " MESSAGE=" $MESSAGE "\n";
+
+-- --------------------------------------------------------------------------
+-- Case #1464: VECSL internal error for ANY subquery with chained RIGHT JOINs and a grouped derived table
+-- --------------------------------------------------------------------------
+DROP TABLE rift_vecsl_t3 IF EXISTS;
+DROP TABLE rift_vecsl_t2 IF EXISTS;
+DROP TABLE rift_vecsl_t1 IF EXISTS;
+
+CREATE TABLE rift_vecsl_t1 (
+    c1 INT NOT NULL PRIMARY KEY,
+    c2 VARCHAR(255) NOT NULL,
+    c3 VARCHAR(255),
+    c4 INT,
+    c5 DATE NOT NULL,
+    c6 VARCHAR(10) NOT NULL
+) if not exists;
+
+CREATE TABLE rift_vecsl_t2 (
+    c1 INT NOT NULL PRIMARY KEY,
+    c2 INT NOT NULL,
+    c3 DECIMAL(10,2) NOT NULL,
+    c4 VARCHAR(50) NOT NULL,
+    c5 DATE NOT NULL,
+    c6 VARCHAR(4000),
+    c7 VARCHAR(4000),
+    c8 VARBINARY(4000),
+    c9 VARBINARY(4000),
+    c10 VARCHAR(4000),
+    c11 VARCHAR(4000),
+    c12 INTEGER,
+    c13 DATETIME,
+    c14 FLOAT,
+    c15 DOUBLE PRECISION,
+    c16 VARCHAR(4000)
+) if not exists;
+
+CREATE TABLE rift_vecsl_t3 (
+    c1 INT NOT NULL PRIMARY KEY,
+    c2 INT NOT NULL,
+    c3 INT NOT NULL,
+    c4 INT NOT NULL,
+    c5 DATETIME,
+    c6 SMALLINT,
+    c7 SMALLINT,
+    c8 INTEGER,
+    c9 BIGINT,
+    c10 VARCHAR(4000),
+    c11 VARCHAR(255),
+    c12 VARCHAR(4000),
+    c13 VARBINARY(4000),
+    c14 VARCHAR(4000),
+    c15 SMALLINT
+) if not exists;
+
+SELECT x.c7
+FROM rift_vecsl_t2 AS x
+WHERE x.c4 <> ANY (
+    SELECT z.c7
+    FROM rift_vecsl_t3 AS y
+    RIGHT JOIN (
+        SELECT b.c16, b.c14, b.c10
+        FROM rift_vecsl_t3 AS a
+        RIGHT JOIN rift_vecsl_t2 AS b ON a.c7 >= b.c15
+        GROUP BY b.c16, b.c14, b.c10
+    ) AS d ON y.c9 BETWEEN 10 AND 21
+    RIGHT JOIN rift_vecsl_t2 AS z
+        ON y.c6 = z.c3 AND z.c4 IS NULL
+);
+ECHO BOTH $IF $EQU $STATE OK $IF $EQU $ROWCNT 0 "PASSED" "***FAILED" "***FAILED";
+SET ARGV[$LIF] $+ $ARGV[$LIF] 1;
+ECHO BOTH ": case #1464 - VECSL internal error for ANY subquery with chained RIGHT JOINs and a grouped derived table; expected 0 row(s), returned " $ROWCNT " STATE=" $STATE " MESSAGE=" $MESSAGE "\n";
+
+ECHO BOTH "COMPLETED: optimizer regression cases #1452 onward WITH " $ARGV[0] " FAILED, " $ARGV[1] " PASSED\n\n";

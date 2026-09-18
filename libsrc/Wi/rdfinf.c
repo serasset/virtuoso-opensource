@@ -8,7 +8,7 @@
  *  This file is part of the OpenLink Software Virtuoso Open-Source (VOS)
  *  project.
  *
- *  Copyright (C) 1998-2024 OpenLink Software
+ *  Copyright (C) 1998-2026 OpenLink Software
  *
  *  This project is free software; you can redistribute it and/or modify it
  *  under the terms of the GNU General Public License as published by the
@@ -323,7 +323,7 @@ iri_ensure (caddr_t * qst, caddr_t name, int flag, caddr_t * err_ret)
 char * sas_1_text = "select S from DB.DBA.RDF_QUAD where G = ? and O = ? and P = ? option (quietcast)";
 char * sas_2_text = "select O from DB.DBA.RDF_QUAD where G = ? and S = ? and P = ? option (quietcast)";
 char * sas_tn_text = "select O from DB.DBA.RDF_QUAD where S = :0 and P = rdf_sas_iri () and G in (:1) and isiri_id (O) union all select S from DB.DBA.RDF_QUAD where O = :0 and P = rdf_sas_iri () and G in (:1) option (quietcast, array)";
-char * sas_tn_no_graph_text = "select O from DB.DBA.RDF_QUAD where S = :0 and P = rdf_sas_iri () union all select S from DB.DBA.RDF_QUAD where O = :0 and P = rdf_sas_iri () option (quietcast, array)";
+char * sas_tn_no_graph_text = "select O from DB.DBA.RDF_QUAD where S = :0 and isiri_id (O) and P = rdf_sas_iri () union all select S from DB.DBA.RDF_QUAD where O = :0 and P = rdf_sas_iri () option (quietcast, array)";
 char * tn_ifp_text =
   " select S from DB.DBA.RDF_QUAD table option (index RDF_QUAD_POGS)"
   " where P in (rdf_inf_ifp_list (:1)) and O = :0 and not isiri_id (:0) and G in (:2) and not rdf_inf_ifp_is_excluded (:1, P, :0) "
@@ -368,7 +368,7 @@ id_hash_t * tn_ifp_no_graph_ht;
 dk_mutex_t * tn_cache_mtx;
 
 void
-sas_ensure ()
+sas_ensure (void)
 {
   caddr_t err;
   if (!sas_1_qr)
@@ -924,12 +924,16 @@ ric_allocate (caddr_t n2)
   id_hash_set (rdf_name_to_ric, (caddr_t) & n2, (caddr_t) & ctx);
   ctx->ric_iri_to_subclass = id_hash_allocate (61, sizeof (caddr_t), sizeof (caddr_t), treehash, treehashcmp);
   ctx->ric_iri_to_subproperty = id_hash_allocate (61, sizeof (caddr_t), sizeof (caddr_t), treehash, treehashcmp);
+  ctx->ric_prop_to_domains = id_hash_allocate (61, sizeof (caddr_t), sizeof (caddr_t), treehash, treehashcmp);
+  ctx->ric_prop_to_ranges = id_hash_allocate (61, sizeof (caddr_t), sizeof (caddr_t), treehash, treehashcmp);
   ctx->ric_iid_to_rel_ifp = id_hash_allocate (61, sizeof (caddr_t), sizeof (caddr_t), treehash, treehashcmp);
   ctx->ric_samples = id_hash_allocate (601, sizeof (caddr_t), sizeof (tb_sample_t), treehash, treehashcmp);
   /*ctx->ric_prop_props = id_hash_allocate (61, sizeof (caddr_t), sizeof (caddr_t), treehash, treehashcmp); */
   ctx->ric_ifp_exclude = id_hash_allocate (61, sizeof (caddr_t), sizeof (caddr_t), treehash, treehashcmp);
   id_hash_set_rehash_pct (ctx->ric_iri_to_subclass, 200);
   id_hash_set_rehash_pct (ctx->ric_iri_to_subproperty, 200);
+  id_hash_set_rehash_pct (ctx->ric_prop_to_domains, 200);
+  id_hash_set_rehash_pct (ctx->ric_prop_to_ranges, 200);
   id_hash_set_rehash_pct (ctx->ric_iid_to_rel_ifp, 200);
   id_hash_set_rehash_pct (ctx->ric_samples, 200);
   id_hash_set_rehash_pct (ctx->ric_ifp_exclude, 200);
@@ -1046,6 +1050,7 @@ bif_rdf_inf_dump (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
   dk_set_t res_triples = NULL;
   id_hash_iterator_t hiter;
   caddr_t *key_ptr, *data_ptr;
+  caddr_t **classes_ptr;
   rdf_sub_t **rsub_ptr;
   iri_id_t **rels_ptr;
   id_hash_iterator (&hiter, ctx->ric_iri_to_subclass);
@@ -1077,6 +1082,26 @@ bif_rdf_inf_dump (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
           dk_set_push (&res_triples, list (3, box_copy_tree (equiv_rs->rs_iri), box_dv_uname_string ("http://www.w3.org/2002/07/owl#equivalentProperty"), box_copy_tree(key_ptr[0])));
         }
       END_DO_SET ()
+    }
+  id_hash_iterator (&hiter, ctx->ric_prop_to_domains);
+  while (hit_next (&hiter, (char **)(&key_ptr), (char **)(&classes_ptr)))
+    {
+      caddr_t *classes = classes_ptr[0];
+      DO_BOX_FAST_REV (caddr_t, cls_iid, ctr, classes)
+        {
+          dk_set_push (&res_triples, list (3, box_copy_tree (key_ptr[0]), box_dv_uname_string ("http://www.w3.org/2000/01/rdf-schema#domain"), box_copy_tree (cls_iid)));
+        }
+      END_DO_BOX_FAST;
+    }
+  id_hash_iterator (&hiter, ctx->ric_prop_to_ranges);
+  while (hit_next (&hiter, (char **)(&key_ptr), (char **)(&classes_ptr)))
+    {
+      caddr_t *classes = classes_ptr[0];
+      DO_BOX_FAST_REV (caddr_t, cls_iid, ctr, classes)
+        {
+          dk_set_push (&res_triples, list (3, box_copy_tree (key_ptr[0]), box_dv_uname_string ("http://www.w3.org/2000/01/rdf-schema#range"), box_copy_tree (cls_iid)));
+        }
+      END_DO_BOX_FAST;
     }
   DO_BOX_FAST_REV (caddr_t, iid, ctr, ctx->ric_ifp_list)
     {
@@ -1374,6 +1399,53 @@ bif_rdf_inf_set_prop_props (caddr_t * qst, caddr_t * err_ret, state_slot_t ** ar
   dk_free_tree ((caddr_t)(ctx->ric_prop_props));
   ctx->ric_prop_props = uname_flags_lst;
   return NULL;
+}
+
+static caddr_t
+bif_rdf_inf_set_prop_types_impl (caddr_t * qst, state_slot_t ** args, id_hash_t * ht, const char *fname)
+{
+  caddr_t prop = bif_arg (qst, args, 1, (char *)fname);
+  caddr_t *classes = bif_array_of_pointer_arg (qst, args, 2, (char *)fname);
+  caddr_t prop_copy, classes_copy;
+  caddr_t **place;
+  int cls_inx;
+  sec_check_dba ((query_instance_t *)qst, (char *)fname);
+  if (!IS_IRI_DTP (DV_TYPE_OF (prop)))
+    sqlr_new_error ("22023", "RDFI.", "%.200s(): property argument must be an IRI_ID", fname);
+  DO_BOX (caddr_t, cls, cls_inx, classes)
+    {
+      if (!IS_IRI_DTP (DV_TYPE_OF (cls)))
+        sqlr_new_error ("22023", "RDFI.", "%.200s(): class list must contain IRI_ID values", fname);
+    }
+  END_DO_BOX;
+  prop_copy = box_copy_tree (prop);
+  classes_copy = box_copy_tree ((caddr_t)classes);
+  place = (caddr_t **) id_hash_get (ht, (caddr_t) &prop);
+  if (place)
+    {
+      dk_free_tree ((caddr_t)(place[0]));
+      place[0] = (caddr_t *) classes_copy;
+      dk_free_tree (prop_copy);
+    }
+  else
+    {
+      id_hash_set (ht, (caddr_t) &prop_copy, (caddr_t) &classes_copy);
+    }
+  return NULL;
+}
+
+caddr_t
+bif_rdf_inf_set_prop_domains (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
+{
+  rdf_inf_ctx_t * ctx = bif_ctx_arg (qst, args, 0, "rdf_inf_set_prop_domains", 1);
+  return bif_rdf_inf_set_prop_types_impl (qst, args, ctx->ric_prop_to_domains, "rdf_inf_set_prop_domains");
+}
+
+caddr_t
+bif_rdf_inf_set_prop_ranges (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
+{
+  rdf_inf_ctx_t * ctx = bif_ctx_arg (qst, args, 0, "rdf_inf_set_prop_ranges", 1);
+  return bif_rdf_inf_set_prop_types_impl (qst, args, ctx->ric_prop_to_ranges, "rdf_inf_set_prop_ranges");
 }
 
 caddr_t
@@ -1721,6 +1793,8 @@ rdf_inf_init ()
   bif_define ("rdf_inf_ifp_is_excluded", bif_rdf_inf_ifp_is_excluded);
   bif_define ("rdf_inf_set_inverses", bif_rdf_inf_set_inverses);
   bif_define ("rdf_inf_set_prop_props", bif_rdf_inf_set_prop_props);
+  bif_define ("rdf_inf_set_prop_domains", bif_rdf_inf_set_prop_domains);
+  bif_define ("rdf_inf_set_prop_ranges", bif_rdf_inf_set_prop_ranges);
   bif_define ("rdf_check_init" , bif_rdf_check_init);
   bif_set_uses_index (bif_rdf_check_init);
   bif_define ("rdf_super_sub_list", bif_rdf_super_sub_list);
@@ -1860,18 +1934,24 @@ sqlg_rdf_ts_replace_ssl (table_source_t * ts, state_slot_t * old, state_slot_t *
 }
 
 
-state_slot_t *
-sqlg_col_ssl (df_elt_t * tb_dfe, char * name)
+df_elt_t *
+sqlg_col_dfe (df_elt_t * tb_dfe, char * name)
 {
   DO_SET (df_elt_t *, out, &tb_dfe->_.table.out_cols)
     {
       if (0 == stricmp (out->_.col.col->col_name, name))
-	return out->dfe_ssl;
+	return out;
     }
   END_DO_SET();
   return NULL;
 }
 
+state_slot_t *
+sqlg_col_ssl (df_elt_t * tb_dfe, char * name)
+{
+  df_elt_t * col = sqlg_col_dfe (tb_dfe, name);
+  return col ? col->dfe_ssl :  NULL;
+}
 
 void
 sqlg_ri_post_filter (table_source_t * ts, df_elt_t * tb_dfe, rdf_inf_pre_node_t * ri, int p_check)
@@ -2030,19 +2110,90 @@ sqlg_leading_subclass_inf (sqlo_t * so, data_source_t ** q_head, data_source_t *
   ri->ri_ctx = ctx;
 }
 
+int
+dfe_references (sqlo_t * so, df_elt_t *dfe, df_elt_t * refd)
+{
+  int inx;
+  if (NULL == refd)
+    return 0;
+  if (DFE_TRUE == dfe || DFE_FALSE == dfe) /* true is NULL */
+    return 0;
+  if (refd == dfe)
+    return 1;
+  if (dfe->dfe_tree && box_equal ((box_t) dfe->dfe_tree, (box_t) refd->dfe_tree))
+    return (NULL != refd->dfe_tree);
+  switch (dfe->dfe_type)
+    {
+      case DFE_BOP:
+      case DFE_BOP_PRED:
+          if (dfe_references (so, dfe->_.bin.left, refd))
+            return 1;
+          if (dfe_references (so, dfe->_.bin.right, refd))
+            return 1;
+          break;
+      case DFE_CONTROL_EXP:
+          DO_BOX (ST *, elt, inx, dfe->dfe_tree->_.comma_exp.exps)
+            {
+              df_elt_t *pred = sqlo_df (so, elt);
+              if (dfe_references (so, pred, refd))
+                return 1;
+            }
+          END_DO_BOX;
+          break;
+      case DFE_CALL:
+          DO_BOX (ST *, elt, inx, dfe->dfe_tree->_.call.params)
+            {
+              df_elt_t *arg = sqlo_df (so, elt);
+              if (dfe_references (so, arg, refd))
+                return 1;
+            }
+          END_DO_BOX;
+          break;
+      default:
+          break;
+    }
+  return 0;
+}
+
+int
+pred_body_references (sqlo_t * so, df_elt_t ** pred, df_elt_t * refd)
+{
+  int op;
+  if (!IS_BOX_POINTER (pred) || !refd)
+    return 0;
+  op = (ptrlong)pred[0];
+  if (BOP_AND == op || BOP_OR == op || BOP_NOT == op)
+    return pred_body_references (so, (df_elt_t**)pred[1], refd);
+  if (DFE_PRED_BODY == op)
+    {
+      uint32_t inx;
+      for (inx = 1; inx < BOX_ELEMENTS (pred); inx++)
+	{
+	  df_elt_t * dfe = pred[inx];
+	  if (DFE_BOP_PRED == dfe->dfe_type)
+	    return 0;
+	  if (dfe_references (so, dfe, refd))
+	    return NULL != refd;
+	}
+    }
+  return 0;
+}
+
 
 void
 sqlg_trailing_subclass_inf (sqlo_t * so, data_source_t ** q_head, data_source_t * ts, df_elt_t * p_dfe, caddr_t p_const, df_elt_t * o_dfe, caddr_t o_iri,
 			    rdf_inf_ctx_t * ctx, df_elt_t * tb_dfe, int inxop_inx)
 {
   state_slot_t * o_slot;
+  df_elt_t * o_col;
   rdf_inf_pre_node_t * ri;
   if (sas_dummy_ctx == ctx
       || tb_dfe->_.table.is_inf_col_given)
     return;
   if (p_const && !box_equal (rdfs_type, p_const))
     return;
-  o_slot = sqlg_col_ssl (tb_dfe, "O");
+  o_col = sqlg_col_dfe (tb_dfe, "O");
+  o_slot = o_col ? o_col->dfe_ssl : NULL;
   if (!o_slot)
     return; /* o is unspecified and but is not accessed */
   ri = sqlg_rdf_inf_node (so->so_sc);
@@ -2055,6 +2206,17 @@ sqlg_trailing_subclass_inf (sqlo_t * so, data_source_t ** q_head, data_source_t 
     ri->ri_p = p_dfe->dfe_ssl;
   else
     ri->ri_p = sqlg_col_ssl (tb_dfe, "P");
+  if (pred_body_references (so, tb_dfe->_.table.join_test, o_col))
+    {
+      data_source_t * last_with_test = qn_last(ts);
+      while (last_with_test && !last_with_test->src_after_test)
+        last_with_test = qn_prev(q_head, last_with_test);
+      if (last_with_test) /* precaution, NULL should not happen since tb has jt */
+        {
+          ri->src_gen.src_after_test = last_with_test->src_after_test;
+          last_with_test->src_after_test = NULL;
+        }
+    }
   ri->ri_ctx = ctx;
 }
 
@@ -2110,12 +2272,14 @@ sqlg_trailing_subproperty_inf (sqlo_t * so, data_source_t ** q_head, data_source
 			    rdf_inf_ctx_t * ctx, df_elt_t * tb_dfe, int inxop_inx)
 {
   state_slot_t * p_slot;
+  df_elt_t * p_col;
   rdf_inf_pre_node_t * ri;
   if (sas_dummy_ctx == ctx
       || tb_dfe->_.table.is_inf_col_given)
     return;
 
-  p_slot = sqlg_col_ssl (tb_dfe, "P");
+  p_col = sqlg_col_dfe (tb_dfe, "P");
+  p_slot = p_col ? p_col->dfe_ssl : NULL;
   if (!p_slot)
     return; /* P is unspecified and but is not accessed */
   ri = sqlg_rdf_inf_node (so->so_sc);
@@ -2125,6 +2289,17 @@ sqlg_trailing_subproperty_inf (sqlo_t * so, data_source_t ** q_head, data_source
   ri->ri_output = p_slot;
   ri->ri_p = p_slot;
   ri->ri_ctx = ctx;
+  if (pred_body_references (so, tb_dfe->_.table.join_test, p_col))
+    {
+      data_source_t * last_with_test = qn_last(ts);
+      while (last_with_test && !last_with_test->src_after_test)
+        last_with_test = qn_prev(q_head, last_with_test);
+      if (last_with_test) /* precaution, NULL should not happen since tb has jt */
+        {
+          ri->src_gen.src_after_test = last_with_test->src_after_test;
+          last_with_test->src_after_test = NULL;
+        }
+    }
 }
 
 
@@ -2513,7 +2688,7 @@ data_source_t *
 qn_skip_inits (data_source_t * qn)
 {
   data_source_t * next;
-  while ((next = qn_next (qn)))
+  while (qn && (next = qn_next (qn)))
     {
       if (!IS_QN (qn, hash_fill_node_input))
 	break;

@@ -8,7 +8,7 @@
  *  This file is part of the OpenLink Software Virtuoso Open-Source (VOS)
  *  project.
  *
- *  Copyright (C) 1998-2024 OpenLink Software
+ *  Copyright (C) 1998-2026 OpenLink Software
  *
  *  This project is free software; you can redistribute it and/or modify it
  *  under the terms of the GNU General Public License as published by the
@@ -361,7 +361,7 @@ it_not_in_any (du_thread_t * self, index_tree_t * except)
 
 #ifdef DBSE_TREES_DEBUG
 int
-dbg_it_print_trees ()
+dbg_it_print_trees (void)
 {
   DO_SET (dbe_storage_t *, dbs, &wi_inst.wi_storage)
     {
@@ -458,7 +458,7 @@ it_temp_tree_done (index_tree_t * it)
 
 
 void
-it_temp_tree_check ()
+it_temp_tree_check (void)
 {
   DO_SET (index_tree_t *, it, &temp_trees)
     {
@@ -560,6 +560,10 @@ DBG_NAME (it_temp_allocate) (DBG_PARAMS dbe_storage_t * dbs)
     }
   else
     {
+#ifdef DEBUG
+      if (0 != tree->it_ref_count)
+        GPF_T1 ("Non-zero it_ref_count after resource_get()");
+#endif
       tree->it_ref_count = 1;
       tree->it_hi = NULL;
       tree->it_storage = dbs;
@@ -668,8 +672,8 @@ DBG_NAME (it_temp_free) (DBG_PARAMS index_tree_t * it)
   for (inx = 0; inx < IT_N_MAPS; inx++)
     {
       it_map_t * itm = &it->it_maps[inx];
- again:
       ITC_IN_KNOWN_MAP (itc, inx);
+ again:
       dk_hash_iterator (&hit, &itm->itm_dp_to_buf);
   while (dk_hit_next (&hit, (void**) &dp, (void **) &buf))
     {
@@ -738,6 +742,30 @@ DBG_NAME (it_temp_free) (DBG_PARAMS index_tree_t * it)
   return 1;
 }
 
+void
+it_temp_write_cancel (index_tree_t * tree)
+{
+  int inx;
+  ptrlong dp;
+  buffer_desc_t * buf;
+  dk_hash_iterator_t hit;
+  if (KI_TEMP != tree->it_key->key_id)
+    GPF_T1 ("it_temp_write_cancel is supposed to use with temp tree only");
+  for (inx = 0; inx < IT_N_MAPS; inx++)
+    {
+      it_map_t * itm = &tree->it_maps[inx];
+      dk_hash_iterator (&hit, &itm->itm_dp_to_buf);
+      while (dk_hit_next (&hit, (void**) &dp, (void **) &buf))
+        {
+          if (!BUF_WIRED(buf))
+            continue;
+          if (buf->bd_iq)
+            buf_cancel_write (buf);
+          BD_SET_IS_WRITE (buf, 0);
+        }
+    }
+}
+
 
 page_map_t *
 map_allocate (ptrlong sz)
@@ -777,7 +805,7 @@ static int bg_free_buffers = 0;
 static dk_mutex_t *bg_mutex = NULL;
 
 buffer_group_t *
-buffer_group_allocate ()
+buffer_group_allocate (void)
 {
   B_NEW_VARZ (buffer_group_t, bg);
   bg->bg_buffer0 = ALIGN_8K (bg->bg_space);
@@ -3122,7 +3150,7 @@ typedef struct digit_sort_s
 
 
 digit_sort_t *
-ds_allocate ()
+ds_allocate (void)
     {
   return (digit_sort_t *) dk_alloc_box (sizeof (digit_sort_t), DV_BIN);
     }
@@ -3881,6 +3909,7 @@ dbs_init_id (char * str)
 }
 
 extern int32 rdf_rpid64_mode;
+extern int32 xte_use_mhash;
 
 void
 dbs_write_cfg_page (dbe_storage_t * dbs, int is_first)
@@ -3934,6 +3963,7 @@ dbs_write_cfg_page (dbe_storage_t * dbs, int is_first)
   db.db_timezoneless_datetimes = timezoneless_datetimes;
   /* should we check it is set to true? */
   db.db_rdf_id64 = rdf_rpid64_mode;
+  db.db_xte_hash_mode = xte_use_mhash;
   LSEEK (fd, 0, SEEK_SET);
   memcpy (zero, &db, sizeof (db));
   rc = write (fd, zero, PAGE_SZ);
@@ -4372,6 +4402,7 @@ dbs_read_cfg_page (dbe_storage_t * dbs, wi_database_t * cfg_page)
       timezoneless_datetimes = cfg_page->db_timezoneless_datetimes;
     }
   rdf_rpid64_mode = cfg_page->db_rdf_id64;
+  xte_use_mhash = cfg_page->db_xte_hash_mode;
   if (cfg_page->db_byte_order != DB_ORDER_UNKNOWN && cfg_page->db_byte_order != DB_SYS_BYTE_ORDER)
     {
 #ifdef BYTE_ORDER_REV_SUPPORT
@@ -4396,7 +4427,7 @@ char * db_version_string = DBMS_SRV_VER_ONLY;
 volatile int db_exists = 0;
 
 void
-wi_storage_offsets ()
+wi_storage_offsets (void)
 {
   /* give each storage a sort offset so they get flushed in order */
   dp_addr_t total = 0;
@@ -4604,7 +4635,7 @@ _cfg_read_storages (caddr_t **temp_storage)
 
 
 void
-wi_open_dbs ()
+wi_open_dbs (void)
 {
   int sec_exists;
 /*  char line_buf[2000];	*/	/* Was 100 */
@@ -4828,7 +4859,7 @@ it_copy_cb (caddr_t x)
 #include <sched.h>
 
 void
-wi_init_process ()
+wi_init_process (void)
 {
   int rc;
   struct sched_param p;
@@ -5176,7 +5207,7 @@ resources_reaper (void)
 
 
 wi_db_t *
-wi_ctx_db ()
+wi_ctx_db (void)
 {
   return (wi_inst.wi_master_wd);
 }

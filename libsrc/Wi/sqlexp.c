@@ -8,7 +8,7 @@
  *  This file is part of the OpenLink Software Virtuoso Open-Source (VOS)
  *  project.
  *
- *  Copyright (C) 1998-2024 OpenLink Software
+ *  Copyright (C) 1998-2026 OpenLink Software
  *
  *  This project is free software; you can redistribute it and/or modify it
  *  under the terms of the GNU General Public License as published by the
@@ -918,7 +918,7 @@ cv_bop_params (state_slot_t * l, state_slot_t * r, const char *op)
 	goto skip_warning;
       if ((DV_UNAME == r->ssl_dtp) && (DV_STRING == l->ssl_dtp))
         goto skip_warning;
-      if (l->ssl_dtp != DV_TIMESTAMP && r->ssl_dtp != DV_TIMESTAMP)
+      if ((l->ssl_dtp != DV_TIMESTAMP && r->ssl_dtp != DV_TIMESTAMP) || SSL_CONSTANT == l->ssl_type || SSL_CONSTANT == r->ssl_type)
 	{
 	  sqlc_warning ("01V01", "QW004",
 	      "Incompatible types %.*s%s%s%s (%d) and %.*s%s%s%s (%d) in %s for %.*s and %.*s",
@@ -969,7 +969,7 @@ cv_asg_broader_type (instruction_t *ins)
     res->ssl_sqt.sqt_col_dtp = 0; /* will influence dc dtp, not a column, not set */
   if (IS_NUM_DTP (res->ssl_dtp) && IS_NUM_DTP (l->ssl_dtp))
     {
-      if (DV_DOUBLE_FLOAT == l->ssl_dtp)
+      if (DV_DOUBLE_FLOAT == l->ssl_dtp && DV_NUMERIC != res->ssl_sqt.sqt_col_dtp)
 	res->ssl_dtp = DV_DOUBLE_FLOAT;
       else
 	res->ssl_dtp = MAX (res->ssl_dtp, l->ssl_dtp);
@@ -1594,9 +1594,13 @@ pred_gen_1 (sql_comp_t * sc, ST * tree, dk_set_t * code, int succ, int fail, int
   if (ST_P (tree, BOP_OR))
     {
       jmp_label_t temp_fail = sqlc_new_label (sc);
-      pred_gen_1 (sc, tree->_.bin_exp.left, code, succ, temp_fail, temp_fail);
+      jmp_label_t left_unkn = sqlc_new_label (sc);
+      pred_gen_1 (sc, tree->_.bin_exp.left, code, succ, temp_fail, left_unkn);
       cv_label (code, temp_fail);
       pred_gen_1 (sc, tree->_.bin_exp.right, code, succ, fail, unkn);
+      /* UNKNOWN OR TRUE = TRUE; UNKNOWN OR FALSE/UNKNOWN = UNKNOWN */
+      cv_label (code, left_unkn);
+      pred_gen_1 (sc, tree->_.bin_exp.right, code, succ, unkn, unkn);
       return;
     }
   if (ST_P (tree, BOP_AND))
@@ -2119,16 +2123,16 @@ cv_refd_slots (sql_comp_t * sc, code_vec_t cv, dk_hash_t * res, dk_hash_t * all_
 	  break;
 	case INS_SUBQ:
 	  {
-	    state_slot_t ** out_save = sc->sc_sel_out;
-	  if (non_cl_local)
-	    *non_cl_local = 1;
+	    state_slot_t **out_save = sc->sc_sel_out;
+	    if (non_cl_local)
+	      *non_cl_local = 1;
 	    sc->sc_sel_out = NULL;
-	  if (res)
-	  sqlg_qn_env (sc, ins->_.subq.query->qr_head_node, NULL, res);
+	    if (res)
+	      sqlg_qn_env (sc, ins->_.subq.query->qr_head_node, NULL, res);
 	    sc->sc_sel_out = out_save;
 	    if (ins->_.subq.query->qr_select_node)
 	      {
-	  ASG_SSL (res, all_res, ins->_.subq.query->qr_select_node->sel_out_slots[0]);
+		ASG_SSL (res, all_res, ins->_.subq.query->qr_select_node->sel_out_slots[0]);
 		ASG_SSL (res, all_res, ins->_.subq.query->qr_select_node->sel_scalar_ret);
 	      }
 	    break;

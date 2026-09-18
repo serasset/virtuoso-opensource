@@ -4,7 +4,7 @@
  *  This file is part of the OpenLink Software Virtuoso Open-Source (VOS)
  *  project.
  *
- *  Copyright (C) 1998-2024 OpenLink Software
+ *  Copyright (C) 1998-2026 OpenLink Software
  *
  *  This project is free software; you can redistribute it and/or modify it
  *  under the terms of the GNU General Public License as published by the
@@ -74,4 +74,3 @@ a.rdf_source img { vertical-align: middle;margin-right: 5px;}
 #ft_r { float: right;}
 #ft_l label { margin-right: 5px;}
 
-div.content.embedded { padding: 0.25em; height: 105%; margin-bottom: 1em; display: block; float: none; clear: both; }

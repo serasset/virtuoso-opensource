@@ -8,7 +8,7 @@
  *  This file is part of the OpenLink Software Virtuoso Open-Source (VOS)
  *  project.
  *
- *  Copyright (C) 1998-2024 OpenLink Software
+ *  Copyright (C) 1998-2026 OpenLink Software
  *
  *  This project is free software; you can redistribute it and/or modify it
  *  under the terms of the GNU General Public License as published by the
@@ -56,6 +56,11 @@ key_col_from_ssl (dbe_key_t * key, state_slot_t * ssl, int quietcast, int op)
   col->col_sqt.sqt_non_null = 0;
   if (DV_ARRAY_OF_POINTER == col->col_sqt.sqt_dtp)
     col->col_sqt.sqt_dtp = DV_ANY;
+  if (DV_GEO == col->col_sqt.sqt_dtp && SSL_CONSTANT == ssl->ssl_type)
+    {
+      col->col_sqt.sqt_dtp = DV_ANY;
+      col->col_sqt.sqt_col_dtp = DV_ANY;
+    }
   if (DV_LONG_INT == ssl->ssl_dtp /*&& !ssl->ssl_column*/)
     {
       col->col_sqt.sqt_col_dtp = col->col_sqt.sqt_dtp = DV_INT64; /* temp results of int exprs can be wider */
@@ -309,7 +314,7 @@ setp_after_deserialize (setp_node_t * setp)
   if (setp->setp_loc_ts)
     setp->setp_loc_ts->ts_order_ks->ks_key = ha->ha_key;
   if (setp->setp_ha && HA_ORDER == setp->setp_ha->ha_op)
-    setp->setp_org_slots = (state_slot_t **)box_concat (setp->setp_keys_box, setp->setp_dependent_box);
+    setp->setp_org_slots = (state_slot_t **) box_concat ((caddr_t) setp->setp_keys_box, (caddr_t) setp->setp_dependent_box);
 }
 
 

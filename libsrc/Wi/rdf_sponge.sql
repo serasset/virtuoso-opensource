@@ -4,7 +4,7 @@
 --  This file is part of the OpenLink Software Virtuoso Open-Source (VOS)
 --  project.
 --
---  Copyright (C) 1998-2024 OpenLink Software
+--  Copyright (C) 1998-2026 OpenLink Software
 --
 --  This project is free software; you can redistribute it and/or modify it
 --  under the terms of the GNU General Public License as published by the
@@ -1344,9 +1344,12 @@ create function DB.DBA.RDF_SPONGE_GUESS_CONTENT_TYPE (in origin_uri varchar, in 
 		return 'application/sparql-results+xml';
 	if (xpath_eval ('[xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"] /rdf:rdf', ret_html) is not null)
 		return 'application/rdf+xml';
-	if (strstr (ret_begin, '<html>') is not null or
-		strstr (ret_begin, '<xhtml>') is not null )
-		return 'text/html';
+        -- we may guess html if and only if text/plain and nothing else, also html/xhtml should be at start of document
+        if ((ret_content_type is null or
+            strstr (ret_content_type, 'text/plain') is not null or
+            strstr (ret_content_type, 'application/octet-stream') is not null)
+            and regexp_match('^(?:\\s*(?:<\\?xml[^>]+>|<!\x2d\x2d.*?\x2d\x2d>|<!DOCTYPE[^>]+>))*\\s*<x?html', ret_begin, 0, 'ig') is not null)
+            return 'text/html';
 	declare exit handler for sqlstate '*'
 	{
 		goto next;

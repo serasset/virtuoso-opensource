@@ -8,7 +8,7 @@
  *  This file is part of the OpenLink Software Virtuoso Open-Source (VOS)
  *  project.
  *
- *  Copyright (C) 1998-2024 OpenLink Software
+ *  Copyright (C) 1998-2026 OpenLink Software
  *
  *  This project is free software; you can redistribute it and/or modify it
  *  under the terms of the GNU General Public License as published by the
@@ -370,7 +370,7 @@ bif_ses_connect (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
       int ssl_err = 0;
       int fd = tcpses_get_fd (ses->dks_session);
       char err_text[512], err_code[6];
-      ssl_method = SSLv23_client_method ();
+      ssl_method = TLS_client_method ();
       ssl_ctx = SSL_CTX_new (ssl_method);
       ssl = SSL_new (ssl_ctx);
       SSL_set_fd (ssl, fd);

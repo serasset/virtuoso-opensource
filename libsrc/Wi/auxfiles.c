@@ -10,7 +10,7 @@
  *  This file is part of the OpenLink Software Virtuoso Open-Source (VOS)
  *  project.
  *
- *  Copyright (C) 1998-2024 OpenLink Software
+ *  Copyright (C) 1998-2026 OpenLink Software
  *
  *  This project is free software; you can redistribute it and/or modify it
  *  under the terms of the GNU General Public License as published by the
@@ -115,6 +115,7 @@ unsigned long int cfg_thread_threshold = 10;
 /* If zero, do not do it. */
 /* Specified in minutes. Note that 1440 minutes = 24 hours. */
 unsigned long int cfg_autocheckpoint = 0;
+int32 c_soft_checkpoint = 0;
 int32 c_checkpoint_interval = 0;
 int32 cl_run_local_only = CL_RUN_LOCAL;
 int wi_blob_page_dir_threshold;
@@ -189,43 +190,6 @@ void it_make_buffer_list (index_tree_t * it, int n);
  *  PmN
  */
 
-#ifndef PMN_LOG
-void
-log_error_list (char *str, va_list list)
-{
-  FILE *dbg_out = fopen ("wi.err", "a");
-  char tmp[100];
-  char *eol;
-  time_t tim = time (NULL);
-  struct tm tms;
-  struct tm *tm = &tms;
-
-#if defined (PREEMPT) && !defined (WIN32) && !defined(SOLARIS)
-  localtime_r (&tim, &tms);
-  asctime_r (tm, tmp);
-#else
-  tm = localtime (&tim);
-  strncpy (tmp, asctime (tm), sizeof (tmp));
-#endif
-
-  eol = strchr (tmp, '\n');
-  if (eol)
-    *eol = 0;
-
-  if (dbg_out)
-    {
-      fprintf (dbg_out, "%s ", tmp);
-      vfprintf (dbg_out, str, list);
-      fprintf (dbg_out, "\n");
-      fflush (dbg_out);
-      fclose (dbg_out);
-    }
-
-  fprintf (stderr, "%s ", tmp);
-  vfprintf (stderr, str, list);
-  fprintf (stderr, "\n");
-}
-#endif
 
 
 /*
@@ -425,7 +389,7 @@ cfg_parse_disks (dbe_storage_t * dbs, char *err, int err_max, char * cfg_file)
 }
 
 static void
-cfg_parse_backup_dirs()
+cfg_parse_backup_dirs(void)
 {
   old_backup_dirs = dk_set_cons ((caddr_t) ".", NULL);
   old_backup_dirs->next = old_backup_dirs;

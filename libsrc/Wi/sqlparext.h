@@ -8,7 +8,7 @@
  *  This file is part of the OpenLink Software Virtuoso Open-Source (VOS)
  *  project.
  *
- *  Copyright (C) 1998-2024 OpenLink Software
+ *  Copyright (C) 1998-2026 OpenLink Software
  *
  *  This project is free software; you can redistribute it and/or modify it
  *  under the terms of the GNU General Public License as published by the
@@ -851,7 +851,9 @@ extern long sqlp_bin_op_serial;
       BIN_OP (target, BOP_DIV, t1, t2); \
     } \
   else \
-    FN_REF_1 (target, n, all_dist, argp);
+    { \
+      FN_REF_1 (target, n, all_dist, argp); \
+    }
 
 #define FN_REF(target, n, all_dist, argp) \
   if (ST_COLUMN (((ST *) (argp)), COL_DOTTED) && ((ST *) (argp))->_.col_ref.prefix == NULL && ((ST *) (argp))->_.col_ref.name == STAR) \

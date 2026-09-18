@@ -8,7 +8,7 @@
  *  This file is part of the OpenLink Software Virtuoso Open-Source (VOS)
  *  project.
  *
- *  Copyright (C) 1998-2024 OpenLink Software
+ *  Copyright (C) 1998-2026 OpenLink Software
  *
  *  This project is free software; you can redistribute it and/or modify it
  *  under the terms of the GNU General Public License as published by the
@@ -672,7 +672,7 @@ bif_server_root (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 
 
 void
-set_ses_tmp_dir ()
+set_ses_tmp_dir (void)
 {
   static char abs_path[PATH_MAX + 1], *p_abs_path = abs_path;
   abs_path[0] = 0;
@@ -2796,7 +2796,7 @@ win32_system (char *cmd)
 }
 
 static void
-win32_system_init ()
+win32_system_init (void)
 {
   if (do_os_calls)
     {
@@ -4911,13 +4911,12 @@ gz_stream_free (void * s)
   return gz_s_free ((gz_stream *)s);
 }
 
-int
-do_flush_ses (gzFile file, int flush, dk_session_t *ses_out)
+static int
+do_flush_ses (gz_stream *s, int flush, dk_session_t *ses_out)
 {
   uInt len;
   int done = 0;
   char temp[20];
-  gz_stream *s = (gz_stream *) file;
 
   s->stream.avail_in = 0;	/* should be zero already anyway */
 
@@ -5806,7 +5805,7 @@ get_mode_string (caddr_t user_str, int set)
 
 
 void
-set_ini_trace_option ()
+set_ini_trace_option (void)
 {
   char *tmp, *tok_s = NULL, *tok;
   tok_s = NULL;
@@ -7506,6 +7505,17 @@ res_done: ;
   return res;
 }
 
+
+caddr_t
+bif_fs_space (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
+{
+  caddr_t fs = bif_string_arg (qst, args, 0, "fs_space");
+  uint64 size;
+  int flag = (int) bif_long_arg (qst, args, 1, "fs_space");
+  size = mon_get_disk_space (fs, flag, err_ret);
+  return box_num (size);
+}
+
 void
 bif_file_init (void)
 {
@@ -7586,6 +7596,7 @@ bif_file_init (void)
   bif_define_ex ("get_csv_row", bif_get_csv_row, BMD_RET_TYPE, &bt_any, BMD_DONE);
   bif_define_ex ("get_plaintext_row", bif_get_plaintext_row, BMD_RET_TYPE, &bt_varchar, BMD_DONE);
   bif_define_ex ("getenv", bif_getenv, BMD_RET_TYPE, &bt_varchar, BMD_DONE);
+  bif_define_ex ("fs_space", bif_fs_space, BMD_RET_TYPE, &bt_integer, BMD_DONE);
 #ifdef HAVE_BIF_GPF
   bif_define ("__gpf", bif_gpf);
 #endif

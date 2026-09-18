@@ -4,7 +4,7 @@
  *  This file is part of the OpenLink Software Virtuoso Open-Source (VOS)
  *  project.
  *
- *  Copyright (C) 1998-2024 OpenLink Software
+ *  Copyright (C) 1998-2026 OpenLink Software
  *
  *  This project is free software; you can redistribute it and/or modify it
  *  under the terms of the GNU General Public License as published by the
@@ -36,6 +36,8 @@
 #include "aqueue.h"	/* For aq_allocate() in RDF replication */
 #include "geo.h"
 
+int rb_type__rdf_HTML;
+int rb_type__rdf_JSON;
 int rb_type__rdf_XMLLiteral;
 int rb_type__rdf_langString;
 int rb_type__xsd_ENTITY;
@@ -90,63 +92,68 @@ int rb_type__xsd_unsignedLong;
 int rb_type__xsd_unsignedShort;
 int rb_type__xsd_yearMonthDuration;
 
+/**INDENT-OFF**/
 stat_desc_t rdf_preset_datatypes_descs [] =
   {
-    {"rb_type__rdf:XMLLiteral"		, (long *)&rb_type__rdf_XMLLiteral		, SD_INT32	},
-    {"rb_type__rdf:langString"		, (long *)&rb_type__rdf_langString		, SD_INT32	},
-    {"rb_type__xsd:ENTITY"		, (long *)&rb_type__xsd_ENTITY			, SD_INT32	},
-    {"rb_type__xsd:ENTITIES"		, (long *)&rb_type__xsd_ENTITIES		, SD_INT32	},
-    {"rb_type__xsd:ID"			, (long *)&rb_type__xsd_ID			, SD_INT32	},
-    {"rb_type__xsd:IDREF"		, (long *)&rb_type__xsd_IDREF			, SD_INT32	},
-    {"rb_type__xsd:IDREFS"		, (long *)&rb_type__xsd_IDREFS			, SD_INT32	},
-    {"rb_type__xsd:NCName"		, (long *)&rb_type__xsd_NCName			, SD_INT32	},
-    {"rb_type__xsd:Name"		, (long *)&rb_type__xsd_Name			, SD_INT32	},
-    {"rb_type__xsd:NMTOKEN"		, (long *)&rb_type__xsd_NMTOKEN			, SD_INT32	},
-    {"rb_type__xsd:NMTOKENS"		, (long *)&rb_type__xsd_NMTOKENS		, SD_INT32	},
-    {"rb_type__xsd:NOTATION"		, (long *)&rb_type__xsd_NOTATION		, SD_INT32	},
-    {"rb_type__xsd:QName"		, (long *)&rb_type__xsd_QName			, SD_INT32	},
-    {"rb_type__xsd:any"			, (long *)&rb_type__xsd_any			, SD_INT32	},
-    {"rb_type__xsd:anyAtomicType"	, (long *)&rb_type__xsd_anyAtomicType		, SD_INT32	},
-    {"rb_type__xsd:anySimpleType"	, (long *)&rb_type__xsd_anySimpleType		, SD_INT32	},
-    {"rb_type__xsd:anyType"		, (long *)&rb_type__xsd_anyType			, SD_INT32	},
-    {"rb_type__xsd:anyURI"		, (long *)&rb_type__xsd_anyURI			, SD_INT32	},
-    {"rb_type__xsd:base64Binary"	, (long *)&rb_type__xsd_base64Binary		, SD_INT32	},
-    {"rb_type__xsd:boolean"		, (long *)&rb_type__xsd_boolean			, SD_INT32	},
-    {"rb_type__xsd:byte"		, (long *)&rb_type__xsd_byte			, SD_INT32	},
-    {"rb_type__xsd:date"		, (long *)&rb_type__xsd_date			, SD_INT32	},
-    {"rb_type__xsd:dateTime"		, (long *)&rb_type__xsd_dateTime		, SD_INT32	},
-    {"rb_type__xsd:dateTimeStamp"	, (long *)&rb_type__xsd_dateTimeStamp		, SD_INT32	},
-    {"rb_type__xsd:dayTimeDuration"	, (long *)&rb_type__xsd_dayTimeDuration		, SD_INT32	},
-    {"rb_type__xsd:decimal"		, (long *)&rb_type__xsd_decimal			, SD_INT32	},
-    {"rb_type__xsd:double"		, (long *)&rb_type__xsd_double			, SD_INT32	},
-    {"rb_type__xsd:duration"		, (long *)&rb_type__xsd_duration		, SD_INT32	},
-    {"rb_type__xsd:float"		, (long *)&rb_type__xsd_float			, SD_INT32	},
-    {"rb_type__xsd:gDay"		, (long *)&rb_type__xsd_gDay			, SD_INT32	},
-    {"rb_type__xsd:gMonth"		, (long *)&rb_type__xsd_gMonth			, SD_INT32	},
-    {"rb_type__xsd:gMonthDay"		, (long *)&rb_type__xsd_gMonthDay		, SD_INT32	},
-    {"rb_type__xsd:gYear"		, (long *)&rb_type__xsd_gYear			, SD_INT32	},
-    {"rb_type__xsd:gYearMonth"		, (long *)&rb_type__xsd_gYearMonth		, SD_INT32	},
-    {"rb_type__xsd:hexBinary"		, (long *)&rb_type__xsd_hexBinary		, SD_INT32	},
-    {"rb_type__xsd:int"			, (long *)&rb_type__xsd_int			, SD_INT32	},
-    {"rb_type__xsd:integer"		, (long *)&rb_type__xsd_integer			, SD_INT32	},
-    {"rb_type__xsd:language"		, (long *)&rb_type__xsd_language		, SD_INT32	},
-    {"rb_type__xsd:long"		, (long *)&rb_type__xsd_long			, SD_INT32	},
-    {"rb_type__xsd:negativeInteger"	, (long *)&rb_type__xsd_negativeInteger		, SD_INT32	},
-    {"rb_type__xsd:nonNegativeInteger"	, (long *)&rb_type__xsd_nonNegativeInteger	, SD_INT32	},
-    {"rb_type__xsd:nonPositiveInteger"	, (long *)&rb_type__xsd_nonPositiveInteger	, SD_INT32	},
-    {"rb_type__xsd:normalizedString"	, (long *)&rb_type__xsd_normalizedString	, SD_INT32	},
-    {"rb_type__xsd:positiveInteger"	, (long *)&rb_type__xsd_positiveInteger		, SD_INT32	},
-    {"rb_type__xsd:short"		, (long *)&rb_type__xsd_short			, SD_INT32	},
-    {"rb_type__xsd:string"		, (long *)&rb_type__xsd_string			, SD_INT32	},
-    {"rb_type__xsd:time"		, (long *)&rb_type__xsd_time			, SD_INT32	},
-    {"rb_type__xsd:token"		, (long *)&rb_type__xsd_token			, SD_INT32	},
-    {"rb_type__xsd:unsignedByte"	, (long *)&rb_type__xsd_unsignedByte		, SD_INT32	},
-    {"rb_type__xsd:unsignedInt"		, (long *)&rb_type__xsd_unsignedInt		, SD_INT32	},
-    {"rb_type__xsd:unsignedLong"	, (long *)&rb_type__xsd_unsignedLong		, SD_INT32	},
-    {"rb_type__xsd:unsignedShort"	, (long *)&rb_type__xsd_unsignedShort		, SD_INT32	},
-    {"rb_type__xsd:yearMonthDuration"	, (long *)&rb_type__xsd_yearMonthDuration	, SD_INT32	},
-    {NULL, NULL, NULL}
+    SD_DEF_I32 (rb_type__rdf_HTML, "rb_type__rdf:HTML"),
+    SD_DEF_I32 (rb_type__rdf_JSON, "rb_type__rdf:JSON"),
+    SD_DEF_I32 (rb_type__rdf_XMLLiteral, "rb_type__rdf:XMLLiteral"),
+    SD_DEF_I32 (rb_type__rdf_langString, "rb_type__rdf:langString"),
+    SD_DEF_I32 (rb_type__xsd_ENTITY, "rb_type__xsd:ENTITY"),
+    SD_DEF_I32 (rb_type__xsd_ENTITIES, "rb_type__xsd:ENTITIES"),
+    SD_DEF_I32 (rb_type__xsd_ID, "rb_type__xsd:ID"),
+    SD_DEF_I32 (rb_type__xsd_IDREF, "rb_type__xsd:IDREF"),
+    SD_DEF_I32 (rb_type__xsd_IDREFS, "rb_type__xsd:IDREFS"),
+    SD_DEF_I32 (rb_type__xsd_NCName, "rb_type__xsd:NCName"),
+    SD_DEF_I32 (rb_type__xsd_Name, "rb_type__xsd:Name"),
+    SD_DEF_I32 (rb_type__xsd_NMTOKEN, "rb_type__xsd:NMTOKEN"),
+    SD_DEF_I32 (rb_type__xsd_NMTOKENS, "rb_type__xsd:NMTOKENS"),
+    SD_DEF_I32 (rb_type__xsd_NOTATION, "rb_type__xsd:NOTATION"),
+    SD_DEF_I32 (rb_type__xsd_QName, "rb_type__xsd:QName"),
+    SD_DEF_I32 (rb_type__xsd_any, "rb_type__xsd:any"),
+    SD_DEF_I32 (rb_type__xsd_anyAtomicType, "rb_type__xsd:anyAtomicType"),
+    SD_DEF_I32 (rb_type__xsd_anySimpleType, "rb_type__xsd:anySimpleType"),
+    SD_DEF_I32 (rb_type__xsd_anyType, "rb_type__xsd:anyType"),
+    SD_DEF_I32 (rb_type__xsd_anyURI, "rb_type__xsd:anyURI"),
+    SD_DEF_I32 (rb_type__xsd_base64Binary, "rb_type__xsd:base64Binary"),
+    SD_DEF_I32 (rb_type__xsd_boolean, "rb_type__xsd:boolean"),
+    SD_DEF_I32 (rb_type__xsd_byte, "rb_type__xsd:byte"),
+    SD_DEF_I32 (rb_type__xsd_date, "rb_type__xsd:date"),
+    SD_DEF_I32 (rb_type__xsd_dateTime, "rb_type__xsd:dateTime"),
+    SD_DEF_I32 (rb_type__xsd_dateTimeStamp, "rb_type__xsd:dateTimeStamp"),
+    SD_DEF_I32 (rb_type__xsd_dayTimeDuration, "rb_type__xsd:dayTimeDuration"),
+    SD_DEF_I32 (rb_type__xsd_decimal, "rb_type__xsd:decimal"),
+    SD_DEF_I32 (rb_type__xsd_double, "rb_type__xsd:double"),
+    SD_DEF_I32 (rb_type__xsd_duration, "rb_type__xsd:duration"),
+    SD_DEF_I32 (rb_type__xsd_float, "rb_type__xsd:float"),
+    SD_DEF_I32 (rb_type__xsd_gDay, "rb_type__xsd:gDay"),
+    SD_DEF_I32 (rb_type__xsd_gMonth, "rb_type__xsd:gMonth"),
+    SD_DEF_I32 (rb_type__xsd_gMonthDay, "rb_type__xsd:gMonthDay"),
+    SD_DEF_I32 (rb_type__xsd_gYear, "rb_type__xsd:gYear"),
+    SD_DEF_I32 (rb_type__xsd_gYearMonth, "rb_type__xsd:gYearMonth"),
+    SD_DEF_I32 (rb_type__xsd_hexBinary, "rb_type__xsd:hexBinary"),
+    SD_DEF_I32 (rb_type__xsd_int, "rb_type__xsd:int"),
+    SD_DEF_I32 (rb_type__xsd_integer, "rb_type__xsd:integer"),
+    SD_DEF_I32 (rb_type__xsd_language, "rb_type__xsd:language"),
+    SD_DEF_I32 (rb_type__xsd_long, "rb_type__xsd:long"),
+    SD_DEF_I32 (rb_type__xsd_negativeInteger, "rb_type__xsd:negativeInteger"),
+    SD_DEF_I32 (rb_type__xsd_nonNegativeInteger, "rb_type__xsd:nonNegativeInteger"),
+    SD_DEF_I32 (rb_type__xsd_nonPositiveInteger, "rb_type__xsd:nonPositiveInteger"),
+    SD_DEF_I32 (rb_type__xsd_normalizedString, "rb_type__xsd:normalizedString"),
+    SD_DEF_I32 (rb_type__xsd_positiveInteger, "rb_type__xsd:positiveInteger"),
+    SD_DEF_I32 (rb_type__xsd_short, "rb_type__xsd:short"),
+    SD_DEF_I32 (rb_type__xsd_string, "rb_type__xsd:string"),
+    SD_DEF_I32 (rb_type__xsd_time, "rb_type__xsd:time"),
+    SD_DEF_I32 (rb_type__xsd_token, "rb_type__xsd:token"),
+    SD_DEF_I32 (rb_type__xsd_unsignedByte, "rb_type__xsd:unsignedByte"),
+    SD_DEF_I32 (rb_type__xsd_unsignedInt, "rb_type__xsd:unsignedInt"),
+    SD_DEF_I32 (rb_type__xsd_unsignedLong, "rb_type__xsd:unsignedLong"),
+    SD_DEF_I32 (rb_type__xsd_unsignedShort, "rb_type__xsd:unsignedShort"),
+    SD_DEF_I32 (rb_type__xsd_yearMonthDuration, "rb_type__xsd:yearMonthDuration"),
+    { 0 }
   };
+/**INDENT-ON**/
+
 
 caddr_t boxed_iid_of_virtrdf_ns_uri = NULL;
 caddr_t boxed_iid_of_virtrdf_ns_uri_rdf_repl_all = NULL;
@@ -206,6 +213,8 @@ rb_uname_to_wellknown_datatype_twobyte (ccaddr_t dt_uname)
   if (uname_xmlschema_ns_uri_hash_gYear			== dt_uname) return rb_type__xsd_gYear			;
   if (uname_xmlschema_ns_uri_hash_gYearMonth		== dt_uname) return rb_type__xsd_gYearMonth		;
   if (uname_xmlschema_ns_uri_hash_yearMonthDuration	== dt_uname) return rb_type__xsd_yearMonthDuration	;
+  if (uname_rdf_ns_uri_HTML				== dt_uname) return rb_type__rdf_HTML			;
+  if (uname_rdf_ns_uri_JSON				== dt_uname) return rb_type__rdf_JSON			;
 
   /* (uname_xmlschema_ns_uri_hash_dayTimeDuration       == dt_uname) */
   /* (uname_xmlschema_ns_uri_hash_dateTime              == dt_uname) */
@@ -2018,7 +2027,7 @@ rdf_box_hash_strong_cmp (ccaddr_t b1, ccaddr_t b2)
     {
       if (rb2->rb_ro_id == rb1->rb_ro_id)
         return 1;
-        return 0;
+      return 0;
     }
   if ((!rb1->rb_is_complete && rb1->rb_ro_id) || (!rb2->rb_is_complete && rb2->rb_ro_id))
     return 0;
@@ -2331,6 +2340,9 @@ bif_sparql_ebv_impl (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args, con
               return rb_new_bool (0);
             return NEW_DB_NULL;
           }
+        /* SPARQL EBV treats rdf:langString / rdf:dirLangString as type errors. */
+        if (RDF_BOX_DEFAULT_LANG != rb->rb_lang)
+          return NEW_DB_NULL;
         if ((DV_STRING != box_dtp) || (RDF_BOX_DEFAULT_TYPE >= rb->rb_type))
           return rb_ebv_of_plain_box (rb->rb_box);
         if (rb_twobyte_to_flags_of_parseable_datatype (rb->rb_type) & RDF_TYPE_PARSEABLE_TO_NUMERIC)
@@ -2391,6 +2403,9 @@ bif_sparql_ebv_int_impl (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args,
               return (caddr_t)((ptrlong)(0));
             return NEW_DB_NULL;
           }
+        /* SPARQL EBV treats rdf:langString / rdf:dirLangString as type errors. */
+        if (RDF_BOX_DEFAULT_LANG != rb->rb_lang)
+          return NEW_DB_NULL;
         if ((DV_STRING != box_dtp) || (RDF_BOX_DEFAULT_TYPE >= rb->rb_type))
           return rdf_ebv_int_of_plain_box (rb->rb_box);
         if (rb_twobyte_to_flags_of_parseable_datatype (rb->rb_type) & RDF_TYPE_PARSEABLE_TO_NUMERIC)
@@ -7194,7 +7209,7 @@ void bif_str_vec (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args, state_
 
 
 void
-rdf_box_init ()
+rdf_box_init (void)
 {
   dk_mem_hooks (DV_RDF, (box_copy_f) rb_copy, (box_destr_f)rb_free, 1);
   box_tmp_copier[DV_RDF] = (box_tmp_copy_f) rb_tmp_copy;

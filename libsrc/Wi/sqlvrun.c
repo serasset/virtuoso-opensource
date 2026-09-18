@@ -6,7 +6,7 @@
  *  This file is part of the OpenLink Software Virtuoso Open-Source (VOS)
  *  project.
  *
- *  Copyright (C) 1998-2024 OpenLink Software
+ *  Copyright (C) 1998-2026 OpenLink Software
  *
  *  This project is free software; you can redistribute it and/or modify it
  *  under the terms of the GNU General Public License as published by the
@@ -71,7 +71,7 @@ bif_dc_arg (caddr_t * qst, state_slot_t ** args, int nth, char *name)
     sqlr_new_error ("22003", "SR030", "Too few (only %d) arguments for %s.", (int) (BOX_ELEMENTS (args)), name);
   ssl = args[nth];
   if (SSL_VEC != ssl->ssl_type)
-    sqlr_new_error ("42000", "VEC..", "%s vectored applied to non vector arg", name);
+    sqlr_new_error ("42000", "VEC21", "%s vectored applied to non vector arg", name);
   return ((data_col_t **) qst)[ssl->ssl_index];
 }
 
@@ -233,7 +233,7 @@ dc_box_cmp (data_col_t * dc, int r1, int r2, int r_prefetch)
 char vec_box_dtps[256];
 
 void
-vec_dtp_init ()
+vec_dtp_init (void)
 {
   int inx;
   vec_box_dtps[DV_NUMERIC] = 1;
@@ -1049,7 +1049,7 @@ ks_vec_params (key_source_t * ks, it_cursor_t * itc, caddr_t * inst)
 	    itc->itc_multistate_row_specs = 1;
 	  n_cols++;
 	  if (n_cols >= MAX_PARAMS)
-	    sqlr_new_error ("37000", "VEC..", "Too many searchh parameters");
+	    sqlr_new_error ("37000", "VEC22", "Too many search parameters");
 	}
     }
   if (!n_cols)
@@ -1857,9 +1857,9 @@ qn_is_cl (data_source_t * qn)
 
 
 int
-ts_need_large_out_batch (table_source_t * ts)
+ts_need_large_out_batch (data_source_t * ts)
 {
-  data_source_t * next = qn_next ((data_source_t *)ts);
+  data_source_t * next = qn_next (ts);
   if (!next)
     return 0;
   if (IS_QN (next, setp_node_input))
@@ -1896,7 +1896,7 @@ qi_batch_inc (caddr_t * inst, data_source_t * qn)
     }
   for (prev = qn; prev; prev = qn_next (prev))
     {
-      if (ts_need_large_out_batch ((table_source_t *)prev))
+      if (ts_need_large_out_batch (prev))
 	inc += qn_batch_inc (inst, prev);
     }
   return inc;
@@ -1904,13 +1904,13 @@ qi_batch_inc (caddr_t * inst, data_source_t * qn)
 
 
 void
-qi_set_batch_sz (caddr_t * inst, table_source_t * ts, int new_sz)
+qi_set_batch_sz (caddr_t * inst, data_source_t * ts, int new_sz)
 {
   data_source_t *pred;
   int any_qf = 0;
   if (!ts_need_large_out_batch (ts))
-    ts = (table_source_t*)ts->src_gen.src_prev;
-  for (pred = (data_source_t *) ts; pred; pred = pred->src_prev)
+    ts = ts->src_prev;
+  for (pred = ts; pred; pred = pred->src_prev)
     {
       if (SRC_IN_STATE (pred, inst))
 	goto found;
@@ -1923,7 +1923,7 @@ qi_set_batch_sz (caddr_t * inst, table_source_t * ts, int new_sz)
 found:
   TC (tc_adjust_batch_sz);
   tc_cum_batch_sz += new_sz;
-  for (pred = (data_source_t *) ts; pred; pred = pred->src_prev)
+  for (pred = ts; pred; pred = pred->src_prev)
     {
       if (!any_qf)
 	any_qf = qn_is_cl (pred);
@@ -1934,7 +1934,7 @@ found:
 	  if (IS_QN (pred, subq_node_input))
 	    {
 	      QNCAST (subq_source_t, sqs, pred);
-	      qi_set_batch_sz (inst, (table_source_t *) sqs->sqs_query->qr_select_node->src_gen.src_prev, new_sz);
+	      qi_set_batch_sz (inst, sqs->sqs_query->qr_select_node->src_gen.src_prev, new_sz);
 	    }
 	}
       else
@@ -2116,7 +2116,7 @@ ts_check_batch_sz (table_source_t * ts, caddr_t * inst, it_cursor_t * itc)
 	      return;
 	    }
 	}
-      qi_set_batch_sz (inst, ts, target_sz);
+      qi_set_batch_sz (inst, (data_source_t *)ts, target_sz);
     }
 }
 
@@ -2176,7 +2176,7 @@ ins_check_batch_sz (insert_node_t * ins, caddr_t * inst, it_cursor_t * itc)
 	  return;
 	}
     }
-  qi_set_batch_sz (inst, ins, target_sz);
+  qi_set_batch_sz (inst, (data_source_t *)ins, target_sz);
 }
 
 /* query parallelization */
@@ -3108,7 +3108,7 @@ ts_split_range (table_source_t * ts, caddr_t * inst, it_cursor_t * itc, int n_pa
   if (n_branches >= enable_qp)
     return itc_reset (itc);
   if (-1 == n_branches)
-    sqlr_new_error ("42000", "VEC..", "The root branch has terminated, so no point in branching more branch qis");
+    sqlr_new_error ("42000", "VEC23", "The root branch has terminated, so no point in branching more branch qis");
   if (itc->itc_n_sets > 1)
     return ts_split_sets (ts, inst, itc, n_parts);
   memset (&tsp, 0, sizeof (tsp));
@@ -3417,10 +3417,10 @@ vec_fref_single_result (fun_ref_node_t * fref, table_source_t * ts, caddr_t * in
     {
       select_node_t *sel = fref->src_gen.src_query->qr_select_node;
       if (!sel)
-	sqlr_new_error ("42000", "VEC..", "Internal error, aggregation subq is supposed to start with sctr");
+	sqlr_new_error ("42000", "VEC24", "Internal error, aggregation subq is supposed to start with sctr");
       set_nos = QST_BOX (data_col_t *, inst, sel->sel_set_no->ssl_index);
       if (!set_nos)
-	sqlr_new_error ("42000", "VEC..", "Internal error, aggregation subq does not have a set no in select");
+	sqlr_new_error ("42000", "VEC24", "Internal error, aggregation subq does not have a set no in select");
     }
   else
     set_nos = QST_BOX (data_col_t *, inst, sctr->sctr_set_no->ssl_index);
@@ -3436,7 +3436,7 @@ vec_fref_single_result (fun_ref_node_t * fref, table_source_t * ts, caddr_t * in
       {
 	  int agg_set, no_old;
 	  if (set_nos && set >= set_nos->dc_n_values)
-	    sqlr_new_error ("42000", "VEC..",  "Internal error, please report query to the support");
+	    sqlr_new_error ("42000", "VEC27", "Internal error, please report query to the support");
 	  agg_set = set_nos ? ((int64*)set_nos->dc_values)[set] : set;
 	qi->qi_set = agg_set;
 	((query_instance_t *) branch)->qi_set = agg_set;
@@ -3509,7 +3509,7 @@ fref_agg_set_no (fun_ref_node_t * fref)
     {
       return read_node->ts_order_ks->ks_set_no;
     }
-  sqlr_new_error ("42000", "VEC..", "cube ks set no not yet done ");
+  sqlr_new_error ("42000", "VEC28", "cube ks set no not yet done ");
   return NULL;
 }
 
@@ -3600,7 +3600,7 @@ vec_top_merge (setp_node_t * setp, fun_ref_node_t * fref, caddr_t * inst, caddr_
     return;
   fill = unbox (qst_get (branch, setp->setp_row_ctr));
       if (BOX_ELEMENTS (setp->setp_keys_box) + BOX_ELEMENTS (setp->setp_dependent_box) > n_ssl)
-	sqlr_new_error ("42000", "VEC..", "Too many order by or group by columns in parallel query branch merge");
+       sqlr_new_error ("42000", "VEC29", "Too many order by or group by columns in parallel query branch merge");
       vec_merge_setp (&setp, NULL, &tmp_setp, NULL, &tmp_ssl[0]);
   for (nth = 0; nth < fill; nth++)
     {
@@ -3826,11 +3826,11 @@ vec_fref_group_result (fun_ref_node_t * fref, table_source_t * ts, caddr_t * ins
     hash_area_t *ha = setp->setp_ha;
     if (HA_GROUP != ha->ha_op)
       continue;
-      if (1 == n_sets && (tree = (index_tree_t*) (SSL_REF == ha->ha_tree->ssl_type || SSL_VEC == ha->ha_tree->ssl_type  ? sslr_qst_get (inst, (state_slot_ref_t*)ha->ha_tree, 0) : qst_get (inst, ha->ha_tree))))
-      {
-	if (tree->it_hi && tree->it_hi->hi_chash)
-	  chash_to_memcache (inst, tree, ha);
-      }
+    if (1 == n_sets && (tree = (index_tree_t*) (SSL_REF == ha->ha_tree->ssl_type || SSL_VEC == ha->ha_tree->ssl_type  ? sslr_qst_get (inst, (state_slot_ref_t*)ha->ha_tree, 0) : qst_get (inst, ha->ha_tree))))
+    {
+      if (tree->it_hi && tree->it_hi->hi_chash)
+	chash_to_memcache (inst, tree, ha);
+    }
   }
   END_DO_SET ();
   if (fref->src_gen.src_continuations)
@@ -3889,7 +3889,7 @@ vec_fref_group_result (fun_ref_node_t * fref, table_source_t * ts, caddr_t * ins
 	      if (fref->src_gen.src_prev || fref->fnr_is_cl_local_fake)
 	    {
 	      if (BOX_ELEMENTS (ha->ha_slots) > sizeof (tmp_ssl) / sizeof (state_slot_t))
-		sqlr_new_error ("42000", "VEC..", "Too many order by or group by columns in parallel query branch merge");
+		sqlr_new_error ("42000", "VEC30", "Too many order by or group by columns in parallel query branch merge");
 	      vec_merge_setp (&setp, &ha, &tmp_setp, &tmp_ha, &tmp_ssl[0]);
 	    }
 	  ITC_FAIL (itc)
@@ -3995,7 +3995,7 @@ ts_aq_result (table_source_t * ts, caddr_t * inst)
     }
   if (prof_on || !ts->src_gen.src_query->qr_select_node)
     {
-      qi_add_stats ((QI*)inst, qst_get (inst, ts->ts_aq_qis), ts->src_gen.src_query);
+      qi_add_stats ((QI*)inst, (QI **) qst_get (inst, ts->ts_aq_qis), ts->src_gen.src_query);
     }
   if (!ts->ts_agg_node)
     return;

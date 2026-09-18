@@ -6,7 +6,7 @@
  *  This file is part of the OpenLink Software Virtuoso Open-Source (VOS)
  *  project.
  *
- *  Copyright (C) 1998-2024 OpenLink Software
+ *  Copyright (C) 1998-2026 OpenLink Software
  *
  *  This project is free software; you can redistribute it and/or modify it
  *  under the terms of the GNU General Public License as published by the
@@ -1046,13 +1046,15 @@ extern void qi_check_stack (query_instance_t *qi, void *addr, ptrlong margin);
 #define QI_CHECK_STACK(qi,addr,margin) qi_check_stack (qi, addr, margin)
 #else
 #define QI_CHECK_STACK(qi, addr, margin) \
-  if (THR_IS_STACK_OVERFLOW (qi->qi_thread, addr, margin)) \
-    sqlr_new_error ("42000", "SR178", "Stack overflow (stack size is %ld, more than %ld is in use)", (long)(qi->qi_thread->thr_stack_size), (long)(qi->qi_thread->thr_stack_size - margin)); \
-  if (DK_MEM_RESERVE) \
-    { \
-      SET_DK_MEM_RESERVE_STATE(qi->qi_trx); \
-      qi_signal_if_trx_error (qi); \
-    }
+  do { \
+    if (THR_IS_STACK_OVERFLOW (qi->qi_thread, addr, margin)) \
+      sqlr_new_error ("42000", "SR178", "Stack overflow (stack size is %ld, more than %ld is in use)", (long)(qi->qi_thread->thr_stack_size), (long)(qi->qi_thread->thr_stack_size - margin)); \
+    if (DK_MEM_RESERVE) \
+      { \
+	SET_DK_MEM_RESERVE_STATE(qi->qi_trx); \
+	qi_signal_if_trx_error (qi); \
+      } \
+  } while (0)
 #endif
 
 #define DEL_STACK_MARGIN (2*PAGE_SZ + 200 * sizeof (caddr_t))
@@ -1327,8 +1329,8 @@ extern int hash_join_enable;
 void list_wired_buffers (char *file, int line, char *format, ...);
 extern dk_mutex_t * parse_mtx;
 extern du_thread_t * parse_mtx_owner;
-void parse_enter ();
-void parse_leave ();
+void parse_enter (void);
+void parse_leave (void);
 extern int enable_parse_mtx;
 
 #define IN_PARSE { parse_enter (); parse_mtx_owner = THREAD_CURRENT_THREAD; }
@@ -1422,8 +1424,8 @@ caddr_t * DBG_NAME (qi_alloc) (DBG_PARAMS  query_t * qr, stmt_options_t * opts, 
 
 data_source_t * qn_next (data_source_t * qn);
 data_source_t * qn_last (data_source_t * qn);
-void sqlo_tc_init ();
-void sqlo_timeout_text_count ();
+void sqlo_tc_init (void);
+void sqlo_timeout_text_count (void);
 
 void xte_set_qi (caddr_t xte, query_instance_t * qi);
 caddr_t
@@ -1510,7 +1512,7 @@ int * DBG_NAME(qn_extend_sets) (DBG_PARAMS  data_source_t * qn, caddr_t * inst, 
   if (box_length (QST_BOX (caddr_t, inst, ((data_source_t*)qn)->src_sets)) < n * sizeof (int)) \
     qn_extend_sets ((data_source_t*)qn, inst, n);
 int key_cmp_boxes (caddr_t box1, caddr_t box2, sql_type_t * sqt);
-void vec_dtp_init ();
+void vec_dtp_init (void);
 int itc_vec_sp_copy (it_cursor_t * itc, int inx, int64 new_v, int set);
 void subq_node_vec_input (subq_source_t * sqs, caddr_t * inst, caddr_t * state);
 void outer_seq_end_vec_input (outer_seq_end_node_t * ose, caddr_t * inst, caddr_t * state);
@@ -1565,7 +1567,7 @@ void dc_digit_sort (data_col_t ** dcs, int n_dcs, int * sets, int n_sets);
 void sslr_n_consec_ref (caddr_t * inst, state_slot_ref_t * sslr, int * sets, int set, int n_sets);
 void dc_reset_array (caddr_t * inst, data_source_t * qn, state_slot_t ** ssls, int new_sz);
 
-void chash_init ();
+void chash_init (void);
 
 index_tree_t *DBG_NAME (cha_allocate) (DBG_PARAMS setp_node_t * setp, caddr_t * inst, int64 card);
 #ifdef MALLOC_DEBUG
@@ -1765,7 +1767,7 @@ int dv_rdf_id_delta (int64 ro_id_1, int64 ro_id_2, int64 *delta_ret);
 
 blob_handle_t * cli_ready_dae (client_connection_t  * cli, blob_handle_t * bh);
 void cli_free_dae (client_connection_t * cli);
-void qi_set_batch_sz (caddr_t * inst, table_source_t * ts, int new_sz);
+void qi_set_batch_sz (caddr_t * inst, data_source_t * ts, int new_sz);
 void dk_hash_copy (dk_hash_t * to, dk_hash_t * from);
 state_slot_t * upd_find_col_ssl (update_node_t * upd, oid_t col_id);
 void complete_proc_name (char * proc_name, char * complete, char * def_qual, char * def_owner);

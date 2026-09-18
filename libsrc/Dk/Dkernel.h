@@ -8,7 +8,7 @@
  *  This file is part of the OpenLink Software Virtuoso Open-Source (VOS)
  *  project.
  *
- *  Copyright (C) 1998-2024 OpenLink Software
+ *  Copyright (C) 1998-2026 OpenLink Software
  *
  *  This project is free software; you can redistribute it and/or modify it
  *  under the terms of the GNU General Public License as published by the
@@ -159,16 +159,9 @@ typedef struct dk_thread_s dk_thread_t;
 struct future_request_s
 {
   service_t *		rq_service;
-#ifndef PMN_MODS
-  jmp_buf_splice 	rq_start_context;
-#endif
   long **		rq_arguments;
   dk_session_t *	rq_client;
   long 			rq_condition;
-#ifndef PMN_MODS
-  int 			rq_ancestor_count;
-  future_request_t **	rq_ancestors;
-#endif
   dk_thread_t *		rq_thread;
   future_request_t *	rq_next_waiting;
   int 			rq_is_direct_io;
@@ -887,7 +880,6 @@ EXE_EXPORT (dk_session_t *, dk_session_allocate, (int sesclass));
 dk_session_t * dk_session_alloc_box (int sesclass, int in_len);
 
 void timeout_round (TAKE_G dk_session_t * ses);
-void PrpcSuckAvidly (int mode);
 void PrpcAddAnswer (caddr_t result, int ret_type, int is_partial, int flush);
 void PrpcAnswerHead (du_thread_t * thr, int is_partial);
 void PrpcAnswerTail (dk_session_t * ses, int flush);
@@ -928,9 +920,6 @@ void PrpcDisconnectAll (void);
 long PrpcSetTimeoutResolution (long milliseconds);
 void PrpcSetBackgroundAction (background_action_func f);
 void PrpcLeave (void);
-void sun_rpc_loop (void);
-void sun_rpc_ready (void);
-void PrpcSunRPCInitialize (long sz);
 void dk_set_resource_usage (void);
 void PrpcSelfSignalInit (char *addr);
 void PrpcSelfSignal (self_signal_func f, caddr_t cf);
@@ -1002,7 +991,7 @@ extern volatile int dk_alloc_reserve_mode;
 void dk_alloc_set_reserve_mode (int mode);
 #else
 #define DK_ALLOC_ON_RESERVE 		0
-#define dk_alloc_set_reserve_mode(M) 	do { ; } while (0)
+#define dk_alloc_set_reserve_mode(M) 	((void)0)
 #endif
 
 void *dk_alloc_reserve_malloc (size_t size, int gpf_if_not);
@@ -1011,12 +1000,13 @@ void *dk_alloc_reserve_malloc (size_t size, int gpf_if_not);
 #define BURST_STOP_TIMEOUT 		1000		   /* 1 sec to switch off burst mode */
 extern time_msec_t time_now_msec;
 void dks_stop_burst_mode (dk_session_t * ses);
+int ssl_check_connect_timeout (session_t *ses, timeout_t * to, int want);
 #endif
 
 extern long client_trace_flag;
 
-#ifdef PCTCP
-int init_pctcp ();
+#ifdef WIN32
+int init_pctcp (void);
 #endif
 
 #ifdef UNIX

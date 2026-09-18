@@ -4,7 +4,7 @@
  *  This file is part of the OpenLink Software Virtuoso Open-Source (VOS)
  *  project.
  *
- *  Copyright (C) 1998-2024 OpenLink Software
+ *  Copyright (C) 1998-2026 OpenLink Software
  *
  *  This project is free software; you can redistribute it and/or modify it
  *  under the terms of the GNU General Public License as published by the
@@ -87,6 +87,11 @@
 #define HC_F_REPLY_READ (uint32)0x0040
 #define HC_F_HDRS_READ  (uint32)0x0080
 #define HC_F_BODY_READ  (uint32)0x0100
+#define HC_F_UPGRADE    (uint32)0x0200
+
+#define HC_U_NONE       (uint32)0x0000 /* No upgrade at all */
+#define HC_U_WEBSOCKET  (uint32)0x0001 /* Websocket upgrade */
+#define HC_U_UNKNOWN    (uint32)0x0002 /* Upgrade happens but of unknown type */
 
 /* States */
 
@@ -200,6 +205,7 @@ typedef struct http_cli_ctx_s
   caddr_t           hcctx_cert_pass;
   caddr_t           hcctx_ca_certs;
   char 		    hcctx_ssl_insecure;
+  int32             hcctx_ssl_seclevel;
 #endif
   dk_set_t          hcctx_resp_evts;                 /* HTTP Resp evt queues */
   int               hcctx_resp_evt_ret;
@@ -210,6 +216,7 @@ typedef struct http_cli_ctx_s
   caddr_t *         hcctx_callback_args;
   int 		    hcctx_redirects;
   char              hcctx_accept_cookies;
+  int32             hcctx_connection_upgrade;
 } http_cli_ctx;
 
 
@@ -255,6 +262,7 @@ HC_RET http_cli_read_resp_body (http_cli_ctx *);
 void http_cli_calc_md5 (caddr_t, caddr_t, int);
 caddr_t http_cli_auth_new_cnonce (void);
 HC_RET http_cli_init_std_auth (http_cli_ctx *, caddr_t, caddr_t);
+HC_RET http_cli_ssl_seclevel (http_cli_ctx* ctx, int level);
 HC_RET http_cli_calc_auth_digest (http_cli_ctx *, caddr_t, caddr_t, caddr_t);
 HC_RET http_cli_calc_auth_basic (http_cli_ctx *, caddr_t, caddr_t, caddr_t);
 char* next_delim (char*, char*);

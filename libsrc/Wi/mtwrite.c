@@ -8,7 +8,7 @@
  *  This file is part of the OpenLink Software Virtuoso Open-Source (VOS)
  *  project.
  *
- *  Copyright (C) 1998-2024 OpenLink Software
+ *  Copyright (C) 1998-2026 OpenLink Software
  *
  *  This project is free software; you can redistribute it and/or modify it
  *  under the terms of the GNU General Public License as published by the
@@ -622,7 +622,7 @@ iq_aio (io_queue_t * iq)
       it_map_t * itm = IT_DP_MAP (buf->bd_tree, buf->bd_page);
       if (AIO_NATIVE == c_use_aio)
 	{
-	  rc = aio_suspend (&list[inx], 1, NULL);
+	  rc = aio_suspend ((const struct aiocb * const *) &list[inx], 1, NULL);
 	  if (rc) GPF_T1 ("aio_suspend returns error");
 	  rc = aio_return (list[inx]);
 	  if (rc != PAGE_SZ) GPF_T1 ("aio_return error");
@@ -1135,7 +1135,7 @@ sys_timer_t sti_flush_sched;
 
 
 int
-dbs_dirty_count ()
+dbs_dirty_count (void)
 {
   int binx, inx, n_dirty = 0;
   DO_BOX (buffer_pool_t *, bp, binx, wi_inst.wi_bps)
@@ -1179,7 +1179,7 @@ dbs_sched_low_dirty (dbe_storage_t * dbs, dp_addr_t min_dp, int * n_sched)
 	      bufs[fill++] = buf;
 	      if (fill == BUFS_BATCH)
 		{
-		  bufs = mp_alloc_box (mp, sizeof (caddr_t) * BUFS_BATCH, DV_NON_BOX);
+		  bufs = (buffer_desc_t **) mp_alloc_box (mp, sizeof (caddr_t) * BUFS_BATCH, DV_NON_BOX);
 		  mp_set_push (mp, &buf_list, (void*)bufs);
 		  fill = 0;
 		}
@@ -1244,7 +1244,7 @@ dbs_sched_low_dirty (dbe_storage_t * dbs, dp_addr_t min_dp, int * n_sched)
 
 
 void
-mt_flush_all ()
+mt_flush_all (void)
 {
   int total_sched = 0, dirty_after = 0;
   long init_flushed = tc_n_flush;
@@ -1274,7 +1274,7 @@ mt_flush_all ()
     {
       if (dbs->dbs_slices)
 	continue;
-      dirty_after += dbs_dirty_count (dbs);
+      dirty_after += dbs_dirty_count ();
       tc_dirty_after_flush += dirty_after;
     }
   END_DO_SET();
@@ -1328,7 +1328,7 @@ void bp_flush_thread_func (void * arg);
 
 
 void
-mt_write_init ()
+mt_write_init (void)
 {
   DO_SET (wi_db_t *, wd, &wi_inst.wi_dbs)
     {

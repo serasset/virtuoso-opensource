@@ -6,7 +6,7 @@
  *  This file is part of the OpenLink Software Virtuoso Open-Source (VOS)
  *  project.
  *  
- *  Copyright (C) 1998-2024 OpenLink Software
+ *  Copyright (C) 1998-2026 OpenLink Software
  *  
  *  This project is free software; you can redistribute it and/or modify it
  *  under the terms of the GNU General Public License as published by the
@@ -22,8 +22,6 @@
  *  51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
  *
  */
-
-/*#define WIN95COMPAT*/ /*!!! To avoid using SetAffinityMask() */
 
 #include "libutil.h"
 #include "sqlnode.h"
@@ -91,7 +89,7 @@ extern int prefix_in_result_col_names;
 extern int disk_no_mt_write;
 extern long vd_param_batch;
 extern long vd_opt_arrayparams;
-extern const char *www_root;
+extern char *www_root;
 extern char *dav_root;
 extern long vsp_in_dav_enabled;
 extern long http_proxy_enabled;
@@ -138,6 +136,8 @@ extern char *c_ssl_server_port;
 extern char *c_ssl_server_cert;
 extern char *c_ssl_server_key;
 extern char *c_ssl_server_extra_certs;
+extern int32 c_ssl_read_timeout;
+extern int32 c_ssl_write_timeout;
 extern int32 ssl_server_verify;
 extern int32 ssl_server_verify_depth;
 extern char *ssl_server_verify_file;
@@ -167,7 +167,7 @@ extern int32 http_max_keep_alives;
 extern int32 http_max_cached_proxy_connections;
 extern int32 http_proxy_connection_cache_timeout;
 extern char * http_server_id_string;
-extern const char * http_client_id_string;
+extern char * http_client_id_string;
 extern char * http_access_control_allow_default_headers;
 extern char * http_soap_client_id_string;
 extern long http_ses_trap;
@@ -243,6 +243,7 @@ int32 c_bad_dtp;
 int32 c_atomic_dive;
 #endif
 extern int32 c_checkpoint_interval;
+extern int32 c_soft_checkpoint;
 int32 c_scheduler_period;
 int32 c_oldest_flushable;
 int32 c_striping;
@@ -848,12 +849,20 @@ cfg_setup (void)
       ssl_server_ecdh_curve = NULL;
 #endif
 
+  if (cfg_getlong (pconfig, section, "WriteTimeout", &c_ssl_write_timeout) == -1)
+    c_ssl_write_timeout = 10;
+  if (cfg_getlong (pconfig, section, "ReadTimeout", &c_ssl_read_timeout) == -1)
+    c_ssl_read_timeout = 10;
+
   if (cfg_getlong (pconfig, section, "ServerThreads", &c_server_threads) == -1)
     if (cfg_getlong (pconfig, section, "MaxClientConnections", &c_server_threads) == -1)
       c_server_threads = 10;
 
   if (cfg_getlong (pconfig, section, "CheckpointInterval", &c_checkpoint_interval) == -1)
     c_checkpoint_interval = 0;
+
+  if (cfg_getlong (pconfig, section, "SoftCheckpoint", &c_soft_checkpoint) == -1)
+    c_soft_checkpoint = 0;
 
   if (cfg_get_number_of_buffers (pconfig, section, "NumberOfBuffers", &c_number_of_buffers) == -1)
     c_number_of_buffers = 2000;
@@ -1184,8 +1193,6 @@ cfg_setup (void)
       }
     while (bd != old_backup_dirs);
   }
-
-#ifndef WIN95COMPAT
 #ifdef WIN32
   if (cfg_getlong (pconfig, section, "SingleCPU", &c_single_processor) == -1)
     c_single_processor = 0;
@@ -1210,7 +1217,6 @@ cfg_setup (void)
       else
 	log_info ("Running in single CPU mode");
     }
-#endif
 #endif
 
   if (cfg_getlong (pconfig, section, "RecursiveFreeTextUsage", &c_recursive_ft_usage) == -1)
@@ -1336,28 +1342,42 @@ cfg_setup (void)
   section = "Flags";
   {
     stat_desc_t *sd = &dbf_descs[0];
+    size_t vu;
     int64 v;
     int32 v32;
     while (sd->sd_name)
       {
-        v32 = INT32_MAX;
-        if (cfg_getsize (pconfig, section, sd->sd_name, &v) != -1 ||
-            cfg_getlong (pconfig, section, sd->sd_name, &v32) != -1) /* this is for cases of negative flags or zero */
+	vu = 0;
+	v32 = INT32_MAX;
+	if (cfg_getsize (pconfig, section, sd->sd_name, &vu) != -1 ||
+	    cfg_getlong (pconfig, section, sd->sd_name, &v32) != -1)	/* this is for cases of negative flags or zero */
 	  {
-            if (v32 != INT32_MAX) v = v32;
-	    if ((ptrlong)SD_INT32 == (ptrlong) sd->sd_str_value)
-              {
-                if (v > INT32_MIN && v < INT32_MAX)
-                  *((int32*)sd->sd_value) = (int32)v;
-                else
-                  log_error ("Cannot set flag %s, value out of int32 range", sd->sd_name);
-              }
-	    else if ((ptrlong)SD_INT64 == (ptrlong) sd->sd_str_value)
-	      *((int64*)sd->sd_value) = v;
-	    else if (sd->sd_value)
-	      *(long *)(sd->sd_value) = (long) v;
+	    if (v32 != INT32_MAX)
+	      v = v32;
 	    else
-	      log_error ("Cannot set flag %s", sd->sd_name);
+	      v = (int64) vu;
+	    switch (sd->sd_type)
+	      {
+	      case SD_TYPE_INT32:
+		{
+		  if (v >= INT32_MIN && v <= INT32_MAX)
+		    *((int32 *) sd->sd_value) = (int32) v;
+		  else
+		    log_error ("Cannot set flag %s, value out of int32 range", sd->sd_name);
+		}
+		break;
+	      case SD_TYPE_INT64:
+		*((int64 *) sd->sd_value) = v;
+		break;
+	      case SD_TYPE_LONG:
+		if (sizeof (long) < sizeof (int64) && (v < LONG_MIN || v > LONG_MAX))
+		  log_error ("Cannot set flag %s, value out of long range", sd->sd_name);
+		else
+		  *(long *) (sd->sd_value) = (long) v;
+		break;
+	      default:
+		log_error ("Cannot set flag %s", sd->sd_name);
+	      }
 	  }
 	sd++;
       }
@@ -2380,6 +2400,19 @@ new_dbs_read_cfg (dbe_storage_t * dbs, const char *ignore_file_name)
   else if (dbs->dbs_type == DBS_RECOVER)
     section = "Database";
 
+  if (DBS_TEMP == dbs->dbs_type)
+    {
+      char *str;
+      unsigned long c_pages;
+
+      if (cfg_getstring (pconfig, section, "MaxTempDBPages", &str) == -1
+	  || cfg_parse_size_with_modifier (str, NULL, NULL, &c_pages) == -1 )
+	c_pages = 0;
+      if (c_pages < 2 * EXTENT_SZ)
+	c_pages = 0;
+      dbs_max_temp_db_pages = c_pages;
+    }
+
   if (cfg_getstring (pconfig, section, "DatabaseFile", &c_database_file) == -1)
     c_database_file = s_strdup (setext (prefix, s_db, EXT_SET));
 
@@ -2755,7 +2788,7 @@ db_not_in_use (void)
 
 /* needed to access the server port in hosting binaries */
 char *
-virtuoso_odbc_port ()
+virtuoso_odbc_port (void)
 {
   return c_serverport;
 }

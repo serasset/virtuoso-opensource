@@ -8,7 +8,7 @@
  *  This file is part of the OpenLink Software Virtuoso Open-Source (VOS)
  *  project.
  *
- *  Copyright (C) 1998-2024 OpenLink Software
+ *  Copyright (C) 1998-2026 OpenLink Software
  *
  *  This project is free software; you can redistribute it and/or modify it
  *  under the terms of the GNU General Public License as published by the
@@ -215,12 +215,18 @@ int
 dfe_is_iri_id_test (df_elt_t * pred)
 {
   df_elt_t *rhs;
+  if ((DFE_TRUE == pred) || (DFE_FALSE == pred))
+    return 0;
   if (DFE_BOP != pred->dfe_type || BOP_NOT != pred->_.bin.op)
     return 0;
   pred = pred->_.bin.left;
+  if ((DFE_TRUE == pred) || (DFE_FALSE == pred))
+    return 0;
   if (DFE_BOP_PRED != pred->dfe_type || BOP_EQ != pred->_.bin.op || 0 != unbox ((ccaddr_t) pred->_.bin.left->dfe_tree))
     return 0;
   rhs = pred->_.bin.right;
+  if ((DFE_TRUE == rhs) || (DFE_FALSE == rhs))
+    return 0;
   if (st_is_iri_test (rhs->dfe_tree)
       || (DFE_BOP == rhs->dfe_type && rhs->_.bin.right && st_is_iri_test (rhs->_.bin.right->dfe_tree)))
   return 1;
@@ -344,7 +350,7 @@ jp_fanout (join_plan_t * jp)
 	{
 	  if (DFE_BOP_PRED == is_o->dfe_type && 1 == is_o->_.bin.is_in_list)
 	    {
-	      ST ** in_list = sqlo_in_list (is_o, NULL, NULL);
+	      df_elt_t **in_list = sqlo_in_list (is_o, NULL, NULL);
 	      misc_card *= BOX_ELEMENTS (in_list) - 1;
 	    }
 	  return jp->jp_fanout = (p_stat[0] / o_card) * misc_card;
@@ -454,7 +460,7 @@ dfe_pred_is_redundant (df_elt_t * first_tb, df_elt_t * pred)
 }
 
 void
-jp_add (join_plan_t * jp, df_elt_t * tb_dfe, df_elt_t * pred, int is_join)
+jp_add (sqlo_t *so, join_plan_t * jp, df_elt_t * tb_dfe, df_elt_t * pred, int is_join)
 {
   int n_preds = jp->jp_n_preds;
   caddr_t data;
@@ -519,6 +525,8 @@ jp_add (join_plan_t * jp, df_elt_t * tb_dfe, df_elt_t * pred, int is_join)
   if (DFE_COLUMN == right->dfe_type && PRED_IS_EQ_OR_IN (pred))
     {
       df_elt_t *right_tb = ((op_table_t *) right->dfe_tables->data)->ot_dfe;
+      if (!right_tb)
+        SQL_GPF_T1 (so->so_sc->sc_cc, "right oj table not found");
       if (!right_tb->dfe_is_placed)
 	{
 	  int jinx;
@@ -568,11 +576,11 @@ dfe_jp_fill (sqlo_t * so, op_table_t * ot, df_elt_t * tb_dfe, join_plan_t * jp, 
     if (pred->dfe_tables && !pred->dfe_tables->next
 	&& tb_dfe->_.table.ot == (op_table_t *) pred->dfe_tables->data && dfe_in_hash_set (tb_dfe, hash_set))
       {
-	jp_add (jp, tb_dfe, pred, 0);
+	   jp_add (so, jp, tb_dfe, pred, 0);
       }
     else if (dk_set_member (pred->dfe_tables, (void *) tb_dfe->_.table.ot) && dfe_in_hash_set (tb_dfe, hash_set))
       {
-	jp_add (jp, tb_dfe, pred, 1 | mode);
+	jp_add (so, jp, tb_dfe, pred, 1 | mode);
 	  if (jp->jp_n_preds && jp->jp_preds[jp->jp_n_preds - 1].ps_is_placeable)
 	  {
 	    if (!jp->jp_prev)
@@ -894,7 +902,7 @@ sqlo_hash_fill_join (sqlo_t * so, df_elt_t * hash_ref_tb, df_elt_t ** fill_ret, 
   df_elt_t *fill_copy;
   join_plan_t jp;
   df_elt_t *fill_dfe;
-  if (!enable_hash_fill_join || -1 == hash_set)
+  if (!enable_hash_fill_join || -1 == hash_set || hash_ref_tb->_.table.ot->ot_is_outer)
     return 0;
   jp.jp_hash_fill_preds = org_preds;
   jp.jp_prev = NULL;
@@ -957,7 +965,7 @@ sqlo_hash_fill_join (sqlo_t * so, df_elt_t * hash_ref_tb, df_elt_t ** fill_ret, 
 	  t_listst (3, TABLE_REF, t_listst (6, TABLE_DOTTED, tb_dfe->_.table.ot->ot_table->tb_name,
 	      tb_dfe->_.table.ot->ot_new_prefix, NULL, NULL, tb_dfe->_.table.ot->ot_opts), NULL);
       END_DO_BOX;
-      sel = t_box_copy_tree (sel);
+      sel = (ST *) t_box_copy_tree ((caddr_t) sel);
       sqlo_scope (so, &sel);
       fill_dfe = sqlo_df (so, sel);
       fill_dfe->dfe_super = hash_ref_tb;
@@ -1025,7 +1033,7 @@ dfe_unplace_fill_join (df_elt_t * fill_dt, df_elt_t * tb_dfe, dk_set_t org_preds
 void
 dfe_cc_key (df_elt_t * dfe, char *str, int *fill, int space)
 {
-  if (!dfe)
+  if (!dfe || DFE_FALSE == dfe)
     return;
   switch (dfe->dfe_type)
     {

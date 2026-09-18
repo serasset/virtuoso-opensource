@@ -5,7 +5,7 @@ AC_PREREQ(2.59)
 #  This file is part of the OpenLink Software Virtuoso Open-Source (VOS)
 #  project.
 #
-#  Copyright (C) 1998-2024 OpenLink Software
+#  Copyright (C) 1998-2026 OpenLink Software
 #
 #  This project is free software; you can redistribute it and/or modify it
 #  under the terms of the GNU General Public License as published by the
@@ -30,7 +30,7 @@ AC_PREREQ(2.59)
 
 m4_define(vos_major,	[7])
 m4_define(vos_minor,	[2])
-m4_define(vos_patch,	[14])
+m4_define(vos_patch,	[18])
 m4_define(vos_devel,	[-dev])
 
 AC_INIT([Virtuoso Open Source Edition (Column Store)],
@@ -431,7 +431,7 @@ AC_PATH_PROG(FLEX, flex, flex)
 AC_PATH_PROG(GAWK, gawk, gawk)
 AC_PATH_PROG(GPERF, gperf, gperf)
 AC_PATH_PROG(PERL, perl, perl)
-AM_PATH_PYTHON([2.7])
+AM_PATH_PYTHON([2.7.5])
 AC_PATH_PROG(RUBY, ruby, ruby)
 #AC_DECL_YYTEXT
 
@@ -469,7 +469,7 @@ AC_HEADER_SYS_WAIT
 AC_CHECK_HEADERS(unistd.h limits.h sys/param.h fcntl.h string.h memory.h \
 		sys/timeb.h sys/sockio.h sys/resource.h \
 		malloc.h sys/select.h sys/time.h wchar.h wctype.h \
-		pwd.h grp.h sys/mman.h execinfo.h)
+		pwd.h grp.h sys/mman.h execinfo.h poll.h sys/epoll.h netdb.h)
 
 
 ##########################################################################
@@ -593,6 +593,8 @@ AC_CHECK_FUNCS(memmove memmem memcpy)
 AC_CHECK_FUNCS(mkstemp64 mkstemp)
 AC_CHECK_FUNCS(strftime stpcpy)
 AC_CHECK_FUNCS(gethrtime)
+AC_CHECK_FUNCS(poll epoll_create)
+AC_CHECK_FUNCS(getaddrinfo getnameinfo)
 
 AC_MSG_CHECKING(for sys_errlist)
 AC_TRY_LINK([
@@ -914,8 +916,8 @@ then
 	/* LibreSSL defines OPENSSL_VERSION_NUMBER 0x20000000L but uses a compatible API to OpenSSL v1.0.x */
 	#elif OPENSSL_VERSION_NUMBER < 0x1020000fL
 	/* OpenSSL versions 0.9.8e - 1.1.1 are supported */
-       #elif OPENSSL_VERSION_NUMBER < 0x30400000L
-       /* OpenSSL versions 3.0.x - 3.3.x are supported */
+       #elif OPENSSL_VERSION_NUMBER < 0x30700000L
+       /* OpenSSL versions 3.0.x - 3.6.x are supported */
 	#else
 	#error OpenSSL version too new
 	#endif
@@ -939,6 +941,10 @@ then
 	#include <openssl/rand.h>
 	#include <stdio.h>
 	#include <string.h>
+
+	#if OPENSSL_VERSION_NUMBER < 0x10100000L
+	# define TLS_client_method() SSLv23_client_method()
+	#endif
 	int
 	main ()
 	{
@@ -956,7 +962,7 @@ then
 	    SSLeay_add_ssl_algorithms();
 	    PKCS12_PBE_add ();
 
-	    ssl_server_method = SSLv23_client_method();
+	    ssl_server_method = TLS_client_method();
 	    ssl_server_ctx = SSL_CTX_new (ssl_server_method);
 
 	    if (!ssl_server_ctx)
@@ -2106,14 +2112,7 @@ if test $with_pthreads = "yes"; then
     AC_CHECK_LIB(pthreads, pthread_create,
        [BUILD_OPTS="$BUILD_OPTS pthreads"
 	WITH_PTHREADS="yes"
-	if test "$host_os" = "osf3.2"
-	then
-	  BUILD_OPTS="$BUILD_OPTS old_pthreads"
-	  LIBTHR="-lpthreads -lmach -lc_r"
-	  AC_DEFINE([OLD_PTHREADS], [1], [Old pthreads])
-	else
-	  LIBTHR="-lpthreads"
-	fi
+	LIBTHR="-lpthreads"
 	AC_DEFINE([_REENTRANT], [1], [use reentrant code])
 	AC_DEFINE([WITH_PTHREADS],
 		  [1],
@@ -2989,6 +2988,114 @@ AM_CONDITIONAL(WITH_TUTORIAL_VAD, test "x$with_tutorial_vad" = "xyes")
 AM_CONDITIONAL(WITH_WEBSOCKETS_VAD, test "x$with_websockets_vad" = "xyes")
 
 
+##########################################################################
+##									##
+##  jemalloc 								##
+##									##
+##########################################################################
+AC_ARG_WITH(jemalloc, [dnl
+AC_HELP_STRING([--with-jemalloc(=DIR)], [extra jemalloc debugging code])
+AC_HELP_STRING([--disable-jemalloc (default)], [disable jemalloc debugging support])dnl
+],
+    [ with_jemalloc="$withval" ],
+    [ with_jemalloc="no" ]
+)
+
+if test "x$with_jemalloc" != "xno"
+then
+    BUILD_OPTS="$BUILD_OPTS jemalloc"
+    CCDEBUG="$CCDEBUG -DUSE_JEMALLOC"
+    CCOPT="-g"
+    AM_LDFLAGS="-g"
+    if test -d "$with_jemalloc"
+    then
+	ccincl="$ccincl -I$with_jemalloc"
+        srvrlibs="$srvrlibs -L"$with_jemalloc" -ljemalloc"
+    else
+        srvrlibs="$srvrlibs -ljemalloc"
+    fi
+fi
+
+
+##########################################################################
+##									##
+##  delta_sharing using carquet						##
+##									##
+##########################################################################
+AC_ARG_ENABLE(delta_sharing, [dnl
+AC_HELP_STRING([--enable-delta_sharing(=DIR)], [enable the delta_sharing plugin (default)])
+AC_HELP_STRING([--disable-delta_sharing], [disable the delta_sharing plugin])dnl
+], [
+     case "${enableval}" in
+       yes)	with_delta_sharing="yes" ;;
+       no)	with_delta_sharing="no" ;;
+       /*)	with_delta_sharing="${enableval}" ;;
+       *)	AC_MSG_ERROR(bad value ${enableval} for --enable-delta_sharing) ;;
+     esac
+  ],
+  [ with_carquet="yes" ]
+)
+
+if test "x$with_delta_sharing" != "xno"
+then
+    AC_MSG_CHECKING([carquet library usability])
+
+    save_CPPFLAGS="$CPPFLAGS"
+    save_LIBS="$LIBS"
+    save_LD_LIBRARY_PATH="$LD_LIBRARY_PATH"
+
+    if test "x$with_delta_sharing" = "xyes"
+    then
+	DELTA_SHARING_CPPFLAGS=""
+	DELTA_SHARING_LDFLAGS=""
+    else
+        DELTA_SHARING_CPPFLAGS="-I$with_delta_sharing/include"
+        DELTA_SHARING_LDFLAGS="-L$with_delta_sharing/lib"
+    fi
+    DELTA_SHARING_LIBS="-lcarquet -lzstd -llz4 -lz"
+
+    CPPFLAGS="$CPPFLAGS $DELTA_SHARING_CPPFLAGS"
+    LIBS="$LIBS $DELTA_SHARING_LDFLAGS $DELTA_SHARING_LIBS -lpthread -lm"
+
+    LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$with_delta_sharing/lib"
+    export LD_LIBRARY_PATH
+
+    AC_TRY_RUN([
+#include <stdio.h>
+#include <stdlib.h>
+#include "carquet/carquet.h"
+int
+main ()
+{
+  carquet_error_t err = CARQUET_ERROR_INIT;
+
+  /* Schema */
+  carquet_schema_t* schema = carquet_schema_create(&err);
+
+  if (!schema) {
+    exit (1);
+  }
+  exit (0);
+}],
+[
+  BUILD_OPTS="$BUILD_OPTS delta_sharing"
+  AC_MSG_RESULT(good)
+],
+[
+  AC_MSG_RESULT([bad. Check config.log for details])
+  with_delta_sharing="no"
+  AC_MSG_WARN([The carquet plugin will not be built])
+])
+
+    LIBS="$save_LIBS"
+    CPPFLAGS="$save_CPPFLAGS"
+    LD_LIBRARY_PATH="$save_LD_LIBRARY_PATH"
+fi
+
+AM_CONDITIONAL(WITH_DELTA_SHARING, test "x$with_delta_sharing" != "xno" )
+AC_SUBST(DELTA_SHARING_CPPFLAGS)
+AC_SUBST(DELTA_SHARING_LDFLAGS)
+AC_SUBST(DELTA_SHARING_LIBS)
 
 ##########################################################################
 ##									##
@@ -3227,6 +3334,7 @@ AC_CONFIG_FILES([
 	binsrc/jena2/Makefile
 	binsrc/jena3/Makefile
 	binsrc/jena4/Makefile
+	binsrc/jena5/Makefile
 	binsrc/maildrop/Makefile
 	binsrc/mono/Makefile
 	binsrc/oat/Makefile
@@ -3234,6 +3342,7 @@ AC_CONFIG_FILES([
 	binsrc/rdb2rdf/Makefile
 	binsrc/rdf4j/Makefile
 	binsrc/rdf4j_4/Makefile
+	binsrc/rdf4j_5/Makefile
 	binsrc/redland/Makefile
 	binsrc/samples/demo/Makefile
 	binsrc/samples/hslookup/Makefile
@@ -3246,10 +3355,6 @@ AC_CONFIG_FILES([
 	binsrc/samples/webapp/Makefile
 	binsrc/samples/xpath/Makefile
 	binsrc/samples/xquery/Makefile
-	binsrc/sesame/Makefile
-	binsrc/sesame2/Makefile
-	binsrc/sesame3/Makefile
-	binsrc/sesame4/Makefile
 	binsrc/sqldoc/Makefile
 	binsrc/sync/Makefile
 	binsrc/tests/biftest/Makefile
@@ -3270,7 +3375,6 @@ AC_CONFIG_FILES([
 	binsrc/tutorial/web/Makefile
 	binsrc/tutorial/xml/Makefile
 	binsrc/vad/Makefile
-	binsrc/vadpacker/Makefile
 	binsrc/virtodbc/Makefile
 	binsrc/virtoledb/Makefile
 	binsrc/VirtuosoClient.Net/Makefile
@@ -3280,6 +3384,7 @@ AC_CONFIG_FILES([
 	binsrc/vspx/Makefile
 	binsrc/websocket/Makefile
 	binsrc/ws/Makefile
+	binsrc/ws/delta_sharing/Makefile
 	binsrc/ws/wsrm/Makefile
 	binsrc/xddl/Makefile
 	binsrc/conductor/Makefile

@@ -2,7 +2,7 @@
 #  This file is part of the OpenLink Software Virtuoso Open-Source (VOS)
 #  project.
 #  
-#  Copyright (C) 1998-2024 OpenLink Software
+#  Copyright (C) 1998-2026 OpenLink Software
 #  
 #  This project is free software; you can redistribute it and/or modify it
 #  under the terms of the GNU General Public License as published by the
@@ -39,16 +39,13 @@ dist_doc_DATA = \
 	$(srcdir)/NEWS.md \
 	$(srcdir)/README.md \
 	$(srcdir)/README.ANYTIME.md \
+	$(srcdir)/README.Building.md \
+	$(srcdir)/README.Docker.md \
 	$(srcdir)/README.GeoSPARQL.md \
 	$(srcdir)/README.GIT.md \
 	$(srcdir)/README.hibernate.md \
 	$(srcdir)/README.jena.md \
-	$(srcdir)/README.jsse.md \
-	$(srcdir)/README.MACOSX.md \
-	$(srcdir)/README.OpenSSL.md \
 	$(srcdir)/README.php5.md \
-	$(srcdir)/README.sesame2.md \
-	$(srcdir)/README.sesame3.md \
 	$(srcdir)/README.UPGRADE.md \
 	$(srcdir)/README.WINDOWS.md
 
@@ -113,22 +110,18 @@ EXTRA_DIST = \
 	$(srcdir)/NEWS.md \
 	$(srcdir)/README.md \
 	$(srcdir)/README.ANYTIME.md \
+	$(srcdir)/README.Building.md \
+	$(srcdir)/README.Docker.md \
 	$(srcdir)/README.GeoSPARQL.md \
 	$(srcdir)/README.GIT.md \
 	$(srcdir)/README.hibernate.md \
 	$(srcdir)/README.jena.md \
-	$(srcdir)/README.jsse.md \
-	$(srcdir)/README.MACOSX.md \
-	$(srcdir)/README.OpenSSL.md \
 	$(srcdir)/README.php5.md \
-	$(srcdir)/README.sesame2.md \
-	$(srcdir)/README.sesame3.md \
 	$(srcdir)/README.UPGRADE.md \
 	$(srcdir)/README.WINDOWS.md \
 	$(srcdir)/SECURITY.md \
 	$(srcdir)/autogen.sh \
 	$(srcdir)/bin/generate \
-	$(srcdir)/bin/installer/virtuoso.ini bin/installer/demo.ini \
 	$(srcdir)/bin/libtool.macosx \
 	$(srcdir)/bin/makever \
 	$(srcdir)/debian/NEWS.Debian \

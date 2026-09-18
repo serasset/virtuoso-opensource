@@ -8,7 +8,7 @@
  *  This file is part of the OpenLink Software Virtuoso Open-Source (VOS)
  *  project.
  *
- *  Copyright (C) 1998-2024 OpenLink Software
+ *  Copyright (C) 1998-2026 OpenLink Software
  *
  *  This project is free software; you can redistribute it and/or modify it
  *  under the terms of the GNU General Public License as published by the
@@ -111,17 +111,17 @@ ceic_del_dbg_log_row (ce_ins_ctx_t * ceic, buffer_desc_t * buf)
     }
   if (!n_del)
     return;
-  itc->itc_matches = mp_alloc_box (ceic->ceic_mp, n_del * sizeof (row_no_t), DV_BIN);
-  log_rds = (row_delta_t **)mp_alloc_box (ceic->ceic_mp, sizeof (caddr_t) * n_del, DV_BIN);
+  itc->itc_matches = (row_no_t *) mp_alloc_box (ceic->ceic_mp, n_del * sizeof (row_no_t), DV_BIN);
+  log_rds = (row_delta_t **) mp_alloc_box (ceic->ceic_mp, sizeof (caddr_t) * n_del, DV_BIN);
   for (inx = 0; inx < itc->itc_range_fill; inx++)
     {
       if (COL_NO_ROW == itc->itc_ranges[inx].r_end)
 	{
-	  row_delta_t * rd = log_rds[fill] = mp_alloc (ceic->ceic_mp, sizeof (row_delta_t));
+	  row_delta_t * rd = log_rds[fill] = (row_delta_t *) mp_alloc (ceic->ceic_mp, sizeof (row_delta_t));
 	  memzero (rd, sizeof (row_delta_t));
 	  rd->rd_key = key;
 	  rd->rd_op = RD_DELETE;
-	  rd->rd_values = mp_alloc_box (ceic->ceic_mp,  sizeof (caddr_t) * key->key_n_significant, DV_ARRAY_OF_POINTER);
+	  rd->rd_values = (caddr_t *) mp_alloc_box (ceic->ceic_mp,  sizeof (caddr_t) * key->key_n_significant, DV_ARRAY_OF_POINTER);
 	  itc->itc_matches[fill++] = itc->itc_ranges[inx].r_first;
 	}
     }
@@ -131,7 +131,7 @@ ceic_del_dbg_log_row (ce_ins_ctx_t * ceic, buffer_desc_t * buf)
   memzero (&dc, sizeof (dc));
   dc.dc_mp = ceic->ceic_mp;
   dc.dc_type = DCT_BOXES | DCT_FROM_POOL;
-  dc.dc_values = mp_alloc (ceic->ceic_mp, sizeof (caddr_t) * n_del);
+  dc.dc_values = (db_buf_t) mp_alloc (ceic->ceic_mp, sizeof (caddr_t) * n_del);
   dc.dc_sqt.sqt_dtp = DV_ARRAY_OF_POINTER;
   dc.dc_n_places = n_del;
   DO_SET (dbe_column_t *, col, &key->key_parts)
@@ -523,7 +523,7 @@ itc_col_lock (it_cursor_t * itc, buffer_desc_t * buf, int n_used, int may_delete
       if (ISO_SERIALIZABLE == itc->itc_isolation)
 	{
 	  /* serializable locks the row before the range unless this is a non-first page or there is a matchh on unique key */
-	  if (lower && !(itc->itc_ks->ks_ts->ts_is_unique && lower != last))
+	  if (lower && !(IS_TS(itc->itc_ks->ks_ts) && itc->itc_ks->ks_ts->ts_is_unique && lower != last))
 	    {
 	      lower--;
 	      n_done--;
@@ -1503,6 +1503,8 @@ void
 pl_remove_empty_rls (page_lock_t * pl)
 {
   int inx;
+  index_tree_t * it = pl->pl_it;
+  mutex_enter (it->it_lock_release_mtx);
   for (inx = 0; inx < N_RLOCK_SETS; inx++)
     {
       row_lock_t **prev = &pl->pl_rows[inx];
@@ -1521,6 +1523,7 @@ pl_remove_empty_rls (page_lock_t * pl)
 	  rl = next;
 	}
     }
+  mutex_leave (it->it_lock_release_mtx);
 }
 
 
@@ -1570,7 +1573,7 @@ itc_ensure_col_refs (it_cursor_t * itc)
 int enable_rq_check_all = 0;
 
 void
-rq_check_all ()
+rq_check_all (void)
 {
   dbe_table_t *tb = sch_name_to_table (wi_inst.wi_schema, "DB.DBA.RDF_QUAD");
   DO_SET (dbe_key_t *, key, &tb->tb_keys)
@@ -2056,7 +2059,7 @@ dc_for_col (mem_pool_t * mp, row_delta_t ** rds, dbe_key_t * key, int nth_part, 
 
 
 void
-cpt_col_restore_uncommitted ()
+cpt_col_restore_uncommitted (void)
 {
   dtp_t right_temp[2000];
   it_cursor_t *itc = mcp_itc;

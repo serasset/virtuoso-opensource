@@ -6,7 +6,7 @@
  *  This file is part of the OpenLink Software Virtuoso Open-Source (VOS)
  *  project.
  *
- *  Copyright (C) 1998-2024 OpenLink Software
+ *  Copyright (C) 1998-2026 OpenLink Software
  *
  *  This project is free software; you can redistribute it and/or modify it
  *  under the terms of the GNU General Public License as published by the
@@ -41,6 +41,10 @@ typedef struct vxml_parser_s vxml_parser_t;
 /*				 01234567890123456789012345678901234567890123 */
 #define RDF_NS_URI		"http://www.w3.org/1999/02/22-rdf-syntax-ns#"
 #define RDF_NS_URI_LEN		43
+/*				 0         1         2         3         4 */
+/*				 0123456789012345678901234567890123456789 */
+#define RDFS_NS_URI		"http://www.w3.org/2000/01/rdf-schema#"
+#define RDFS_NS_URI_LEN	37
 /*				 0         1         2         3       */
 /*				 0123456789012345678901234567890123456 */
 #define XML_NS_URI		"http://www.w3.org/XML/1998/namespace"

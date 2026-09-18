@@ -8,7 +8,7 @@
  *  This file is part of the OpenLink Software Virtuoso Open-Source (VOS)
  *  project.
  *
- *  Copyright (C) 1998-2024 OpenLink Software
+ *  Copyright (C) 1998-2026 OpenLink Software
  *
  *  This project is free software; you can redistribute it and/or modify it
  *  under the terms of the GNU General Public License as published by the
@@ -146,7 +146,7 @@ cu_rl_local_exec (cucurbit_t * cu)
       {
 	user_t *usr = cli->cli_user;
 	sqlr_new_error ("42000", "SR186:SECURITY", "No permission to execute dpipe %s with user ID %d, group ID %d",
-	    clo->_.call.func, (int) (usr ? usr->usr_id : 0), (int) (usr ? usr->usr_g_id : 0));
+	    clo->_.call.func, (int) (usr ? usr->usr_id : -1), (int) (usr ? usr->usr_g_id : -1));
       }
     memcpy (save_pars, clo->_.call.params, box_length ((caddr_t) clo->_.call.params));
     qi->qi_client->cli_non_txn_insert = qi->qi_non_txn_insert;
@@ -954,7 +954,7 @@ bif_dc_batch_sz (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 
 
 void
-bif_rld_init ()
+bif_rld_init (void)
 {
   bif_define_ex ("dc_batch_sz", bif_dc_batch_sz, BMD_RET_TYPE, &bt_integer, BMD_DONE);
   bif_define ("rl_dp_ids", bif_rl_dp_ids);

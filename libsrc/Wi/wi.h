@@ -8,7 +8,7 @@
  *  This file is part of the OpenLink Software Virtuoso Open-Source (VOS)
  *  project.
  *
- *  Copyright (C) 1998-2024 OpenLink Software
+ *  Copyright (C) 1998-2026 OpenLink Software
  *
  *  This project is free software; you can redistribute it and/or modify it
  *  under the terms of the GNU General Public License as published by the
@@ -1299,6 +1299,13 @@ len = row_length (row, key)
   itc->itc_itm1 = NULL; \
 }
 
+#define ITC_LEAVE_MAP_NC_IF_NOT_THERE_ALREADY(itc,itm1_mtx_entered_here) \
+{ \
+  mtx_assert (itc->itc_itm1 && !itc->itc_itm2); \
+  if (itm1_mtx_entered_here) \
+    mutex_leave (&itc->itc_itm1->itm_mtx); \
+  itc->itc_itm1 = NULL; \
+}
 
 #define ASSERT_IN_MAP(it, dp) \
 {\
@@ -1349,9 +1356,6 @@ len = row_length (row, key)
 }\
 
 
-
-
-
 #define ITC_IN_KNOWN_MAP(itc, dp)\
 {\
   it_map_t * itm = IT_DP_MAP (itc->itc_tree, dp);\
@@ -1362,6 +1366,23 @@ len = row_length (row, key)
   itc->itc_itm1 = itm;\
 }
 
+#define ITC_IN_KNOWN_MAP_IF_NOT_THERE_ALREADY(itc, dp, it_map_mtx, itm1_mtx_entered_here)\
+{\
+  it_map_t * itm = IT_DP_MAP (itc->itc_tree, dp);\
+  mtx_assert (!itc->itc_itm2); \
+  mtx_assert (!itc->itc_itm1 || itc->itc_itm1 == itm);	\
+  if (!itc->itc_itm1) \
+    { \
+      if (&(itm->itm_mtx) != it_map_mtx) \
+        { \
+          mutex_enter (&itm->itm_mtx);\
+          itm1_mtx_entered_here = 1; \
+        } \
+      else \
+        itm1_mtx_entered_here = 0; \
+    } \
+  itc->itc_itm1 = itm; \
+}
 
 #define ITC_IN_OWN_MAP(itc) ITC_IN_KNOWN_MAP ((itc), (itc)->itc_page)
 
@@ -1509,7 +1530,6 @@ struct buffer_desc_s
   short 	        bd_enter_line;
   short 		bd_leave_line;
   short                 bd_set_wr_line;
-  short                 bd_set_dirty_line;
   short		        bd_delta_line;
   char 			bd_el_flag;	/* what operation was last: 1-enter, 2-leave */
   bp_ts_t	        bd_ck_ts;
@@ -2169,19 +2189,30 @@ extern int in_crash_dump;
 #define __builtin_prefetch(m) 0
 #endif
 
-#define SD_INT32 ((char **)-1)
-#define SD_INT64 ((char **)-2)
+typedef enum
+{
+  SD_TYPE_INT32,
+  SD_TYPE_INT64,
+  SD_TYPE_LONG,
+  SD_TYPE_STRING,
+} stat_desc_type_t;
 
 typedef struct stat_desc_s
   {
     const char *   sd_name;
-    long *   sd_value;
-    char **   sd_str_value;
+  void *sd_value;
+  stat_desc_type_t sd_type;
   } stat_desc_t;
 
 extern stat_desc_t dbf_descs[];
 extern stat_desc_t rdf_preset_datatypes_descs[];
-int dbf_protected_param(stat_desc_t *sd);
+
+#define SD_STRUCT_ITEM(a, b, c) { a, &b, c }
+
+#define SD_DEF_I32(v, a)	SD_STRUCT_ITEM (a, v, SD_TYPE_INT32)
+#define SD_DEF_I64(v, a)	SD_STRUCT_ITEM (a, v, SD_TYPE_INT64)
+#define SD_DEF_L(v, a)		SD_STRUCT_ITEM (a, v, SD_TYPE_LONG)
+#define SD_DEF_STR(v, a)	SD_STRUCT_ITEM (a, v, SD_TYPE_STRING)
 
 typedef struct s_time_t
 {

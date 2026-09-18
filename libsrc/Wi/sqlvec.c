@@ -8,7 +8,7 @@
  *  This file is part of the OpenLink Software Virtuoso Open-Source (VOS)
  *  project.
  *
- *  Copyright (C) 1998-2024 OpenLink Software
+ *  Copyright (C) 1998-2026 OpenLink Software
  *
  *  This project is free software; you can redistribute it and/or modify it
  *  under the terms of the GNU General Public License as published by the
@@ -177,9 +177,6 @@ sqlg_dc_cast_func (sql_comp_t * sc, state_slot_t * target, state_slot_t * source
     return vc_anynn_generic;
 
   return vc_generic;
-  sqlc_new_error (sc->sc_cc, "22032", "VEC..", "No cast from %s to %s", dv_type_title (source->ssl_sqt.sqt_dtp),
-      dv_type_title (target->ssl_sqt.sqt_dtp));
-  return NULL;
 }
 
 
@@ -1017,7 +1014,7 @@ ti_func_no (char op, dtp_t dtp)
 }
 
 void
-ti_func_init ()
+ti_func_init (void)
 {
   ti_define (IN_COMPARE, DV_LONG_INT, (void *) dc_cmp_int, (void *) dc_cmp_int_1);
   ti_define (IN_ARTM_PLUS, DV_LONG_INT, (void *) dc_add_int, (void *) dc_add_int_1);
@@ -1335,7 +1332,8 @@ cv_vec_slots (sql_comp_t * sc, code_vec_t cv, dk_hash_t * res, dk_hash_t * all_r
 	    sel->sel_vec_set_mask = cc_new_instance_slot (sc->sc_cc);
 	    sel->sel_vec_role = SEL_VEC_EXISTS;
 	    ts = (table_source_t *) sel->src_gen.src_prev;
-	    if (IS_TS (ts) && !ts->ts_order_ks->ks_set_no_col_ssl)
+	    if (IS_TS (ts) && !ts->ts_order_ks->ks_set_no_col_ssl
+                && !ts->ts_order_ks->ks_local_test)
 	      ts->ts_max_rows = 1;	/* last ts of existence makes max 1 row, except when reading a gb or proc view temp where the set no is a col in the temp */
 	  }
 	break;
@@ -1597,7 +1595,7 @@ sqlg_vec_setp (sql_comp_t * sc, setp_node_t * setp, dk_hash_t * res)
 {
   sqlg_vec_ref_ssl_list (sc, setp->setp_keys);
   if (setp->setp_ha && HA_ORDER == setp->setp_ha->ha_op)
-    setp->setp_org_slots = (state_slot_t **)box_concat (setp->setp_keys_box, setp->setp_dependent_box);
+    setp->setp_org_slots = (state_slot_t **)box_concat ((caddr_t) setp->setp_keys_box, (caddr_t) setp->setp_dependent_box);
   if (setp->setp_loc_ts)
     sqlg_vec_setp_loc (sc, setp);
   if (setp->setp_ha && HA_GROUP == setp->setp_ha->ha_op && !setp->setp_set_no_in_key)
@@ -3042,6 +3040,9 @@ qn_vec_slots (sql_comp_t * sc, data_source_t * qn, dk_hash_t * res, dk_hash_t * 
   int inx, src_resets_done;
   sc->sc_ssl_prereset_only = NULL;
 
+  if (THR_IS_STACK_OVERFLOW (THREAD_CURRENT_THREAD, &non_cl_local, 1000))
+     sqlc_error (sc->sc_cc, "42000", "Stack Overflow");
+
   if (sc->sc_cc->cc_super_cc->cc_instance_fill >= STATE_SLOT_LIMIT)
     SQL_GPF_T1 (sc->sc_cc, "Query too large, variables in state over the limit");
 
@@ -4048,7 +4049,7 @@ sqlg_vec_ts (sql_comp_t * sc, table_source_t * ts)
 	else if (CI_ROW == col_id)
 	  {
 	    if (ks->ks_key->key_is_col)
-	      sqlc_new_error (sc->sc_cc, "37000", "COL..", "Can't select _row from a column-wise key");
+		sqlc_new_error (sc->sc_cc, "37000", "COL05", "Can't select _ROW from a column-wise key");
 	    ks->ks_v_out_map[inx].om_ref = dc_itc_append_row;
 	    ssl->ssl_dtp = DV_ARRAY_OF_POINTER;
 	  }
@@ -4472,10 +4473,10 @@ qr_set_vec_ssls (query_t * qr)
   {
     if (SSL_VEC == ssl->ssl_type && !ssl->ssl_alias_of)
       dk_set_push (&ssls, (void *) ssl);
-      if (DV_ANY == ssl->ssl_dc_dtp)
-	est += dc_default_var_len + sizeof (caddr_t);
-      else
-	est += sizeof (int64);
+    if (DV_ANY == ssl->ssl_dc_dtp)
+      est += dc_default_var_len + sizeof (caddr_t);
+    else
+      est += sizeof (int64);
   }
   END_DO_SET ();
   DO_SET (state_slot_t *, ssl, &qr->qr_temp_spaces)

@@ -8,7 +8,7 @@
  *  This file is part of the OpenLink Software Virtuoso Open-Source (VOS)
  *  project.
  *
- *  Copyright (C) 1998-2024 OpenLink Software
+ *  Copyright (C) 1998-2026 OpenLink Software
  *
  *  This project is free software; you can redistribute it and/or modify it
  *  under the terms of the GNU General Public License as published by the
@@ -238,51 +238,86 @@ caddr_t ws_get_packed_hf (ws_connection_t * ws, const char * fld, const char * d
     (!(ws)->ws_header || \
      (NULL == nc_strstr ((unsigned char *) (ws)->ws_header, (unsigned char *)h)))
 
-caddr_t
-ws_gethostbyaddr (const char * ip)
+
+
+extern int32 dk_tcp_ai_idn_enable;
+
+static void
+decode_idn_hostname (char *host, size_t hostlen)
 {
-  struct hostent *host = NULL;
-  unsigned long int addr;
-#if defined (_REENTRANT) && (defined (linux) || defined (SOLARIS) || defined (HPUX_10))
-  char buff [4096];
-  int herrnop;
-  struct hostent ht;
-# if defined (HPUX_10)
-  struct hostent_data hted;
-# endif
+#if defined(_WIN32)
+  wchar_t wide_ace[NI_MAXHOST];
+  wchar_t wide_uni[NI_MAXHOST];
+
+  if (MultiByteToWideChar (CP_UTF8, 0, host, -1, wide_ace, NI_MAXHOST) == 0)
+    return;
+
+  if (IdnToUnicode (0, wide_ace, -1, wide_uni, NI_MAXHOST) == 0)
+    return;
+
+  WideCharToMultiByte (CP_UTF8, 0, wide_uni, -1, host, (int) hostlen, NULL, NULL);
 #endif
 
-  if ((int)(addr = inet_addr (ip)) == -1)
-    return box_dv_short_string (ip);
+  return;
+}
 
+caddr_t
+ws_gethostbyaddr (const char *ip)
+{
+  struct sockaddr_storage ss = { 0 };
+  struct sockaddr_in *sa4 = (struct sockaddr_in *) &ss;
+  struct sockaddr_in6 *sa6 = (struct sockaddr_in6 *) &ss;
+  char host[NI_MAXHOST];
+  int rc;
+  int flags;
+  socklen_t addrlen;
 
-#if defined (_REENTRANT) && defined (linux)
-  gethostbyaddr_r ((char *)&addr, sizeof (addr), AF_INET, &ht, buff, sizeof (buff), &host, &herrnop);
-#elif defined (_REENTRANT) && defined (SOLARIS)
-  host = gethostbyaddr_r ((char *)&addr, sizeof (addr), AF_INET, &ht, buff, sizeof (buff), &herrnop);
-#elif defined (_REENTRANT) && defined (HPUX_10)
-  /* in HP-UX 10 these functions are MT-safe */
-  hted.current = NULL;
-  if (-1 != gethostbyaddr_r ((char *)&addr, sizeof (addr), AF_INET, &ht, &hted))
-    host = &ht;
-#else
-  /* gethostbyname and gethostbyaddr is a threadsafe on AIX4.3 HP-UX WindowsNT */
-  host = gethostbyaddr ((char *)&addr, sizeof (addr), AF_INET);
-#endif
-
-  if (!host)
+  if (inet_pton (AF_INET, ip, &sa4->sin_addr) == 1)
     {
-#if 0
-#if defined (_REENTRANT) && (defined (linux) || defined (SOLARIS))
-      int status = herrnop;
-#else
-      int status = h_errno;
-#endif
-#endif
+      sa4->sin_family = AF_INET;
+      addrlen = sizeof (struct sockaddr_in);
+    }
+  else if (inet_pton (AF_INET6, ip, &sa6->sin6_addr) == 1)
+    {
+      sa6->sin6_family = AF_INET6;
+      addrlen = sizeof (struct sockaddr_in6);
+    }
+  else
+    {
+      /* Not a valid IP address at all — return it as-is. */
       return box_dv_short_string (ip);
     }
-  return box_dv_short_string (host->h_name);
+
+  /* set lookup flags */
+  flags = NI_NAMEREQD;		/* require a real hostname */
+
+#if defined (NI_IDN)
+  /* enable lookup of hostnames with non-ASCII characters on linux */
+  if (dk_tcp_ai_idn_enable)
+    flags |= NI_IDN;
+#endif
+
+  rc = getnameinfo (
+           (struct sockaddr *) &ss, addrlen,
+	   host, sizeof (host),
+	   NULL,
+	   0,
+           flags
+      );
+
+  if (rc != 0)
+    return box_dv_short_string (ip);	/* lookup failed */
+
+  /*
+   *  decode punicode to UTF-8 hostname
+   */
+  if (dk_tcp_ai_idn_enable)
+    decode_idn_hostname (host, sizeof (host));
+
+  return box_dv_short_string (host);
 }
+
+
 
 /* HTTP listeners startup query */
 /*                       0             1        2             3           4  */
@@ -373,13 +408,11 @@ static int http_acl_check_rate (ws_acl_t * elm, caddr_t name, int check_rate, in
   else if (check_rate == ACL_CHECK_HITS)
     {
       acl_hit_t * hit, **place;
-      int64 now;
-      timeout_t tv;
+      time_usec_t now_usec;
 
       res = elm->ha_flag;
-      get_real_time (&tv);
-      now = ((int64)tv.to_sec * 1000000) + (int64) tv.to_usec;
-      /*now = get_msec_real_time ();*/
+      now_usec = get_usec_real_time ();
+
       mutex_enter (http_acl_mtx);
       loc_hash = elm->ha_hits;
 #ifdef DEBUG
@@ -394,7 +427,7 @@ static int http_acl_check_rate (ws_acl_t * elm, caddr_t name, int check_rate, in
 
 	  hit = *place;
 
-	  elapsed = (float) (now - hit->ah_initial) / 1000000;
+	  elapsed = (float) (now_usec - hit->ah_initial) / 1000000;
 	  if (elapsed < 1) elapsed = 0.5;
 	  rate = (float)((hit->ah_count + 1) / elapsed);
 	  hit->ah_avg = rate;
@@ -414,7 +447,7 @@ static int http_acl_check_rate (ws_acl_t * elm, caddr_t name, int check_rate, in
 	  memset (hit, 0, sizeof (acl_hit_t));
 	  id_hash_set (loc_hash, (caddr_t) &new_name, (caddr_t) &hit);
 	}
-      if (!hit->ah_initial) hit->ah_initial = now;
+      if (!hit->ah_initial) hit->ah_initial = now_usec;
       hit->ah_count ++;
       if (hit_ret)
 	*hit_ret = hit;
@@ -993,6 +1026,8 @@ log_info_http (ws_connection_t * ws, const char * code, OFF_T clen)
   const char * str;
   int volatile len;
   int http_resp_code = 0;
+  client_connection_t *cli = ws->ws_cli;
+  time_usec_t time_usec_now = 0;
   time_t now;
   struct tm *tm;
 #if defined (HAVE_LOCALTIME_R) && !defined (WIN32)
@@ -1083,8 +1118,36 @@ next_fragment:
 		      dk_free_tree (connvar_value);
 		    }
 		  break;
-	      default:
-		  WS_LOG_ERROR;
+	      case 'T':
+		if (!time_usec_now)
+		  time_usec_now = get_usec_real_time ();
+		if (!strcmp (format, "s"))
+		  {
+		    snprintf (tmp, sizeof (tmp), "%lld", (time_usec_now - cli->cli_start_time_usec) / 1000000UL);
+		    session_buffered_write (ses, tmp, strlen (tmp));
+		    break;
+		  }
+		else if (!strcmp (format, "ms"))
+		  {
+		    snprintf (tmp, sizeof (tmp), "%lld", (time_usec_now - cli->cli_start_time_usec) / 1000UL);
+		    session_buffered_write (ses, tmp, strlen (tmp));
+		    break;
+		  }
+		else if (!strcmp (format, "us"))
+		  {
+		    snprintf (tmp, sizeof (tmp), "%lld", (time_usec_now - cli->cli_start_time_usec));
+		    session_buffered_write (ses, tmp, strlen (tmp));
+		    break;
+		  }
+		else if (!strcmp (format, "rt"))
+		  {
+		    snprintf (tmp, sizeof (tmp), "%lld", rdtsc () - cli->cli_cl_start_ts);
+		    session_buffered_write (ses, tmp, strlen (tmp));
+		    break;
+		  }
+		/* no break; */
+		  default:
+		      WS_LOG_ERROR;
 	    }
 	  goto get_next;
 	}
@@ -1111,8 +1174,19 @@ next_fragment:
 		  (tm->tm_mday), monthname [month - 1], year, tm->tm_hour, tm->tm_min, tm->tm_sec, TZ_TO_HHMM(dt_local_tz_for_logs));
 	    }
 	  break;
+    case 'T':
+      if (!time_usec_now)
+	time_usec_now = get_usec_real_time ();
+      snprintf (tmp, sizeof (tmp), "%lld", (time_usec_now - cli->cli_start_time_usec) / 1000000UL);
+      break;
+    case 'D':
+      if (!time_usec_now)
+	time_usec_now = get_usec_real_time ();
+      snprintf (tmp, sizeof (tmp), "%lld", time_usec_now - cli->cli_start_time_usec);
+      break;
       case 'r':
-         snprintf (tmp, sizeof (tmp), "%.*s", tmp_len, ws->ws_req_line ? ws->ws_req_line : "GET unspecified");
+      snprintf (tmp, sizeof (tmp), "%.*s", tmp_len, ws->ws_req_line
+	  && ws->ws_method != WM_ERROR ? ws->ws_req_line : "GET unspecified");
 	  strcat_ck (tmp, ws->ws_proto);
 	  tmp [sizeof (tmp) - 1] = 0;
 	  break;
@@ -1550,6 +1624,8 @@ ws_path_and_params (ws_connection_t * ws)
     case 3:
       if (0 == memcmp (ws->ws_req_line, "GET", 3))
         ws->ws_method = WM_GET;
+      if (0 == memcmp (ws->ws_req_line, "PUT", 3))
+        ws->ws_method = WM_PUT;
       break;
     case 4:
       if (0 == memcmp (ws->ws_req_line, "POST", 4))
@@ -1560,6 +1636,10 @@ ws_path_and_params (ws_connection_t * ws)
         ws->ws_method = WM_URIQA_MGET;
       else if (0 == memcmp (ws->ws_req_line, "MPUT", 4))
         ws->ws_method = WM_URIQA_MPUT;
+      break;
+    case 6:
+      if (0 == memcmp (ws->ws_req_line, "DELETE", 6))
+        ws->ws_method = WM_DELETE;
       break;
     case 7:
       if (0 == memcmp (ws->ws_req_line, "MDELETE", 7))
@@ -1908,11 +1988,17 @@ ws_clear (ws_connection_t * ws, int error_cleanup)
 #ifdef _SSL
   ws->ws_ssl_ctx = NULL;
 #endif
+  dk_free_tree (ws->ws_xslt_url);
+  ws->ws_xslt_url = NULL;
+  dk_free_tree (ws->ws_xslt_params);
+  ws->ws_xslt_params = NULL;
+  dk_free_box (ws->ws_xslt_doc_url);
+  ws->ws_xslt_doc_url = NULL;
 }
 
 char http_server_id_string_buf [1024];
 char *http_server_id_string = NULL;
-const char *http_client_id_string = "Mozilla/4.0 (compatible; OpenLink Virtuoso)";
+char *http_client_id_string = "Mozilla/4.0 (compatible; OpenLink Virtuoso)";
 uint32 http_default_client_req_timeout = 100;
 extern char * https_csp;
 
@@ -2524,7 +2610,7 @@ ws_strses_reply (ws_connection_t * ws, const char * volatile code)
   accept_gz = ws_get_packed_hf (ws, "Accept-Encoding:", "");
   if (IS_CHUNKED_OUTPUT (ws))
     cnt_enc = WS_CE_CHUNKED;
-  else if (enable_gzip && accept_gz && strstr (accept_gz, "gzip") && ws->ws_proto_no == 11 && ws->ws_status_code > 199 && CONTENT_ALLOWED(ws))
+  else if (enable_gzip && accept_gz && strstr (accept_gz, "gzip") && ws->ws_proto_no == 11 && CONTENT_ALLOWED(ws))
     {
       cnt_enc = WS_CE_GZIP;
       ws->ws_try_pipeline = 0; /* browsers based on webkit workaround */
@@ -2758,7 +2844,7 @@ static char *fmt1 =
 
 #define REPLY_SENT "reply sent"
 
-const char *www_root = ".";
+char *www_root = ".";
 
 
 static int
@@ -4723,23 +4809,6 @@ ws_set_timeouts (ws_connection_t * ws)
   session_set_control (client->dks_session, SC_BLOCKING, (char *)((void*)&block), sizeof (int));
 }
 
-int
-ws_check_connect_timeout (session_t *ses, timeout_t * to, int want)
-{
-  session_t *wses[] = {0}, *rses[] = {0};
-  int rc;
-
-  if (SSL_ERROR_WANT_WRITE == want)
-    wses[0] = ses;
-  else if (SSL_ERROR_WANT_READ == want)
-    rses[0] = ses;
-  else
-    return SSL_ERROR_SSL;
-  rc = session_select (1, rses, wses, to);
-  return (rc <= 0 ? SSL_ERROR_SSL : SSL_ERROR_NONE);
-}
-
-
 void
 ws_serve_connection (ws_connection_t * ws)
 {
@@ -4781,7 +4850,7 @@ ws_serve_connection (ws_connection_t * ws)
 	      break;
 	    case SSL_ERROR_WANT_READ:
 	    case SSL_ERROR_WANT_WRITE:
-	      if (SSL_ERROR_NONE == ws_check_connect_timeout (ses->dks_session, &to, connect_state))
+	      if (SSL_ERROR_NONE == ssl_check_connect_timeout (ses->dks_session, &to, connect_state))
 		{
 		  status = 1;
 		  break;
@@ -5819,7 +5888,7 @@ bif_http_pending_req (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 }
 
 void
-http_kill_all ()
+http_kill_all (void)
 {
   dk_set_t killed = NULL;
   ws_connection_t * ws;
@@ -8798,11 +8867,11 @@ http_map_fill_cors_allow_headers (caddr_t option_value)
       if (NULL == ht)
         ht = id_strcase_hash_create (7);
       if (h[0] != '!' || 0 == stricmp (h, "!ALL")) /* expilicitly added header, or all custom disabled */
-        id_hash_set (ht, &h, (caddr_t) &one);
+        id_hash_set (ht, (caddr_t) &h, (caddr_t) &one);
       else /* explicitly denied header */
         {
           caddr_t he = box_dv_short_string (h+1);
-          id_hash_set (ht, &he, (caddr_t) &two);
+          id_hash_set (ht, (caddr_t) &he, (caddr_t) &two);
         }
     }
   END_DO_SET();
@@ -8810,10 +8879,10 @@ http_map_fill_cors_allow_headers (caddr_t option_value)
   /* default allowed headers, except if denied explicitly, see above */
   DO_SET (caddr_t, h, &http_default_allow_headers_list)
     {
-      ptrlong * flag = id_hash_get (ht, (caddr_t) &h);
+      ptrlong * flag = (ptrlong *) id_hash_get (ht, (caddr_t) &h);
       if (flag && 2 == flag[0])
         continue;
-      id_hash_set (ht, &h, (caddr_t) &one);
+      id_hash_set (ht, (caddr_t) &h, (caddr_t) &one);
     }
   END_DO_SET();
 
@@ -9336,7 +9405,7 @@ http_set_ssl_listen (dk_session_t * listening, caddr_t * https_opts)
   char *dhparam = https_dhparam;
   long https_cvdepth = -1;
   int i, len, https_client_verify = -1;
-  ssl_meth = SSLv23_server_method ();
+  ssl_meth = TLS_server_method ();
   ssl_ctx = SSL_CTX_new ((SSL_METHOD *) ssl_meth);
 
   /* Initialize the parameters */
@@ -10790,7 +10859,7 @@ bif_http_acl_remove (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 }
 
 static void
-http_acl_stats ()
+http_acl_stats (void)
 {
   static const char * szHttpAclName = "HTTP";
   caddr_t *alist, **plist;
@@ -11271,7 +11340,7 @@ bif_http_url_cache_remove (caddr_t * qst, caddr_t * err_ret, state_slot_t ** arg
 }
 
 static void
-http_init_acl_and_cache ()
+http_init_acl_and_cache (void)
 {
   /* INIT the general HTTP ACL */
   http_acls = id_str_hash_create (101);
@@ -11620,7 +11689,7 @@ bif_http_get_cli_sessions (caddr_t * qst, caddr_t * err_ret, state_slot_t ** arg
   while (dk_hit_next (&hit, (void**) &sid, (void**) &ses))
     {
       caddr_t * args = (caddr_t *) DKS_DB_DATA (ses);
-      dk_set_push (&set, list (2, box_num(sid), add_args ? box_copy_tree (args) : NEW_DB_NULL));
+      dk_set_push (&set, list (3, box_num(sid), add_args ? box_copy_tree (args) : NEW_DB_NULL, box_num((boxint)ses->dks_n_threads)));
     }
   mutex_leave (ws_cli_mtx);
   return list_to_array (dk_set_nreverse (set));
@@ -11631,9 +11700,11 @@ bif_http_client_session_cached (caddr_t * qst, caddr_t * err_ret, state_slot_t *
 {
   boxint id = bif_long_arg (qst, args, 0, "http_client_session_cached");
   boxint ret;
+  dk_session_t * ses;
   mutex_enter (ws_cli_mtx);
-  ret = ((NULL != gethash ((void *) (ptrlong) id, ws_cli_sessions)) ? 1 : 0);
+  ses = (dk_session_t *) gethash ((void *) (ptrlong) id, ws_cli_sessions);
   mutex_leave (ws_cli_mtx);
+  ret = (ses && ses->dks_n_threads ? 1 : (ses ? 2 : 0));
   return box_num (ret);
 }
 
@@ -11645,18 +11716,21 @@ bif_http_on_message (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
   caddr_t func = bif_string_arg (qst, args, 1, "http_on_message");
   caddr_t cd = bif_arg (qst, args, 2, "http_on_message");
   int signal_on_disconnected = BOX_ELEMENTS(args) > 3 ? bif_long_arg (qst, args, 3, "http_on_message") : 1;
+  int keep_conn_ref = BOX_ELEMENTS(args) > 4 ? bif_long_arg (qst, args, 4, "http_on_message") : 0; /* use on client side to keep ses ref */
   dk_session_t * ses = NULL;
   ws_connection_t * ws = qi->qi_client->cli_ws;
 
   if (DV_CONNECTION == DV_TYPE_OF (conn))
     {
+      int server_session = 0;
       ses = (dk_session_t *) conn[0];
+      server_session = (ws && ses && ses == ws->ws_session);
       if (ses && DKSESSTAT_ISSET (ses, SST_OK))
-        conn[0] = NULL;
+        conn[0] = keep_conn_ref && !server_session ? (caddr_t) ses : (caddr_t) NULL;
       else
 	ses = NULL;
       mutex_enter (thread_mtx);
-      if (ws && ses && ses == ws->ws_session)
+      if (server_session)
 	{
 	  ws->ws_session->dks_ws_status = DKS_WS_CACHED;
 	  ws->ws_session->dks_n_threads++;
@@ -11848,9 +11922,10 @@ bif_string_split (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
 }
 
 caddr_t *
-box_tpcip_get_interfaces ()
+box_tpcip_get_interfaces (void)
 {
   dk_set_t set = NULL;
+  char * to_free = NULL;
 #ifdef SIOCGIFCONF
 #define MAX_IFS 32
   struct ifreq *ifrp;
@@ -11868,37 +11943,53 @@ box_tpcip_get_interfaces ()
       eno = errno;
       tcpses_error_message (eno, message, sizeof (message));
       log_error ("Failed create socket to obtain network interfaces : %s", message);
+      goto err;
     }
 
 #ifdef SIOCGIFCONF
   memset (buf, 0, sizeof(buf));
   ifc.ifc_len = sizeof( buf );
   ifc.ifc_buf = (caddr_t)buf;
-
   if (ioctl(sockfd, SIOCGIFCONF, (caddr_t)&ifc) < 0)
     {
       eno = errno;
       tcpses_error_message (eno, message, sizeof (message));
       log_error ("Failed to get network interfaces : %s", message);
+      goto err;
+    }
+  if (ifc.ifc_len > sizeof (buf))
+    {
+      to_free = dk_alloc_zero(ifc.ifc_len);
+      ifc.ifc_buf = to_free;
+
+      if (ioctl(sockfd, SIOCGIFCONF, (caddr_t)&ifc) < 0)
+        {
+          eno = errno;
+          tcpses_error_message (eno, message, sizeof (message));
+          log_error ("Failed to get network interfaces : %s", message);
+          goto err;
+        }
     }
 
   ifrp = ifc.ifc_req;
   for (len = ifc.ifc_len; len > 0; /* len -= sizeof (struct ifreq) calculated below */)
     {
-      if (ifrp->ifr_addr.sa_family == AF_INET)
-	{
-	  memcpy (&addr, &(ifrp->ifr_addr), sizeof (struct sockaddr_in));
-	  snprintf (message, sizeof (message), "%s", inet_ntoa(addr.sin_addr));
-	  dk_set_push (&set, box_string (message));
-	}
-      /* The FreeBSD returns variable length */
+      int entry_size;
 #if defined (__FreeBSD__) || defined (__APPLE__)
-      ifrp = (struct ifreq *)((char *)&(ifrp->ifr_addr) + ifrp->ifr_addr.sa_len);
-      len -= ifrp->ifr_addr.sa_len;
+      entry_size = sizeof(ifrp->ifr_name) +
+          (ifrp->ifr_addr.sa_len > sizeof(struct sockaddr) ?
+           ifrp->ifr_addr.sa_len : sizeof(struct sockaddr));
 #else
-      ifrp++;
-      len -= sizeof (struct ifreq);
+      entry_size = sizeof(struct ifreq);
 #endif
+      if (ifrp->ifr_addr.sa_family == AF_INET)
+        {
+          memcpy (&addr, &(ifrp->ifr_addr), sizeof (struct sockaddr_in));
+          snprintf (message, sizeof (message), "%s", inet_ntoa(addr.sin_addr));
+          dk_set_push (&set, box_string (message));
+        }
+      ifrp = (struct ifreq *)((char *)ifrp + entry_size);
+      len -= entry_size;
     }
 #elif defined (SIO_GET_INTERFACE_LIST)
     {
@@ -11921,12 +12012,14 @@ box_tpcip_get_interfaces ()
 	}
     }
 #endif
+err:
+  dk_free(to_free, -1);
   closesocket(sockfd);
   return (caddr_t *) list_to_array (dk_set_nreverse (set));
 }
 
 int
-http_init_part_one ()
+http_init_part_one (void)
 {
   XML_CHAR_ESCAPE ('<', "&lt;");
   XML_CHAR_ESCAPE ('>', "&gt;");
@@ -12146,7 +12239,7 @@ http_threads_allocate (int n_threads)
 }
 
 void
-ws_thr_cache_clear ()
+ws_thr_cache_clear (void)
 {
 #define WS_MIN_RC 1
   static void ** wst;
@@ -12189,7 +12282,7 @@ http_threads_mem_report (void)
 extern int cl_no_init;
 
 int
-http_init_part_two ()
+http_init_part_two (void)
 {
   dk_session_t *listening;
 #ifdef _SSL
@@ -12271,7 +12364,7 @@ http_init_part_two ()
       char err_buf [1024];
       SSL_CTX* ssl_ctx = NULL;
       const SSL_METHOD *ssl_meth = NULL;
-      ssl_meth = SSLv23_server_method();
+      ssl_meth = TLS_server_method();
       ssl_ctx = SSL_CTX_new ((SSL_METHOD *) ssl_meth);
       if (!ssl_ctx)
 	{
@@ -12600,21 +12693,21 @@ is_internal_user (client_connection_t *cli)
 
 
 char *
-srv_http_port ()
+srv_http_port (void)
 {
    return http_port;
 }
 
 
 const char *
-srv_www_root ()
+srv_www_root (void)
 {
    return www_root;
 }
 
 
 caddr_t
-srv_dns_host_name ()
+srv_dns_host_name (void)
 {
    return dns_host_name;
 }

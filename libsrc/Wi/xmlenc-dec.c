@@ -8,7 +8,7 @@
  *  This file is part of the OpenLink Software Virtuoso Open-Source (VOS)
  *  project.
  *
- *  Copyright (C) 1998-2024 OpenLink Software
+ *  Copyright (C) 1998-2026 OpenLink Software
  *
  *  This project is free software; you can redistribute it and/or modify it
  *  under the terms of the GNU General Public License as published by the
@@ -217,7 +217,7 @@ static void __dbg_wsse_assert (char * file, long line)
 
 #define WSSE_ASSERT(check) if (!check) __dbg_wsse_assert (__FILE__, __LINE__)
 
-wsse_ctx_t * wsse_ctx_allocate ()
+wsse_ctx_t * wsse_ctx_allocate (void)
 {
   NEW_VARZ (wsse_ctx_t, ctx);
   ctx->wc_id_cache = id_hash_allocate (31, sizeof (caddr_t), sizeof (caddr_t*),
@@ -1994,7 +1994,7 @@ dsig_signature_t * dsig_template_ (query_instance_t * qi, caddr_t signature_xml_
       xenc_make_error (errbuf, 1024, ctx->wc_tb.xtb_err_code, ctx->wc_tb.xtb_err_buffer);
       wsse_ctx_free (ctx);
 
-      xenc_report_error (t, 500 + strlen (errbuf), DSIG_TEMPL_ERR, errbuf);
+      sqlr_new_error ("42000", "XENC3T", "%s", errbuf);
     }
   XENC_TRY_END(&ctx->wc_tb);
 
@@ -2028,7 +2028,7 @@ void xmlenc_check_ecm_array (void * array, ptrlong len, size_t elem_size)
     }
 }
 
-void xmlenc_check_ecm_arrays ()
+void xmlenc_check_ecm_arrays (void)
 {
   xmlenc_check_ecm_array ((void *) wsse_error_templs, wsse_error_templs_len, sizeof (struct wsse_error_templ_s));
   xmlenc_check_ecm_array ((void *) wsse_dsig_callbacks, wsse_dsig_callbacks_len, sizeof (wsse_callback_item_t));
@@ -2036,7 +2036,7 @@ void xmlenc_check_ecm_arrays ()
   xmlenc_check_ecm_array ((void*) wsse_callbacks, wsse_callbacks_len, sizeof (wsse_callback_item_t));
 }
 
-void xmlenc_test_wsse_error ()
+void xmlenc_test_wsse_error (void)
 {
   wsse_ctx_t * ctx = dk_alloc (sizeof (wsse_ctx_t));
   ctx->wc_is_try_block = 1;

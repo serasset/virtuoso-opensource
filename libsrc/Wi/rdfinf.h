@@ -4,7 +4,7 @@
  *  This file is part of the OpenLink Software Virtuoso Open-Source (VOS)
  *  project.
  *
- *  Copyright (C) 1998-2024 OpenLink Software
+ *  Copyright (C) 1998-2026 OpenLink Software
  *
  *  This project is free software; you can redistribute it and/or modify it
  *  under the terms of the GNU General Public License as published by the
@@ -39,6 +39,8 @@ typedef struct rdf_inf_ctx_s
   caddr_t	ric_name;
   id_hash_t *	ric_iri_to_subclass;			/*!< Map from IRI of class to pointer to rdf_sub_t */
   id_hash_t *	ric_iri_to_subproperty;			/*!< Map from IRI of property to pointer to rdf_sub_t */
+  id_hash_t *	ric_prop_to_domains;			/*!< Map from IRI_ID of property to array of IRI_ID classes from rdfs:domain (including superproperty inheritance) */
+  id_hash_t *	ric_prop_to_ranges;			/*!< Map from IRI_ID of property to array of IRI_ID classes from rdfs:range (including superproperty inheritance) */
   id_hash_t *	ric_iid_to_rel_ifp;			/*!< Map from IRI_ID of an IFP to array of IFPs of all IFPs with a common IFP superproperty */
   caddr_t *	ric_ifp_list;				/*!< Array of IRI_IDs of inverse functional properties */
   caddr_t *	ric_ifp_rel_list;			/*!< Array of IRI_IDs of inverse functional properties that have related IFPs (i.e. IFP super- and/or sub- properties) */
@@ -227,7 +229,7 @@ rdf_inf_ctx_t * rdf_inf_ctx (char * name);
 
 rdf_sub_t * rit_next (ri_iterator_t * rit);
 ri_iterator_t * ri_iterator (rdf_sub_t * rs, int mode, int distinct);
-void sas_ensure ();
+void sas_ensure (void);
 id_hash_t * tn_hash_table_get (trans_node_t * tn);
 extern dk_mutex_t * tn_cache_mtx;
 

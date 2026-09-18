@@ -4,7 +4,7 @@
 --  This file is part of the OpenLink Software Virtuoso Open-Source (VOS)
 --  project.
 --
---  Copyright (C) 1998-2024 OpenLink Software
+--  Copyright (C) 1998-2026 OpenLink Software
 --
 --  This project is free software; you can redistribute it and/or modify it
 --  under the terms of the GNU General Public License as published by the
@@ -1454,12 +1454,18 @@ fct_chk_any_prop (in tree any, inout this_s int, inout max_s int, in txt any)
 create procedure
 fct_query (in tree any, in plain integer := 0)
 {
-  declare s, add_graph int;
-	  declare txt, pre, post any;
+  declare s, add_graph, number_of_facets, max_facets int;
+  declare txt, pre, post any;
 
   txt := string_output ();
   pre := string_output ();
   post := string_output ();
+
+  max_facets := atoi(registry_get('fct_max_facets', '20'));
+  number_of_facets := cast(xpath_eval ('count(//*)', tree) as int);
+
+  if (number_of_facets > max_facets)
+    signal('42000', sprintf ('The maximum allowed number of facets (%d) are reached, please re-fine your choice', max_facets));
 
   s := 0;
   add_graph := 0;

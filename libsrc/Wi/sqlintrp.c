@@ -8,7 +8,7 @@
  *  This file is part of the OpenLink Software Virtuoso Open-Source (VOS)
  *  project.
  *
- *  Copyright (C) 1998-2024 OpenLink Software
+ *  Copyright (C) 1998-2026 OpenLink Software
  *
  *  This project is free software; you can redistribute it and/or modify it
  *  under the terms of the GNU General Public License as published by the
@@ -160,7 +160,7 @@ ins_call_kwds (caddr_t * qst, query_t * proc, instruction_t * ins, caddr_t * par
 	      data_col_t * dc = QST_BOX (data_col_t *, qst, actual_ssl->ssl_index);
 	      if (!(DCT_BOXES & dc->dc_type))
 		{
-		  err = srv_make_new_error ("42000", "VEC..", "In vectored code calling non-vectored inout parameter mode is supported only if caller variable is a boxed vector, e.g. type any array (caller variable \"%.100s\", calling parameter \"%.100s\")",
+		  err = srv_make_new_error ("42000", "VEC09", "In vectored code calling non-vectored inout parameter mode is supported only if caller variable is a boxed vector, e.g. type any array (caller variable \"%.100s\", calling parameter \"%.100s\")",
 		      actual_ssl->ssl_name, param_ssl->ssl_name );
 		  goto err_end;
 		}
@@ -168,7 +168,7 @@ ins_call_kwds (caddr_t * qst, query_t * proc, instruction_t * ins, caddr_t * par
 		row = sslr_set_no (qst, actual_ssl, row);
               if (row >= dc->dc_n_values)
                 {
-                  err = srv_make_new_error ("42000", "VEC09", "In vectored code calling with unset input");
+                  err = srv_make_new_error ("42000", "VEC35", "In vectored code calling with unset input");
                   goto err_end;
                 }
 	      address = (caddr_t)&((caddr_t*)dc->dc_values)[row];
@@ -425,7 +425,7 @@ ins_call (instruction_t * ins, caddr_t * qst, code_vec_t code_vec)
       sql_method_t *mtd = NULL;
       ptrlong mtd_inx = -1;
       if (BOX_ELEMENTS (proc_name) != 2 || !DV_STRINGP (proc_mtd_call[0]) ||
-	  !DV_LONG_INT == DV_TYPE_OF (proc_mtd_call[1]))
+         DV_LONG_INT != DV_TYPE_OF (proc_mtd_call[1]))
 	{
 	  err = srv_make_new_error ("22023", "UD004", "Invalid proc_name array supplied");
 	  goto report_error;
@@ -871,7 +871,7 @@ ins_call_vec (instruction_t * ins, caddr_t * inst, code_vec_t code_vec, int firs
   {
     caddr_t * rets = NULL;
     int set;
-    db_buf_t set_mask = qi->qi_set_mask;
+    db_buf_t set_mask = CV_CALL_PROC_TABLE != ins->_.call.ret ? qi->qi_set_mask : NULL;
     if (CALLER_CLIENT == qi->qi_caller && !ins->_.call.ret && !qi->qi_query->qr_select_node)
       rets = dk_alloc_box_zero (sizeof (caddr_t) * n_sets, DV_ARRAY_OF_POINTER);
     SET_LOOP
@@ -882,7 +882,7 @@ ins_call_vec (instruction_t * ins, caddr_t * inst, code_vec_t code_vec, int firs
 	  rets[set] = qi->qi_proc_ret;
       }
     END_SET_LOOP;
-    qi->qi_proc_ret = rets;
+    qi->qi_proc_ret = (caddr_t) rets;
   }
 }
 
@@ -1336,9 +1336,9 @@ ins_open (instruction_t * ins, caddr_t * qst)
   qst_set (qst, ins->_.open.cursor, (caddr_t) CR_INITIAL);
 }
 
-#if defined(DEBUG) | defined(MTX_DEBUG)
+#if defined(DEBUG) | defined(MTX_DEBUG) | defined(PAGE_DEBUG)
 void
-bing ()
+bing (void)
 {
 }
 #endif
@@ -1615,7 +1615,7 @@ opt_set_pop (opt_set_t *set)
 
 #ifdef OPT_SET_DEBUG
 static int
-opt_set_test ()
+opt_set_test (void)
 {
   ptrlong inx;
   opt_set_t test_set;
@@ -1967,11 +1967,11 @@ ins_for_vect (caddr_t * inst, instruction_t * ins)
       caddr_t * arr = (caddr_t*)qst_get (inst, arg);
       data_col_t * dc = QST_BOX (data_col_t *, inst, ins->_.for_vect.in_vars [inx]->ssl_index);
       if (DV_ARRAY_OF_POINTER != DV_TYPE_OF (arr))
-	sqlr_new_error ("42000", "VEC..",  "Argument of for_vectored is not an array");
+        sqlr_new_error ("42000", "VEC10", "Argument of for_vectored is not an array");
       if (-1 == len)
 	len = BOX_ELEMENTS (arr);
       else if (len != BOX_ELEMENTS (arr))
-	sqlr_new_error ("42000", "VEC..", "Input arrays  in for_vectored not of equal length");
+        sqlr_new_error ("42000", "VEC11", "Input arrays  in for_vectored not of equal length");
       dc_reset (dc);
       if (len > dc_max_batch_sz)
         sqlr_new_error ("42000", "FRVEC", "Input array FOR VECTORED over max vector length %d > %d", len, dc_max_batch_sz);
@@ -2245,8 +2245,8 @@ qi_check_trx_error (query_instance_t * qi, int flags)
       sqlr_resignal (err);
     }
 
-  if (cli->cli_start_time &&
-      time_now_msec - cli->cli_start_time > BURST_STOP_TIMEOUT
+  if (cli->cli_start_time_usec &&
+      time_now_msec - (cli->cli_start_time_usec / 1000UL) > BURST_STOP_TIMEOUT
       && cli->cli_session
       && cli_is_interactive (cli)
       && !cli->cli_ws)
@@ -3004,7 +3004,7 @@ subq_comp_func (caddr_t * qst, void * _subp)
     case SOME_PRED:
     case ALL_PRED:
       {
-	GPF_T1 ("all sub preds are supposed to be existences");
+        sqlr_new_error("42000", "SR701", "all sub preds are supposed to exist");
 #if 0
 	caddr_t left = qst_get (qst, subp->subp_left);
 	caddr_t err;
@@ -3608,7 +3608,7 @@ code_vec_run_v (code_vec_t code_vec, caddr_t * qst, int offset, int run_until, i
 	  break;
 
 	case INS_HANDLER_END:
-	  sqlr_new_error ("42000", "VEC..", "Error handler not allowed in vectored code");
+	  sqlr_new_error ("42000", "VEC12", "Error handler not allowed in vectored code");
 	  break;
 	case INS_AREF:
 	case INS_SET_AREF:
@@ -3672,7 +3672,7 @@ code_vec_run_v (code_vec_t code_vec, caddr_t * qst, int offset, int run_until, i
 #endif
 	case INS_FOR_VECT:
 	  if (NO_VEC != ins->_.for_vect.modify)
-	    sqlr_new_error ("42000", "VEC..", "for_vectored not allowed inside vectored code");
+	    sqlr_new_error ("42000", "VEC13", "for_vectored not allowed inside vectored code");
 	  ins_not_vect (qst, ins);
 	  ins = INSTR_ADD_BOFS (ins, ALIGN_INSTR (sizeof (ins->_.for_vect)));
 	  break;

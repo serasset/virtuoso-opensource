@@ -8,7 +8,7 @@
  *  This file is part of the OpenLink Software Virtuoso Open-Source (VOS)
  *  project.
  *
- *  Copyright (C) 1998-2024 OpenLink Software
+ *  Copyright (C) 1998-2026 OpenLink Software
  *
  *  This project is free software; you can redistribute it and/or modify it
  *  under the terms of the GNU General Public License as published by the
@@ -111,7 +111,7 @@ cll_cmp (const void *l1, const void *l2)
 }
 
 void
-cll_times ()
+cll_times (void)
 {
   cll_line_t l[1000];
   int inx, fill = 0;
@@ -138,17 +138,76 @@ cll_times ()
 
 
 
+
+extern int32 dk_tcp_ai_ipv4_enable;
+extern int32 dk_tcp_ai_ipv6_enable;
+
 caddr_t
-bif_cll_times (caddr_t * qst, caddr_t * err_ret, state_slot_t ** args)
+cl_host_addr (char *host_and_port)
 {
-  cll_times ();
-  return NULL;
+  char host[NI_MAXHOST];
+  char ip[INET6_ADDRSTRLEN];
+  char *col;
+  struct addrinfo hints = { 0 };
+  struct addrinfo *res = NULL;
+  struct addrinfo *p = NULL;
+  int rc;
+
+  /* extract host name without port */
+  strcpy_ck (host, host_and_port);
+  col = strchr (host, ':');
+  if (col)
+    col[0] = '\0';
+
+  hints.ai_family = AF_UNSPEC;		/* Allow IPv4 or IPv6 */
+  hints.ai_socktype = SOCK_STREAM;
+
+#if defined(AI_ADDRCONFIG)
+  hints.ai_flags |= AI_ADDRCONFIG;
+#endif
+
+  if ((rc = getaddrinfo (host, NULL, &hints, &res)) != 0)
+    {
+      log_error ("Could not resolve host \"%s\" in cluster host list: %s", host, gai_strerror (rc));
+      call_exit (1);
+      return NULL;
+    }
+
+  ip[0] = '\0';
+  for (p = res; p != NULL; p = p->ai_next)
+    {
+      const void *src = NULL;
+
+      if (dk_tcp_ai_ipv4_enable && p->ai_family == AF_INET)
+	src = &((struct sockaddr_in *) p->ai_addr)->sin_addr;
+      else if (dk_tcp_ai_ipv6_enable && p->ai_family == AF_INET6)
+	src = &((struct sockaddr_in6 *) p->ai_addr)->sin6_addr;
+      else
+	continue;
+
+      if (inet_ntop (p->ai_family, src, ip, sizeof (ip)))
+	break;			/* success */
+
+      ip[0] = '\0';
+    }
+
+  freeaddrinfo (res);
+
+  if (ip[0] == '\0')
+    {
+      log_error ("Could not resolve host \"%s\" in cluster host list", host);
+      call_exit (1);
+      return NULL;
+    }
+
+  return box_dv_short_string (ip);
 }
+
 
 
 #ifdef MTX_METER
 int
-cll_try_enter ()
+cll_try_enter (void)
 {
   if (mutex_try_enter (local_cll.cll_mtx))
     {
@@ -161,7 +220,7 @@ cll_try_enter ()
 
 
 dk_session_t *
-cl_strses_allocate ()
+cl_strses_allocate (void)
 {
   dk_session_t *ses;
   /* the head and 1st buffer of strses come from common, the extension will come from the user thread */
@@ -200,7 +259,7 @@ cl_id_to_host (int id)
 }
 
 caddr_t
-cl_buf_str_alloc ()
+cl_buf_str_alloc (void)
 {
   return dk_alloc (DKSES_OUT_BUFFER_LENGTH);
 }
@@ -213,7 +272,7 @@ cl_buf_str_free (caddr_t str)
 
 
 void
-cluster_init ()
+cluster_init (void)
 {
   local_cll.cll_mtx = mutex_allocate ();
   dk_mem_hooks (DV_CLOP, box_non_copiable, (box_destr_f) clo_destroy, 0);
@@ -224,7 +283,7 @@ cluster_init ()
 }
 
 char *
-cl_thr_stat ()
+cl_thr_stat (void)
 {
   return "";
 }
@@ -232,6 +291,6 @@ cl_thr_stat ()
 int32 cl_ac_interval = 100000;
 
 void
-cluster_after_online ()
+cluster_after_online (void)
 {
 }

@@ -8,7 +8,7 @@
  *  This file is part of the OpenLink Software Virtuoso Open-Source (VOS)
  *  project.
  *
- *  Copyright (C) 1998-2024 OpenLink Software
+ *  Copyright (C) 1998-2026 OpenLink Software
  *
  *  This project is free software; you can redistribute it and/or modify it
  *  under the terms of the GNU General Public License as published by the
@@ -346,6 +346,7 @@ xml_view_name (client_connection_t *cli, char *q, char *o, char *n,
   dbe_schema_t *newest_schema;
   char temp[MAX_QUAL_NAME_LEN];
   char q_loc [MAX_NAME_LEN], o_loc [MAX_NAME_LEN];
+  char split[MAX_QUAL_NAME_LEN];
   char *q2;
   char *o2;
   if (q && (strlen (q) > MAX_NAME_LEN))
@@ -360,7 +361,6 @@ xml_view_name (client_connection_t *cli, char *q, char *o, char *n,
     { err_ret[0] = "Invalid local part of the name (it contains dot char)"; return NULL; }
   if (NULL == o && NULL == n)
     {
-      char split[MAX_QUAL_NAME_LEN];
       char *xx = split;
       strcpy_ck (split, q);
       q = part_tok (&xx);
@@ -1641,7 +1641,7 @@ xp_sql (xpp_t *xpp, xp_ctx_t * start_ctx, XT * tree, xp_ret_t * xr, int mode)
       else
 	xr->xr_tree = (ST *) t_full_box_copy_tree ((caddr_t) tree);
     }
-  else if (ST_P (tree, XP_STEP) &&
+  else if (XT_P (tree, XP_STEP) &&
 	   ((tree->_.step.axis == XP_ATTRIBUTE) || (tree->_.step.axis == XP_ATTRIBUTE_WR))
 	   && !tree->_.step.input)
     {
@@ -2551,7 +2551,7 @@ xv_top_exp (xpp_t *xpp, XT * tree, caddr_t * err_ret)
     {
       XT * end_step = xp_end_step (path);
       xp_ret_t xr;
-      if (ST_P (end_step, XP_STEP) && xp_is_join_step ((int) end_step->_.step.axis)
+      if (XT_P (end_step, XP_STEP) && xp_is_join_step ((int) end_step->_.step.axis)
 /*mapping schema 12.02.03* /
           && !xp_is_simple_subelement (end_step)
 / *end mapping schema*/
@@ -3690,7 +3690,7 @@ xpt_eq (XT * tree, XT * ctx_step)
 
 ptrlong xpt_range_flags_of_step (XT *tree, XT* ctx_node)
 {
-  if (! ST_P (tree, XP_STEP))
+  if (! XT_P (tree, XP_STEP))
     return 0;
   switch (tree->_.step.axis)
   {
@@ -3741,7 +3741,7 @@ xpt_call (XT * tree)
 	sqlr_new_error ("XP370", "XT014", "First attribute of text-contains cannot be value of attribute");
       if (0 == range_type)
 	return in;
-      if (! ST_P (args[1], XP_LITERAL))
+      if (! XT_P (args[1], XP_LITERAL))
 	return in; /* literal expected as the second argument */
       if (! DV_STRINGP (args[1]->_.literal.val))
 	return in;

@@ -8,7 +8,7 @@
  *  This file is part of the OpenLink Software Virtuoso Open-Source (VOS)
  *  project.
  *
- *  Copyright (C) 1998-2024 OpenLink Software
+ *  Copyright (C) 1998-2026 OpenLink Software
  *
  *  This project is free software; you can redistribute it and/or modify it
  *  under the terms of the GNU General Public License as published by the
@@ -506,10 +506,12 @@ gb_values (chash_t * cha, uint64 * hash_no, caddr_t * inst, state_slot_t * ssl, 
   int64 *temp = NULL;
   int sets[ARTM_VEC_LEN];
   int64 *arr = NULL;
-  data_col_t *dc = QST_BOX (data_col_t *, inst, ssl->ssl_index);
+  data_col_t *dc = ssl->ssl_index ? QST_BOX (data_col_t*, inst, ssl->ssl_index) : NULL;
   int elt_sz, inx, ninx;
   dtp_t chdtp = cha->cha_sqt[nth].sqt_dtp;
   char is_fill = HA_FILL == cha->cha_ha->ha_op;
+  if (0 == ssl->ssl_index)
+    sqlr_new_error ("42000", "VEC26", "Bad expression, constant in hash fill");
   if (!dc)
     sqlr_new_error ("42000", "VEC..", "hash fill outer not supported");
   if (clear_nulls)
@@ -564,6 +566,8 @@ gb_values (chash_t * cha, uint64 * hash_no, caddr_t * inst, state_slot_t * ssl, 
     {
       temp = (int64 *) & temp_space[nth * ARTM_VEC_LEN * DT_LENGTH];
       sslr_n_consec_ref (inst, (state_slot_ref_t *) ssl, sets, first_set, last_set - first_set);
+      if (!dc->dc_n_values && (last_set - first_set))
+        sqlr_new_error ("42000", "VEC26", "hash fill not supported for exp subq inside aggregate");
       switch (elt_sz)
 	{
 	case 4:
@@ -716,7 +720,7 @@ cha_any (chash_t * cha, db_buf_t dv)
 db_buf_t
 cha_dt (chash_t * cha, db_buf_t dt)
 {
-  dtp_t hd[2];
+  dtp_t hd[DT_LENGTH]; /* should have dt_cmp len + 2, cha_any makes copy */
   db_buf_t place;
   hd[0] = DV_SHORT_STRING_SERIAL;
   hd[1] = DT_LENGTH - 2;
@@ -2146,6 +2150,7 @@ setp_chash_distinct_run (setp_node_t * setp, caddr_t * inst, index_tree_t * it)
   int *out_sets;
   cha_cmp_t cmp = cha_cmp;
   char is_intersect = INTERSECT_ST == setp->setp_set_op || INTERSECT_ALL_ST == setp->setp_set_op;
+  char is_distinct_intersect = INTERSECT_ST == setp->setp_set_op;
   hash_index_t *hi = it->it_hi;
   hash_area_t *ha = setp->setp_ha;
   chash_t *cha = hi->hi_chash;
@@ -2188,7 +2193,9 @@ setp_chash_distinct_run (setp_node_t * setp, caddr_t * inst, index_tree_t * it)
 
 #define dis_dup(n) \
 	  { if (is_intersect) {int nth = QST_INT (inst, setp->src_gen.src_out_fill)++; \
-	    out_sets[nth] = set + n - 1; } }
+	    out_sets[nth] = set + n - 1; \
+	    /* Consume a distinct INTERSECT key by invalidating its stored hash. */ \
+	    if (is_distinct_intersect) *ent = ~h_##n; } }
 
 
 #define DIS_PRE(n) \
@@ -2203,10 +2210,12 @@ setp_chash_distinct_run (setp_node_t * setp, caddr_t * inst, index_tree_t * it)
 	  ent = array_##n[pos1_##n]; \
 	  if (!ent) \
 	    { \
+	      if (!is_intersect) { \
 	        cha->cha_distinct_count++;				\
 		cha_add_gb (setp, inst, key_vecs, cha_p_##n, h_##n, pos1_##n, inx + n - 1, first_set, (dtp_t*)nulls); \
                 cha->cha_error |= cha_p_##n->cha_error; \
-		dis_result (n); \
+	      } \
+	      dis_result (n); \
 	      goto done_##n##f; \
 	    } \
 	  if (h_##n == *ent && cmp (cha, ent, key_vecs, inx + n - 1, (dtp_t*)nulls)) \
@@ -2216,9 +2225,11 @@ setp_chash_distinct_run (setp_node_t * setp, caddr_t * inst, index_tree_t * it)
 	  ent = array_##n[pos2_##n]; \
 	  if (!ent) \
 	    { \
-	      cha->cha_distinct_count++;				\
-	      cha_add_gb (setp, inst, key_vecs, cha_p_##n, h_##n, pos2_##n, inx + n - 1, first_set, (dtp_t*)nulls); \
-              cha->cha_error |= cha_p_##n->cha_error; \
+	      if (!is_intersect) { \
+	        cha->cha_distinct_count++;				\
+	        cha_add_gb (setp, inst, key_vecs, cha_p_##n, h_##n, pos2_##n, inx + n - 1, first_set, (dtp_t*)nulls); \
+                cha->cha_error |= cha_p_##n->cha_error; \
+	      } \
 	      dis_result (n); \
 	      goto done_##n##f; \
 	    } \
@@ -2234,9 +2245,11 @@ setp_chash_distinct_run (setp_node_t * setp, caddr_t * inst, index_tree_t * it)
 		  dis_dup (n); goto done_##n##f;	\
 		} \
 	    } \
-	  cha->cha_distinct_count++;					\
-	  cha_add_gb (setp, inst, key_vecs, cha_p_##n, h_##n, -1, inx + n - 1, first_set, (dtp_t*)nulls); \
-          cha->cha_error |= cha_p_##n->cha_error; \
+	  if (!is_intersect) { \
+	    cha->cha_distinct_count++;					\
+	    cha_add_gb (setp, inst, key_vecs, cha_p_##n, h_##n, -1, inx + n - 1, first_set, (dtp_t*)nulls); \
+            cha->cha_error |= cha_p_##n->cha_error; \
+	  } \
 	  dis_result (n); \
 	done_##n##f: ;
 
@@ -6051,7 +6064,7 @@ chash_fill_input (fun_ref_node_t * fref, caddr_t * inst, caddr_t * state)
 
 
 void
-chash_init ()
+chash_init (void)
 {
   int inx;
   if (PAGE_SZ != sizeof (chash_page_t))
@@ -6070,6 +6083,6 @@ chash_init ()
 
 
 void
-chash_cl_init ()
+chash_cl_init (void)
 {
 }
